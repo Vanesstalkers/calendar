@@ -4,10 +4,10 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
+import { Readable } from 'stream';
+
 import { AppModule } from './app.module';
 import { UniversalExceptionFilter } from './exception.filter';
-
-import { Readable } from 'stream';
 
 async function bootstrap() {
   try {

@@ -11,24 +11,28 @@ import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
 
 import { UserModule } from './user/user.module';
+import { ProjectModule } from './project/project.module';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
+
 try {
   dbImport = TypeOrmModule.forRoot({
     ...config.pg,
     type: 'postgres',
-    autoLoadEntities: true, //entities: [], - для ручного импорта
-    synchronize: process.env.MODE === 'DEV',
+    autoLoadEntities: true, //entities: [], // - для ручного импорта
+    synchronize: false,
   });
 } catch (err) {
+  // !!! нужно пробросить корректную ошибку
   console.log({ err });
 }
+
 try {
   let cacheImportOpts: object = {
     isGlobal: true,
   };
   if (true) {
-    // тут добавляем проверку на возможность подключения к redis
+    // !!! тут добавляем проверку на возможность подключения к redis (если не доступен, то убираем store: redisStore)
     cacheImportOpts = {
       ...cacheImportOpts,
       ...config.redis,
@@ -43,7 +47,7 @@ try {
 
 @Global()
 @Module({
-  imports: [dbImport, cacheImport, UserModule],
+  imports: [dbImport, cacheImport, UserModule, ProjectModule],
   controllers: [],
   providers: [],
 })

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+
 import { UtilsService } from '../utils.service';
 
 @Injectable()
@@ -8,7 +9,7 @@ export class AuthService {
 
   async runAuthWithPhone(phone: string, successHandler: () => Promise<void>) {
     const code = this.utils.randomCode();
-    const smsProviderResult = {data: {}};//await this.utils.sendSMS(phone, code);
+    const smsProviderResult = true ? {data: {}} : await this.utils.sendSMS(phone, code);
     this.authSessions[phone] = {
       authCode: code,
       successHandler,

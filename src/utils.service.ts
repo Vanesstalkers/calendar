@@ -1,6 +1,6 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import config from './config';
 import axios from 'axios';
+import config from './config';
 
 @Injectable()
 export class UtilsService {

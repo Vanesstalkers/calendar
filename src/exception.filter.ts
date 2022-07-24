@@ -32,7 +32,7 @@ export class UniversalExceptionFilter implements ExceptionFilter {
       responseStatus = exception.getStatus();
       responseBody.msg = exception.message;
     }else{
-      // !!! log
+      // !!! добавить запись в лог
     }
 
     httpAdapter.reply(ctx.getResponse(), responseBody, responseStatus);
