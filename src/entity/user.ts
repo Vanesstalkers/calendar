@@ -30,8 +30,12 @@ export default class User {
   timezone: string;
 
   @Column('jsonb', { nullable: false, default: {} })
-  config: object;
+  config: {
+    currentProject: object;
+  };
 
   @OneToMany(() => LinkProjectToUser, (link) => link.user)
   join_project: 'LinkProjectToUser'[];
+
+  preventSendSms: boolean;
 }

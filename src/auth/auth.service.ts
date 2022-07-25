@@ -7,19 +7,28 @@ export class AuthService {
   private authSessions = {};
   constructor(private utils: UtilsService) {}
 
-  async runAuthWithPhone(phone: string, successHandler: () => Promise<void>) {
+  async runAuthWithPhone(
+    phone: string,
+    successHandler: () => Promise<void>,
+    preventSendSms: boolean | string = false,
+  ) {
     const code = this.utils.randomCode();
-    const smsProviderResult = true ? {data: {}} : await this.utils.sendSMS(phone, code);
+
+    const smsProviderResult = preventSendSms
+      ? { data: {} }
+      : await this.utils.sendSMS(phone, code);
     this.authSessions[phone] = {
       authCode: code,
       successHandler,
       smsProviderData: smsProviderResult.data,
     };
+
     return code;
   }
 
   async checkAuthCode(phone: string, code: string): Promise<boolean> {
     if (!this.authSessions[phone]) throw new Error('Auth session not found');
+
     const check = code === this.authSessions[phone].authCode;
     if (!check) {
       return false;

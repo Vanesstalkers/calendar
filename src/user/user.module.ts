@@ -17,4 +17,3 @@ import LinkProjectToUser from '../entity/project_to_user';
   controllers: [UserController],
 })
 export class UserModule {}
- 

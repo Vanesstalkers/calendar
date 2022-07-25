@@ -4,7 +4,6 @@ import config from './config';
 
 @Injectable()
 export class UtilsService {
-  
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
   }
@@ -22,7 +21,7 @@ export class UtilsService {
     const queryParams = { to: phone, txt: code };
     const params = {
       ...queryParams,
-      ...config.greensms.account
+      ...config.greensms.account,
     };
     const headers = { 'Content-Type': 'application/json' };
     const result = await axios({ method: 'POST', url, params, headers }).catch(

@@ -34,12 +34,29 @@ export class UserController {
   async registration(@Body() data: User, @Session() session: FastifySession) {
     if (this.utils.validatePhone(data?.phone))
       throw new BadRequestException('Phone number is incorrect');
-      
+
+    const userExist = await this.userService.getOne({ phone: data.phone });
+    if (userExist)
+      throw new BadRequestException('Phone number already registred');
+
+    await this.sessionService.validateSession(session);
+    const storageId = session.storageId;
+
     const code = await this.authService
-      .runAuthWithPhone(data.phone, async () => {
-        this.userService.create(data);
-        session.registration = true;
-      })
+      .runAuthWithPhone(
+        data.phone,
+        async () => {
+          const createResult = await this.userService.create(data);
+          this.sessionService.updateStorageById(storageId, {
+            registration: true,
+            currentProject: {
+              id: createResult.project.id,
+              title: createResult.project.title,
+            },
+          });
+        },
+        data.preventSendSms,
+      )
       .catch((err) => {
         throw err;
       });
@@ -50,31 +67,47 @@ export class UserController {
 
   @Get('session')
   @Header('Content-Type', 'application/json')
-  session(
-    @Session() session: FastifySession,
-  ): SessionI {
-    return this.sessionService.getState(session);
+  async session(@Session() session: FastifySession): Promise<object> {
+    return await this.sessionService.getState(session);
   }
 
   @Get('login')
   @Header('Content-Type', 'application/json')
   async login(
-    @Query() data: { phone: string },
+    @Query() data: { phone: string; preventSendSms: string },
     @Session() session: FastifySession,
   ) {
     if (this.utils.validatePhone(data?.phone))
       throw new BadRequestException('Phone number is incorrect');
 
-    await this.authService
-      .runAuthWithPhone(data.phone, async () => {
-        session.login = true;
-      })
+    const userExist = await this.userService.getOne({ phone: data.phone });
+    if (!userExist)
+      throw new BadRequestException(
+        'Phone number not found (use `registration` method first)',
+      );
+
+    await this.sessionService.validateSession(session);
+    const storageId = session.storageId;
+
+    const code = await this.authService
+      .runAuthWithPhone(
+        data.phone,
+        async () => {
+          const user = await this.userService.getOne({ phone: data.phone });
+          this.sessionService.updateStorageById(storageId, {
+            registration: true,
+            login: true,
+            currentProject: user.config.currentProject,
+          });
+        },
+        data.preventSendSms,
+      )
       .catch((err) => {
         throw err;
       });
 
     await this.sessionService.updateStorage(session, { phone: data.phone });
-    return { status: 'ok', msg: 'wait for auth code' };
+    return { status: 'ok', msg: 'wait for auth code', code };
   }
 
   @Get('code')
@@ -105,9 +138,12 @@ export class UserController {
   @Header('Content-Type', 'application/json')
   async getOne(
     @Query() data: { id: number },
-    // @Session() session: FastifySession,
+    @Session() session: FastifySession,
   ): Promise<User> {
+    if ((await this.sessionService.isLoggedIn(session)) !== true)
+      throw new ForbiddenException('Access denied');
     if (!data?.id) throw new BadRequestException('User ID is empty');
-    return await this.userService.getOne(data.id);
+
+    return await this.userService.getOne({ id: data.id });
   }
 }

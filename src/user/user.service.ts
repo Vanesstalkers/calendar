@@ -16,29 +16,44 @@ export class UserService {
     private dataSource: DataSource,
   ) {}
 
-  async getOne(id: number): Promise<User> {
+  async getOne(where: { id?: number; phone?: string }): Promise<User> {
     const findData = await this.repository.findOne({
-      where: { id },
+      where: { id: where.id, phone: where.phone },
       relations: ['join_project', 'join_project.project'],
     });
     return findData;
   }
 
-  async create(data: User) {
-    const user = new User();
-    user.name = data.name;
-    user.phone = data.phone;
-    await this.repository.save(user);
+  async create(data: User): Promise<{ user: User; project: Project }> {
+    var project, user, join;
+    await this.dataSource.manager.transaction(async (manager) => {
+      const repository = manager.withRepository(this.repository);
+      const projectRepository = manager.withRepository(this.projectRepository);
+      const joinToProjectRepository = manager.withRepository(
+        this.joinToProjectRepository,
+      );
 
-    const project = new Project();
-    project.title = user.name + '`s personal project';
-    await this.projectRepository.save(project);
+      project = new Project();
+      project.title = data.name + '`s personal project';
+      await projectRepository.save(project);
 
-    const join = new LinkProjectToUser();
-    join.user = user;
-    join.project = project;
-    join.role = 'owner';
-    await this.joinToProjectRepository.save(join);
+      user = new User();
+      user.name = data.name;
+      user.phone = data.phone;
+      user.config = {
+        currentProject: {
+          id: project.id,
+          title: project.title,
+        },
+      };
+      await repository.save(user);
+
+      join = new LinkProjectToUser();
+      join.user = user;
+      join.project = project;
+      join.role = 'owner';
+      await joinToProjectRepository.save(join);
+    });
 
     // const user = await this.dataSource
     //   .createQueryBuilder()
@@ -80,6 +95,6 @@ export class UserService {
     //   });
     // console.log({ user, project });
 
-    return;
+    return { user, project };
   }
 }

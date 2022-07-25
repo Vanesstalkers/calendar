@@ -10,11 +10,12 @@ import { SessionStorageI } from './storage.interface';
 export class SessionService {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
   
-  getState(session: FastifySession): SessionI {
+  async getState(session: FastifySession): Promise<SessionStorageI> {
+    const storage = await this.getStorage(session) ?? {};
     return {
-      registration: session.registration ?? false,
-      login: session.login ?? false,
-      // currentProject
+      registration: storage.registration === true,
+      login: storage.login === true,
+      currentProject: storage.currentProject ?? null,
     };
   }
 
@@ -30,6 +31,11 @@ export class SessionService {
     }
   }
 
+  async isLoggedIn(session: FastifySession){
+    const storage = await this.getStorage(session);
+    return storage.login === true;
+  }
+
   async getStorage(session: FastifySession): Promise<SessionStorageI> {
     await this.validateSession(session);
     const storageId = session.get('storageId');
@@ -39,6 +45,10 @@ export class SessionService {
   async updateStorage(session: FastifySession, data: SessionStorageI) {
     await this.validateSession(session);
     const storageId = session.get('storageId');
+    await this.updateStorageById(storageId, data);
+  }
+
+  async updateStorageById(storageId: string, data: SessionStorageI) {
     const storageData: SessionStorageI = JSON.parse(await this.cacheManager.get(storageId));
     await this.cacheManager.set(
       storageId,

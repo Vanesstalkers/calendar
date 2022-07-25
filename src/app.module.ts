@@ -10,6 +10,7 @@ import config from './config';
 import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
 
+import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
 
@@ -47,7 +48,7 @@ try {
 
 @Global()
 @Module({
-  imports: [dbImport, cacheImport, UserModule, ProjectModule],
+  imports: [dbImport, cacheImport, SessionModule, UserModule, ProjectModule],
   controllers: [],
   providers: [],
 })

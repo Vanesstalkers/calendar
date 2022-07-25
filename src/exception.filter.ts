@@ -5,6 +5,7 @@ import {
   HttpException,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
@@ -27,11 +28,12 @@ export class UniversalExceptionFilter implements ExceptionFilter {
     const knownException =
       exception instanceof HttpException ||
       exception instanceof UnauthorizedException ||
-      exception instanceof BadRequestException;
+      exception instanceof BadRequestException ||
+      exception instanceof ForbiddenException;
     if (knownException) {
       responseStatus = exception.getStatus();
       responseBody.msg = exception.message;
-    }else{
+    } else {
       // !!! добавить запись в лог
     }
 

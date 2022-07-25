@@ -21,8 +21,11 @@ async function bootstrap() {
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
+      cookie: { path: '/' },
     });
-    app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
+    app.useGlobalFilters(
+      new UniversalExceptionFilter(app.get(HttpAdapterHost)),
+    );
     await app.listen(3000);
   } catch (err) {
     console.log('abortOnError catched', { err });

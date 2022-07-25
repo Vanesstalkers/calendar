@@ -15,12 +15,14 @@ import { Session as FastifySession } from '@fastify/secure-session';
 
 import { ProjectService } from './project.service';
 import { UtilsService } from '../utils.service';
+import { SessionService } from '../session/session.service';
 import Project from '../entity/project';
 
 @Controller('project')
 export class ProjectController {
   constructor(
-    private projectService: ProjectService,
+    private service: ProjectService,
+    private sessionService: SessionService,
     private utils: UtilsService,
   ) {}
 
@@ -28,9 +30,12 @@ export class ProjectController {
   @Header('Content-Type', 'application/json')
   async getOne(
     @Query() data: { id: number },
-    // @Session() session: FastifySession,
+    @Session() session: FastifySession,
   ): Promise<Project> {
+    if ((await this.sessionService.isLoggedIn(session)) !== true)
+      throw new ForbiddenException('Access denied');
     if (!data?.id) throw new BadRequestException('Project ID is empty');
-    return await this.projectService.getOne(data.id);
+
+    return await this.service.getOne(data.id);
   }
 }
