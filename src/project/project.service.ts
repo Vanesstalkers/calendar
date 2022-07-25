@@ -1,23 +1,36 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
 
-import Project from '../entity/project';
-import LinkProjectToUser from '../entity/project_to_user';
+import { Project } from '../models/project';
+import { User } from '../models/user';
+import { ProjectToUser } from '../models/project_to_user';
 
 @Injectable()
 export class ProjectService {
   constructor(
-    @InjectRepository(Project) private repository: Repository<Project>,
-    @InjectRepository(LinkProjectToUser)
-    private joinToProjectRepository: Repository<LinkProjectToUser>,
-    private dataSource: DataSource,
+    private sequelize: Sequelize,
+    @InjectModel(Project) private modelProject: typeof Project,
+    @InjectModel(User) private modelUser: typeof User,
+    @InjectModel(ProjectToUser)
+    private modelProjectToUser: typeof ProjectToUser,
   ) {}
 
   async getOne(id: number): Promise<Project> {
-    const findData = await this.repository.findOne({
-      where: { id },
-      relations: ['join_user', 'join_user.user'],
+    const findData = await this.modelProject.findOne({
+      where: {
+        id,
+      },
+      include: {
+        model: ProjectToUser,
+        attributes: ['userId'],
+        include: [
+          {
+            model: User,
+            attributes: ['name'],
+          },
+        ],
+      },
     });
     return findData;
   }

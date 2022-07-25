@@ -16,7 +16,8 @@ import { Session as FastifySession } from '@fastify/secure-session';
 import { ProjectService } from './project.service';
 import { UtilsService } from '../utils.service';
 import { SessionService } from '../session/session.service';
-import Project from '../entity/project';
+
+import { Project } from '../models/project';
 
 @Controller('project')
 export class ProjectController {

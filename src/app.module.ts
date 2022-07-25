@@ -5,7 +5,9 @@ import {
   Global,
   CacheModule,
 } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { SequelizeModule } from '@nestjs/sequelize';
+
 import config from './config';
 import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
@@ -17,11 +19,11 @@ import { ProjectModule } from './project/project.module';
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
 try {
-  dbImport = TypeOrmModule.forRoot({
+  dbImport = SequelizeModule.forRoot({
     ...config.pg,
-    type: 'postgres',
-    autoLoadEntities: true, //entities: [], // - для ручного импорта
-    synchronize: false,
+    dialect: 'postgres',
+    models: ['/models'],
+    autoLoadModels: true,
   });
 } catch (err) {
   // !!! нужно пробросить корректную ошибку
@@ -48,7 +50,14 @@ try {
 
 @Global()
 @Module({
-  imports: [dbImport, cacheImport, SessionModule, UserModule, ProjectModule],
+  imports: [
+    dbImport,
+    cacheImport,
+    UserModule,
+    SessionModule,
+    UserModule,
+    ProjectModule,
+  ],
   controllers: [],
   providers: [],
 })

@@ -19,7 +19,8 @@ import { AuthService } from '../auth/auth.service';
 import { SessionService } from '../session/session.service';
 import { SessionI } from '../session/session.interface';
 import { SessionStorageI } from '../session/storage.interface';
-import User from '../entity/user';
+
+import { User } from '../models/user';
 
 @Controller('user')
 export class UserController {
@@ -29,6 +30,12 @@ export class UserController {
     private authService: AuthService,
     private utils: UtilsService,
   ) {}
+
+  @Post('create')
+  async create(@Body() data: User, @Session() session: FastifySession) {
+    const createResult = await this.userService.create(data);
+    return { status: 'ok' };
+  }
 
   @Post('registration')
   async registration(@Body() data: User, @Session() session: FastifySession) {
