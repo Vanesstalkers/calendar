@@ -10,6 +10,7 @@ import {
   Req,
   BadRequestException,
   ForbiddenException,
+  UseGuards,
 } from '@nestjs/common';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
@@ -52,6 +53,7 @@ class loginQueryDTO {
 
 @Controller('user')
 @ApiTags('user')
+@UseGuards(validateSession)
 export class UserController {
   constructor(
     private userService: UserService,
@@ -143,6 +145,7 @@ export class UserController {
 
   @Get('code')
   @Header('Content-Type', 'application/json')
+  @UseGuards(isLoggedIn)
   async code(@Query() data: codeQueryDTO, @Session() session: FastifySession) {
     if (!data?.code) throw new BadRequestException('Auth code is empty');
 
@@ -164,6 +167,7 @@ export class UserController {
 
   @Get('getOne')
   @Header('Content-Type', 'application/json')
+  @UseGuards(isLoggedIn)
   async getOne(
     @Query() data: getOneQueryDTO,
     @Session() session: FastifySession,

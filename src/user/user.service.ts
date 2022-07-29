@@ -24,7 +24,7 @@ export class UserService {
       },
       include: {
         model: ProjectToUser,
-        attributes: ['projectId'],
+        attributes: ['project_id'],
         include: [
           {
             model: Project,
