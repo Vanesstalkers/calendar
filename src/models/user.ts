@@ -12,6 +12,9 @@ import {
 } from 'sequelize-typescript';
 
 import { ProjectToUser } from './project_to_user';
+import { Task } from './task';
+import { TaskToUser } from './task_to_user';
+import { UserToUser } from './user_to_user';
 
 @Table({ tableName: 'user' })
 export class User extends Model {
@@ -41,8 +44,20 @@ export class User extends Model {
     currentProject: object;
   };
 
-  @HasMany(() => ProjectToUser, 'userId')
+  @HasMany(() => ProjectToUser, 'user_id')
   __project: ProjectToUser[];
+
+  @HasMany(() => Task, 'exec_user')
+  __task: Task[];
+
+  @HasMany(() => TaskToUser, 'exec_user')
+  __tasktouser: TaskToUser[];
+
+  @HasMany(() => UserToUser, 'user_id')
+  __usertouser: UserToUser[];
+
+  @HasMany(() => UserToUser, 'user_rel_id')
+  __relusertouser: UserToUser[];
 
   @CreatedAt
   add_time: Date;

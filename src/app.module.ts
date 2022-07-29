@@ -15,6 +15,19 @@ import * as redisStore from 'cache-manager-redis-store';
 import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
+import { TaskModule } from './task/task.module';
+
+import { User } from './models/user';
+import { Project } from './models/project';
+import { ProjectToUser } from './models/project_to_user';
+import { Task } from './models/task';
+import { TaskGroup } from './models/task_group';
+import { Hashtag } from './models/hashtag';
+import { TaskToUser } from './models/task_to_user';
+import { UserToUser } from './models/user_to_user';
+import { Tick } from './models/tick';
+import { Comment } from './models/comment';
+import { File } from './models/file';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
@@ -23,7 +36,8 @@ try {
     ...config.pg,
     dialect: 'postgres',
     models: ['/models'],
-    autoLoadModels: true,
+    autoLoadModels: false,
+    logging: false,
   });
 } catch (err) {
   // !!! нужно пробросить корректную ошибку
@@ -55,8 +69,9 @@ try {
     cacheImport,
     UserModule,
     SessionModule,
-    UserModule,
     ProjectModule,
+    TaskModule,
+    SequelizeModule.forFeature([User, Project, Task, ProjectToUser, TaskGroup, Hashtag, TaskToUser, UserToUser, Tick, Comment, File]),
   ],
   controllers: [],
   providers: [],

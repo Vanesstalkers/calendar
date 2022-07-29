@@ -9,6 +9,7 @@ import {
   CreatedAt,
   UpdatedAt,
   DeletedAt,
+  Comment,
 } from 'sequelize-typescript';
 
 import { User } from './user';
@@ -21,15 +22,28 @@ export class ProjectToUser extends Model {
 
   @ForeignKey(() => User)
   @Column
-  userId: number;
+  user_id: number;
   @BelongsTo(() => User)
   user: User;
 
   @ForeignKey(() => Project)
   @Column
-  projectId: number;
+  project_id: number;
   @BelongsTo(() => Project)
   project: User;
+
+
+  @Comment('личный проект')
+  @Column({ defaultValue: false })
+  personal: boolean;
+
+  @Comment('имя пользователя в проекте')
+  @Column
+  user_name: string
+
+  @Comment('персональные настройки видимости')
+  @Column({ type: DataType.JSON, defaultValue: {} })
+  config: object;
 
   @CreatedAt
   add_time: Date;

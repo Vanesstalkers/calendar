@@ -12,6 +12,7 @@ import {
 } from 'sequelize-typescript';
 
 import { ProjectToUser } from './project_to_user';
+import { Task } from './task';
 
 @Table({ tableName: 'project' })
 export class Project extends Model {
@@ -26,8 +27,12 @@ export class Project extends Model {
   @Column({ type: DataType.JSON, defaultValue: {} })
   config: object;
 
-  @HasMany(() => ProjectToUser, 'projectId')
+  @HasMany(() => ProjectToUser, 'project_id')
   __user: ProjectToUser[];
+
+  @HasMany(() => Task, 'project_id')
+  __task: Task[];
+
 
   @CreatedAt
   add_time: Date;
