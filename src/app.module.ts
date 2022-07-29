@@ -36,7 +36,8 @@ try {
     ...config.pg,
     dialect: 'postgres',
     models: ['/models'],
-    autoLoadModels: false,
+    autoLoadModels: true,
+    synchronize: false, // если удалить или поставить в true, то начнет перетирать данные
     logging: false,
   });
 } catch (err) {
@@ -71,10 +72,22 @@ try {
     SessionModule,
     ProjectModule,
     TaskModule,
-    SequelizeModule.forFeature([User, Project, Task, ProjectToUser, TaskGroup, Hashtag, TaskToUser, UserToUser, Tick, Comment, File]),
+    SequelizeModule.forFeature([
+      User,
+      Project,
+      Task,
+      ProjectToUser,
+      TaskGroup,
+      Hashtag,
+      TaskToUser,
+      UserToUser,
+      Tick,
+      Comment,
+      File,
+    ]),
   ],
-  controllers: [],
   providers: [],
+  controllers: [],
 })
 export class AppModule implements NestModule {
   configure() {}

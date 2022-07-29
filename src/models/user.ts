@@ -10,6 +10,7 @@ import {
   UpdatedAt,
   DeletedAt,
 } from 'sequelize-typescript';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { ProjectToUser } from './project_to_user';
 import { Task } from './task';
@@ -19,6 +20,7 @@ import { UserToUser } from './user_to_user';
 @Table({ tableName: 'user' })
 export class User extends Model {
   // non-db fields
+  @ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
   preventSendSms: boolean;
 
   // db fields
@@ -30,6 +32,7 @@ export class User extends Model {
   @Column
   name: string;
 
+  @ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   @Column
   phone: string;
 

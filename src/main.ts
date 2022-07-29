@@ -4,6 +4,7 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Readable } from 'stream';
 
 import { AppModule } from './app.module';
@@ -26,6 +27,15 @@ async function bootstrap() {
     app.useGlobalFilters(
       new UniversalExceptionFilter(app.get(HttpAdapterHost)),
     );
+
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('API description')
+      .setDescription('')
+      .setVersion('1.0')
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api', app, document);
+
     await app.listen(3000);
   } catch (err) {
     console.log('abortOnError catched', { err });

@@ -6,12 +6,20 @@ import {
   Session,
   Body,
   Query,
+  Param,
   Req,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
+import {
+  ApiBody,
+  ApiQuery,
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { UserService } from './user.service';
 import { UtilsService } from '../utils.service';
@@ -22,7 +30,28 @@ import { SessionStorageI } from '../session/storage.interface';
 
 import { User } from '../models/user';
 
+import { validateSession, isLoggedIn } from '../decorators/test.decorator';
+
+class getOneQueryDTO {
+  @ApiProperty({
+    example: '1,2,3...',
+    description: 'ID пользователя',
+  })
+  id: number;
+}
+class codeQueryDTO {
+  @ApiProperty({ example: '4523', description: 'Проверочный код из СМС' })
+  code: string;
+}
+class loginQueryDTO {
+  @ApiProperty({ description: 'Номер телефона', example: '9265126677' })
+  phone: string;
+  @ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
+  preventSendSms: string;
+}
+
 @Controller('user')
+@ApiTags('user')
 export class UserController {
   constructor(
     private userService: UserService,
@@ -31,7 +60,7 @@ export class UserController {
     private utils: UtilsService,
   ) {}
 
-  @Post('create')
+  // @Post('create')
   async create(@Body() data: User, @Session() session: FastifySession) {
     const createResult = await this.userService.create(data);
     return { status: 'ok' };
@@ -46,15 +75,15 @@ export class UserController {
     if (userExist)
       throw new BadRequestException('Phone number already registred');
 
-    await this.sessionService.validateSession(session);
-    const storageId = session.storageId;
+    await this.sessionService.updateStorage(session, { phone: data.phone });
 
+    const sessionStorageId = session.storageId;
     const code = await this.authService
       .runAuthWithPhone(
         data.phone,
         async () => {
           const createResult = await this.userService.create(data);
-          this.sessionService.updateStorageById(storageId, {
+          this.sessionService.updateStorageById(sessionStorageId, {
             registration: true,
             currentProject: {
               id: createResult.project.id,
@@ -68,7 +97,6 @@ export class UserController {
         throw err;
       });
 
-    await this.sessionService.updateStorage(session, { phone: data.phone });
     return { status: 'ok', msg: 'wait for auth code', code }; // !!! убрать code после отладки
   }
 
@@ -78,12 +106,9 @@ export class UserController {
     return await this.sessionService.getState(session);
   }
 
-  @Get('login')
+  @Post('login')
   @Header('Content-Type', 'application/json')
-  async login(
-    @Query() data: { phone: string; preventSendSms: string },
-    @Session() session: FastifySession,
-  ) {
+  async login(@Body() data: loginQueryDTO, @Session() session: FastifySession) {
     if (this.utils.validatePhone(data?.phone))
       throw new BadRequestException('Phone number is incorrect');
 
@@ -93,9 +118,9 @@ export class UserController {
         'Phone number not found (use `registration` method first)',
       );
 
-    await this.sessionService.validateSession(session);
-    const storageId = session.storageId;
+    await this.sessionService.updateStorage(session, { phone: data.phone });
 
+    const storageId = session.storageId;
     const code = await this.authService
       .runAuthWithPhone(
         data.phone,
@@ -113,16 +138,12 @@ export class UserController {
         throw err;
       });
 
-    await this.sessionService.updateStorage(session, { phone: data.phone });
     return { status: 'ok', msg: 'wait for auth code', code };
   }
 
   @Get('code')
   @Header('Content-Type', 'application/json')
-  async code(
-    @Query() data: { code: string },
-    @Session() session: FastifySession,
-  ) {
+  async code(@Query() data: codeQueryDTO, @Session() session: FastifySession) {
     if (!data?.code) throw new BadRequestException('Auth code is empty');
 
     const sessionStorage: SessionStorageI =
@@ -144,12 +165,10 @@ export class UserController {
   @Get('getOne')
   @Header('Content-Type', 'application/json')
   async getOne(
-    @Query() data: { id: number },
+    @Query() data: getOneQueryDTO,
     @Session() session: FastifySession,
   ): Promise<User> {
-    if ((await this.sessionService.isLoggedIn(session)) !== true)
-      throw new ForbiddenException('Access denied');
-    if (!data?.id) throw new BadRequestException('User ID is empty');
+    if (data.id) throw new BadRequestException('User ID is empty');
 
     return await this.userService.getOne({ id: data.id });
   }

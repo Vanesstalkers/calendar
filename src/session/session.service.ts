@@ -10,7 +10,7 @@ import { SessionStorageI } from './storage.interface';
 export class SessionService {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
   
-  async getState(session: FastifySession): Promise<SessionStorageI> {
+  async getState(session: FastifySession): Promise<SessionStorageI> { 
     const storage = await this.getStorage(session) ?? {};
     return {
       registration: storage.registration === true,
