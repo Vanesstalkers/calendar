@@ -9,7 +9,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-
 import { exceptonAnswerDTO } from './dto/httpAnswer';
 
 @Catch()

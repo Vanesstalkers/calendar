@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common';
-
+import * as nestjs from '@nestjs/common';
 import { UtilsService } from '../utils.service';
 
-@Injectable()
+@nestjs.Injectable()
 export class AuthService {
   private authSessions = {};
   constructor(private utils: UtilsService) {}

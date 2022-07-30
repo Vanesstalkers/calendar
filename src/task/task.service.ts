@@ -1,34 +1,32 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
+import * as nestjs from '@nestjs/common';
+import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
+import { Session as FastifySession } from '@fastify/secure-session';
+import { decorators, dto, models, types } from '../globalImport';
 
-import { Task } from '../models/task';
-import { Project } from '../models/project';
-import { User } from '../models/user';
-import { ProjectToUser } from '../models/project_to_user';
-
-@Injectable()
+@nestjs.Injectable()
 export class TaskService {
   constructor(
     private sequelize: Sequelize,
-    @InjectModel(Task) private taskModel: typeof Task,
-    @InjectModel(User) private modelUser: typeof User,
+    @sequelize.InjectModel(models.task) private taskModel: typeof models.task,
+    @sequelize.InjectModel(models.user) private modelUser: typeof models.user,
   ) {}
 
-  async create(data: { task: Task; userId: number, projectId: number }): Promise<Task> {
+  async create(data: {
+    task: types['models']['task'];
+    userId: number;
+    projectId: number;
+  }): Promise<types['models']['task']> {
     const task = await this.taskModel.create({
       ...data.task,
-      project_id: data.projectId
+      project_id: data.projectId,
     });
-    // await this.projectToUserModel.create({
-    //   project_id: project.id,
-    //   user_id: data.userId,
-    //   role: 'owner',
-    // });
     return task;
   }
 
-  async getOne(id: number): Promise<Task> {
+  async getOne(id: number): Promise<types['models']['task']> {
     const findData = await this.taskModel.findOne({
       where: {
         id,

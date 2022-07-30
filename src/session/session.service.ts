@@ -1,14 +1,19 @@
+import * as nestjs from '@nestjs/common';
+import * as sequelize from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { Inject, Injectable, CACHE_MANAGER } from '@nestjs/common';
+import { decorators, dto, models, types } from '../globalImport';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 
 import { SessionI } from './session.interface';
 import { SessionStorageI } from './storage.interface';
 
-@Injectable()
+@nestjs.Injectable()
 export class SessionService {
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  constructor(@nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache) {}
   
   async getState(session: FastifySession): Promise<SessionStorageI> { 
     const storage = await this.getStorage(session) ?? {};

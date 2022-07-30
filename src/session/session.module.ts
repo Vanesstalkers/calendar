@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { models } from '../globalImport';
 
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';

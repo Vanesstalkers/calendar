@@ -1,30 +1,42 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
+import * as nestjs from '@nestjs/common';
+import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
+import { Session as FastifySession } from '@fastify/secure-session';
+import { decorators, dto, models, types } from '../globalImport';
 
-import { User } from '../models/user';
-import { Project } from '../models/project';
-import { ProjectToUser } from '../models/project_to_user';
+// import { Injectable, ForbiddenException } from '@nestjs/common';
+// import { InjectModel } from '@nestjs/sequelize';
+// import { Sequelize } from 'sequelize-typescript';
 
-@Injectable()
+// import { User } from '../models/user';
+// import { Project } from '../models/project';
+// import { ProjectToUser } from '../models/project_to_user';
+
+@nestjs.Injectable()
 export class UserService {
   constructor(
     private sequelize: Sequelize,
-    @InjectModel(User) private userModel: typeof User,
-    @InjectModel(Project) private projectModel: typeof Project,
-    @InjectModel(ProjectToUser)
-    private projectToUserModel: typeof ProjectToUser,
+    @sequelize.InjectModel(models.user) private userModel: typeof models.user,
+    @sequelize.InjectModel(models.project)
+    private projectModel: typeof models.project,
+    @sequelize.InjectModel(models.project2user)
+    private projectToUserModel: typeof models.project2user,
   ) {}
 
-  async getOne(where: { id?: number; phone?: string }): Promise<User | null> {
-    const findData: User | null = await this.userModel.findOne({
+  async getOne(where: {
+    id?: number;
+    phone?: string;
+  }): Promise<types['models']['user'] | null> {
+    const findData = await this.userModel.findOne({
       where: where,
       include: {
-        model: ProjectToUser,
+        model: models.project2user,
         attributes: ['project_id'],
         include: [
           {
-            model: Project,
+            model: models.project,
             attributes: ['title'],
           },
         ],
@@ -33,7 +45,12 @@ export class UserService {
     return findData;
   }
 
-  async create(data: User): Promise<{ user: User; project: Project }> {
+  async create(
+    data: types['models']['user'],
+  ): Promise<{
+    user: types['models']['user'];
+    project: types['models']['project'];
+  }> {
     const project = await this.projectModel.create({
       title: data.name + '`s personal project',
     });

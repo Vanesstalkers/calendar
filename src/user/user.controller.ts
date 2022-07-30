@@ -1,30 +1,8 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Header,
-  Session,
-  Body,
-  Query,
-  Param,
-  Req,
-  Res,
-  BadRequestException,
-  ForbiddenException,
-  UseGuards,
-} from '@nestjs/common';
-import { FastifyRequest, FastifyReply } from 'fastify';
+import * as nestjs from '@nestjs/common';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import {
-  ApiBody,
-  ApiQuery,
-  ApiProperty,
-  ApiPropertyOptional,
-  ApiResponse,
-  ApiTags,
-  ApiExtraModels,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { decorators, dto, models, types } from '../globalImport';
 
 import { UserService } from './user.service';
 import { UtilsService } from '../utils.service';
@@ -33,46 +11,45 @@ import { SessionService } from '../session/session.service';
 import { SessionI } from '../session/session.interface';
 import { SessionStorageI } from '../session/storage.interface';
 
-import { User } from '../models/user';
-
-import {
-  exceptonAnswerDTO,
-  emptyAnswerDTO,
-  successAnswerDTO,
-} from '../dto/httpAnswer';
 import { validateSession, isLoggedIn } from '../decorators/test.decorator';
 
 class getOneQueryDTO {
-  @ApiProperty({
+  @swagger.ApiProperty({
     example: '1,2,3...',
     description: 'ID пользователя',
   })
   id: number;
 }
 class codeQueryDTO {
-  @ApiProperty({ example: '4523', description: 'Проверочный код из СМС' })
+  @swagger.ApiProperty({
+    example: '4523',
+    description: 'Проверочный код из СМС',
+  })
   code: string;
 }
 class loginQueryDTO {
-  @ApiProperty({ description: 'Номер телефона', example: '9265126677' })
+  @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone: string;
-  @ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
+  @swagger.ApiPropertyOptional({
+    description: 'Не отправлять СМС',
+    example: 'true',
+  })
   preventSendSms: string;
 }
 class changeCurrentProjectDTO {
-  @ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
+  @swagger.ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
   projectId: number;
 }
 
-@Controller('user')
-@ApiTags('user')
-@ApiResponse({
+@nestjs.Controller('user')
+@swagger.ApiTags('user')
+@swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
-  type: () => exceptonAnswerDTO,
+  type: () => dto.response.exception,
 })
-@ApiExtraModels(emptyAnswerDTO, successAnswerDTO)
-@UseGuards(validateSession)
+@swagger.ApiExtraModels(dto.response.empty, dto.response.success)
+@nestjs.UseGuards(validateSession)
 export class UserController {
   constructor(
     private userService: UserService,
@@ -81,20 +58,26 @@ export class UserController {
     private utils: UtilsService,
   ) {}
 
-  // @Post('create')
-  async create(@Body() data: User, @Session() session: FastifySession) {
+  // @nestjs.Post('create')
+  async create(
+    @nestjs.Body() data: types['models']['user'],
+    @nestjs.Session() session: FastifySession,
+  ) {
     const createResult = await this.userService.create(data);
     return { status: 'ok' };
   }
 
-  @Post('registration')
-  async registration(@Body() data: User, @Session() session: FastifySession) {
+  @nestjs.Post('registration')
+  async registration(
+    @nestjs.Body() data: types['models']['user'],
+    @nestjs.Session() session: FastifySession,
+  ) {
     if (this.utils.validatePhone(data?.phone))
-      throw new BadRequestException('Phone number is incorrect');
+      throw new nestjs.BadRequestException('Phone number is incorrect');
 
     const userExist = await this.userService.getOne({ phone: data.phone });
     if (userExist)
-      throw new BadRequestException('Phone number already registred');
+      throw new nestjs.BadRequestException('Phone number already registred');
 
     await this.sessionService.updateStorage(session, { phone: data.phone });
 
@@ -122,21 +105,24 @@ export class UserController {
     return { status: 'ok', msg: 'wait for auth code', code }; // !!! убрать code после отладки
   }
 
-  @Get('session')
-  @Header('Content-Type', 'application/json')
-  async session(@Session() session: FastifySession): Promise<object> {
+  @nestjs.Get('session')
+  @nestjs.Header('Content-Type', 'application/json')
+  async session(@nestjs.Session() session: FastifySession): Promise<object> {
     return await this.sessionService.getState(session);
   }
 
-  @Post('login')
-  @Header('Content-Type', 'application/json')
-  async login(@Body() data: loginQueryDTO, @Session() session: FastifySession) {
+  @nestjs.Post('login')
+  @nestjs.Header('Content-Type', 'application/json')
+  async login(
+    @nestjs.Body() data: loginQueryDTO,
+    @nestjs.Session() session: FastifySession,
+  ) {
     if (this.utils.validatePhone(data?.phone))
-      throw new BadRequestException('Phone number is incorrect');
+      throw new nestjs.BadRequestException('Phone number is incorrect');
 
     const userExist = await this.userService.getOne({ phone: data.phone });
     if (!userExist)
-      throw new BadRequestException(
+      throw new nestjs.BadRequestException(
         'Phone number not found (use `registration` method first)',
       );
 
@@ -164,10 +150,13 @@ export class UserController {
     return { status: 'ok', msg: 'wait for auth code', code };
   }
 
-  @Get('code')
-  @Header('Content-Type', 'application/json')
-  async code(@Query() data: codeQueryDTO, @Session() session: FastifySession) {
-    if (!data?.code) throw new BadRequestException('Auth code is empty');
+  @nestjs.Get('code')
+  @nestjs.Header('Content-Type', 'application/json')
+  async code(
+    @nestjs.Query() data: codeQueryDTO,
+    @nestjs.Session() session: FastifySession,
+  ) {
+    if (!data?.code) throw new nestjs.BadRequestException('Auth code is empty');
 
     const sessionStorage: SessionStorageI =
       await this.sessionService.getStorage(session);
@@ -175,7 +164,7 @@ export class UserController {
       .checkAuthCode(sessionStorage.phone, data.code)
       .catch((err) => {
         if (err.message === 'Auth session not found')
-          throw new ForbiddenException('Send auth request first');
+          throw new nestjs.ForbiddenException('Send auth request first');
         else throw err;
       });
 
@@ -185,28 +174,29 @@ export class UserController {
     return { status: 'ok' };
   }
 
-  @Get('getOne')
-  @Header('Content-Type', 'application/json')
-  @UseGuards(isLoggedIn)
-  @ApiResponse(new successAnswerDTO(User, emptyAnswerDTO))
-  async getOne(
-    @Query() data: getOneQueryDTO,
-  ): Promise<{ status: string; data: User | emptyAnswerDTO }> {
-    if (!data.id) throw new BadRequestException('User ID is empty');
+  @nestjs.Get('getOne')
+  @nestjs.Header('Content-Type', 'application/json')
+  @nestjs.UseGuards(isLoggedIn)
+  @swagger.ApiResponse(
+    new dto.response.success(models.user, dto.response.empty),
+  )
+  async getOne(@nestjs.Query() data: getOneQueryDTO): Promise<{
+    status: string;
+    data: types['models']['user'] | types['dto']['response']['empty'];
+  }> {
+    if (!data.id) throw new nestjs.BadRequestException('User ID is empty');
 
     const result = await this.userService.getOne({ id: data.id });
-    return { status: 'ok', data: result || new emptyAnswerDTO() };
+    return { status: 'ok', data: result || new dto.response.empty() };
   }
 
-  @Post('changeCurrentProject')
-  @UseGuards(isLoggedIn)
+  @nestjs.Post('changeCurrentProject')
+  @nestjs.UseGuards(isLoggedIn)
   async changeCurrentProject(
-    @Query() data: changeCurrentProjectDTO,
-    @Session() session: FastifySession,
-  ): Promise<successAnswerDTO> {
-    this.sessionService.updateStorageById(session.storageId, {
-      
-    });
+    @nestjs.Query() data: changeCurrentProjectDTO,
+    @nestjs.Session() session: FastifySession,
+  ): Promise<types['dto']['response']['success']> {
+    this.sessionService.updateStorageById(session.storageId, {});
     // const userId = await this.sessionService.getUserId(session);
     // await this.userService.changeCurrentProject({
     //   projectId: data.projectId,

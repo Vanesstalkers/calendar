@@ -1,21 +1,25 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/sequelize';
+import * as nestjs from '@nestjs/common';
+import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
+import { Session as FastifySession } from '@fastify/secure-session';
+import { decorators, dto, models, types } from '../globalImport';
 
-import { Project } from '../models/project';
-import { User } from '../models/user';
-import { ProjectToUser } from '../models/project_to_user';
-
-@Injectable()
+@nestjs.Injectable()
 export class ProjectService {
   constructor(
     private sequelize: Sequelize,
-    @InjectModel(Project) private projectModel: typeof Project,
-    @InjectModel(ProjectToUser)
-    private projectToUserModel: typeof ProjectToUser,
+    @sequelize.InjectModel(models.project)
+    private projectModel: typeof models.project,
+    @sequelize.InjectModel(models.project2user)
+    private projectToUserModel: typeof models.project2user,
   ) {}
 
-  async create(data: { project: Project; userId: number }): Promise<Project> {
+  async create(data: {
+    project: types['models']['project'];
+    userId: number;
+  }): Promise<types['models']['project']> {
     const project = await this.projectModel.create({
       title: data.project.title,
     });

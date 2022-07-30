@@ -1,42 +1,29 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment as sequelizeComment,
-  AutoIncrement,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
 
-import { Task } from './task';
+import { models, types } from '../globalImport';
 
-@Table({ tableName: 'comment' })
-export class Comment extends Model {
+@sequelize.Table({ tableName: 'comment' })
+export class Comment extends sequelize.Model {
 
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @ForeignKey(() => Task)
-  @Column
+  @sequelize.ForeignKey(() => models.task)
+  @sequelize.Column
   task_id: number;
-  @BelongsTo(() => Task)
-  task: Task;
+  @sequelize.BelongsTo(() => models.task)
+  task: types['models']['task'];
 
-  @sequelizeComment('текст комментария')
-  @Column
+  @sequelize.Comment('текст комментария')
+  @sequelize.Column
   text: string
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

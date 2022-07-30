@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
+import * as swagger from '@nestjs/swagger';
 
 export class emptyAnswerDTO {}
 
@@ -14,7 +14,7 @@ export class successAnswerDTO {
             example: 'ok',
           },
           data: {
-            oneOf: refs.map((ref) => ({ $ref: getSchemaPath(ref) })),
+            oneOf: refs.map((ref) => ({ $ref: swagger.getSchemaPath(ref) })),
           },
         },
       },
@@ -23,12 +23,12 @@ export class successAnswerDTO {
 }
 
 export class exceptonAnswerDTO {
-    @ApiProperty({ example: 'err', description: 'Статус ответа' })
+    @swagger.ApiProperty({ example: 'err', description: 'Статус ответа' })
     status: string;
-    @ApiProperty({ description: 'Метка времени' })
+    @swagger.ApiProperty({ description: 'Метка времени' })
     timestamp: Date;
-    @ApiProperty({ description: 'URL запроса' })
+    @swagger.ApiProperty({ description: 'URL запроса' })
     path: string;
-    @ApiPropertyOptional({ description: 'Сообщение об ошибке' })
+    @swagger.ApiPropertyOptional({ description: 'Сообщение об ошибке' })
     msg?: string;
   }

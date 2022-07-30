@@ -1,60 +1,32 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Header,
-  Session,
-  Body,
-  Query,
-  Req,
-  BadRequestException,
-  ForbiddenException,
-  UseGuards,
-} from '@nestjs/common';
-import { FastifyRequest, FastifyReply } from 'fastify';
+import * as nestjs from '@nestjs/common';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import {
-  ApiBody,
-  ApiQuery,
-  ApiProperty,
-  ApiPropertyOptional,
-  ApiResponse,
-  ApiTags,
-  ApiExtraModels,
-  getSchemaPath,
-} from '@nestjs/swagger';
-import { validateSession, isLoggedIn } from '../decorators/test.decorator';
+import { decorators, dto, models, types } from '../globalImport';
 
 import { ProjectService } from './project.service';
 import { UtilsService } from '../utils.service';
 import { SessionService } from '../session/session.service';
 
-import { Project } from '../models/project';
-import { User } from '../models/user';
-import { ProjectToUser } from '../models/project_to_user';
-
-import {
-  exceptonAnswerDTO,
-  emptyAnswerDTO,
-  successAnswerDTO,
-} from '../dto/httpAnswer';
-
 class getOneDTO {
-  @ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
+  @swagger.ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
   projectId: number;
-  @ApiPropertyOptional({ example: '1,2,3...', description: 'ID пользователя' })
+  @swagger.ApiPropertyOptional({
+    example: '1,2,3...',
+    description: 'ID пользователя',
+  })
   userId?: number;
 }
 
-@Controller('project')
-@ApiTags('project')
-@ApiResponse({
+@nestjs.Controller('project')
+@swagger.ApiTags('project')
+@swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
-  type: () => exceptonAnswerDTO,
+  type: () => dto.response.exception,
 })
-@ApiExtraModels(ProjectToUser, User)
-@UseGuards(validateSession)
+@swagger.ApiExtraModels(models.project2user, models.user)
+@nestjs.UseGuards(decorators.validateSession)
 export class ProjectController {
   constructor(
     private projectService: ProjectService,
@@ -62,9 +34,12 @@ export class ProjectController {
     private utils: UtilsService,
   ) {}
 
-  @Post('create')
-  @UseGuards(isLoggedIn)
-  async create(@Body() data: Project, @Session() session: FastifySession) {
+  @nestjs.Post('create')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  async create(
+    @nestjs.Body() data: types['models']['project'],
+    @nestjs.Session() session: FastifySession,
+  ) {
     const userId = await this.sessionService.getUserId(session);
     const createResult = await this.projectService.create({
       project: data,
@@ -73,20 +48,23 @@ export class ProjectController {
     return { status: 'ok' };
   }
 
-  @Get('getOne')
-  @Header('Content-Type', 'application/json')
-  @ApiResponse({ status: 200, type: () => Project })
-  @UseGuards(isLoggedIn)
+  @nestjs.Get('getOne')
+  @nestjs.Header('Content-Type', 'application/json')
+  @swagger.ApiResponse(
+    new dto.response.success(models.project, dto.response.empty),
+  )
+  @nestjs.UseGuards(decorators.isLoggedIn)
   async getOne(
-    @Query() data: getOneDTO,
-    @Session() session: FastifySession,
-  ): Promise<successAnswerDTO> {
-    if (!data?.projectId) throw new BadRequestException('Project ID is empty');
+    @nestjs.Query() data: getOneDTO,
+    @nestjs.Session() session: FastifySession,
+  ): Promise<types['dto']['response']['success']> {
+    if (!data?.projectId)
+      throw new nestjs.BadRequestException('Project ID is empty');
     //const userId = await this.sessionService.getUserId(session);
     const result = await this.projectService.getOne({
       id: data.projectId,
       userId: data.userId,
     });
-    return { status: 'ok', data: result || new emptyAnswerDTO() };
+    return { status: 'ok', data: result || new dto.response.empty() };
   }
 }
