@@ -1,48 +1,35 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { User } from './user';
-import { Task } from './task';
+@sequelize.Table({ tableName: 'task_to_user' })
+export class TaskToUser extends sequelize.Model {
 
-@Table({ tableName: 'task_to_user' })
-export class TaskToUser extends Model {
-
-  @ForeignKey(() => User)
-  @Column
+  @sequelize.ForeignKey(() => models.user)
+  @sequelize.Column
   user_id: number;
-  @BelongsTo(() => User)
-  user: User;
+  @sequelize.BelongsTo(() => models.user)
+  user: types['models']['user'];
 
 
-  @ForeignKey(() => Task)
-  @Column
+  @sequelize.ForeignKey(() => models.task)
+  @sequelize.Column
   task_id: number;
-  @BelongsTo(() => Task)
-  task: Task;
+  @sequelize.BelongsTo(() => models.task)
+  task: types['models']['task'];
 
-  @Comment('роль пользователя в задаче')
-  @Column
+  @sequelize.Comment('роль пользователя в задаче')
+  @sequelize.Column
   role: string
 
-  @Comment('статус задачи у пользователя')
-  @Column
+  @sequelize.Comment('статус задачи у пользователя')
+  @sequelize.Column
   status: string
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

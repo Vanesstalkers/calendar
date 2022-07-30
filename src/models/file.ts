@@ -1,44 +1,32 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-  AutoIncrement,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
+@sequelize.Table({ tableName: 'file' })
+export class File extends sequelize.Model {
 
-@Table({ tableName: 'file' })
-export class File extends Model {
-
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @Comment('ссылка на вложенный контент')
-  @Column
+  @sequelize.Comment('ссылка на вложенный контент')
+  @sequelize.Column
   link: string
 
-  @Column
+  @sequelize.Column
   parent_type: string
 
-  @Column
+  @sequelize.Column
   parent_id: number
 
-  @Column
+  @sequelize.Column
   file_type: string
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

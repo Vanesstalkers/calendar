@@ -1,113 +1,93 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  AutoIncrement,
-  HasMany,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  ForeignKey,
-  BelongsTo,
-  Default,
-  Comment as sequelizeComment,
-} from 'sequelize-typescript';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { User } from './user';
-import { Project } from './project';
-import { Timestamp } from 'typeorm';
-import { TaskGroup } from './task_group';
-import { Hashtag } from './hashtag';
-import { TaskToUser } from './task_to_user';
-import { Tick } from './tick';
-import { Comment } from './comment';
-
-@Table({ tableName: 'task' })
-export class Task extends Model {
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+@sequelize.Table({ tableName: 'task' })
+export class Task extends sequelize.Model {
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @ForeignKey(() => Project)
-  @Column
+  @sequelize.ForeignKey(() => models.project)
+  @sequelize.Column
   project_id: number;
-  @BelongsTo(() => Project)
-  project: Project;
+  @sequelize.BelongsTo(() => models.project)
+  project: types['models']['project'];
 
-  @sequelizeComment('обязательность')
-  @Column({ defaultValue: true })
+  @sequelize.Comment('обязательность')
+  @sequelize.Column({ defaultValue: true })
   require: boolean;
-  
-  @ApiProperty({ description: 'когда выполнена', example: '07.07.1977' })
-  @Column({ allowNull: true })
-  exec_end_time: Date;
-  
-  @ForeignKey(() => User)
-  @sequelizeComment('фактический исполнитель')
-  @Column
-  exec_user: number;
-  @BelongsTo(() => User)
-  user: User;
 
-  @ApiProperty({ description: 'Заголовок задачи' })
-  @Column
+  @swagger.ApiProperty({
+    description: 'когда выполнена',
+    example: '07.07.1977',
+  })
+  @sequelize.Column({ allowNull: true })
+  exec_end_time: Date;
+
+  @sequelize.ForeignKey(() => models.user)
+  @sequelize.Comment('фактический исполнитель')
+  @sequelize.Column
+  exec_user: number;
+  @sequelize.BelongsTo(() => models.user)
+  user: types['models']['user'];
+
+  @swagger.ApiProperty({ description: 'Заголовок задачи' })
+  @sequelize.Column
   title: string;
 
-  @ApiProperty({ description: 'Описание задачи' })
-  @Column(DataType.TEXT)
+  @swagger.ApiProperty({ description: 'Описание задачи' })
+  @sequelize.Column(sequelize.DataType.TEXT)
   info: string;
 
-  @sequelizeComment('дата задачи')
-  @Column
+  @sequelize.Comment('дата задачи')
+  @sequelize.Column
   date: Date;
 
-  @sequelizeComment('время начала')
-  @Column
+  @sequelize.Comment('время начала')
+  @sequelize.Column
   start_time: Date;
-  
-  @sequelizeComment('время окончания')
-  @Column({ allowNull: true })
+
+  @sequelize.Comment('время окончания')
+  @sequelize.Column({ allowNull: true })
   end_time: Date;
 
-  @sequelizeComment('формат учета времени')
-  @Column
+  @sequelize.Comment('формат учета времени')
+  @sequelize.Column
   time_type: string;
 
-  @sequelizeComment('регулярная задача')
-  @Column({ defaultValue: true })
+  @sequelize.Comment('регулярная задача')
+  @sequelize.Column({ defaultValue: true })
   regular: boolean;
-  
-  @sequelizeComment('внешний источник задачи')
-  @Column
+
+  @sequelize.Comment('внешний источник задачи')
+  @sequelize.Column
   ext_source: string;
 
-  @sequelizeComment('внешний получатель')
-  @Column
+  @sequelize.Comment('внешний получатель')
+  @sequelize.Column
   ext_destination: string;
 
-  @HasMany(() => TaskGroup, 'task_id')
-  __taskgroup: TaskGroup[];
+  @sequelize.HasMany(() => models.taskgroup, 'task_id')
+  __taskgroup: types['models']['taskgroup'][];
 
-  @HasMany(() => Hashtag, 'task_id')
-  __hashtag: TaskGroup[];
+  @sequelize.HasMany(() => models.hashtag, 'task_id')
+  __hashtag: types['models']['hashtag'][];
 
-  @HasMany(() => TaskToUser, 'task_id')
-  __tasktouser: TaskToUser[];
+  @sequelize.HasMany(() => models.task2user, 'task_id')
+  __tasktouser: types['models']['task2user'][];
 
-  @HasMany(() => Tick, 'task_id')
-  __tick: Tick[];
+  @sequelize.HasMany(() => models.tick, 'task_id')
+  __tick: types['models']['tick'][];
 
-  @HasMany(() => Comment, 'task_id')
-  __comment: Comment[];
+  @sequelize.HasMany(() => models.comment, 'task_id')
+  __comment: types['models']['comment'][];
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

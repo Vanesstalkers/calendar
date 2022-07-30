@@ -1,46 +1,33 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-  AutoIncrement,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { Task } from './task';
+@sequelize.Table({ tableName: 'tick' })
+export class Tick extends sequelize.Model {
 
-@Table({ tableName: 'tick' })
-export class Tick extends Model {
-
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @ForeignKey(() => Task)
-  @Column
+  @sequelize.ForeignKey(() => models.task)
+  @sequelize.Column
   task_id: number;
-  @BelongsTo(() => Task)
-  task: Task;
+  @sequelize.BelongsTo(() => models.task)
+  task: types['models']['task'];
 
-  @Comment('описание пункта')
-  @Column
+  @sequelize.Comment('описание пункта')
+  @sequelize.Column
   text: string
 
-  @Comment('статус выполнения')
-  @Column({ defaultValue: true })
+  @sequelize.Comment('статус выполнения')
+  @sequelize.Column({ defaultValue: true })
   status: boolean;
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

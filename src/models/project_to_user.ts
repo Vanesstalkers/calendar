@@ -1,56 +1,42 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-} from 'sequelize-typescript';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { User } from './user';
-import { Project } from './project';
-
-@Table({ tableName: 'project_to_user' })
-export class ProjectToUser extends Model {
-  @Column({ allowNull: true })
-  @ApiProperty({ description: 'роль пользователя в проекте' })
+@sequelize.Table({ tableName: 'project_to_user' })
+export class ProjectToUser extends sequelize.Model {
+  @sequelize.Column({ allowNull: true })
+  @swagger.ApiProperty({ description: 'роль пользователя в проекте' })
   role: string;
 
-  @ForeignKey(() => User)
-  @Column
+  @sequelize.ForeignKey(() => models.user)
+  @sequelize.Column
   user_id: number;
-  @ApiProperty({ type: ()=>User })
-  @BelongsTo(() => User)
-  user: User;
+  @swagger.ApiProperty({ type: () => models.user })
+  @sequelize.BelongsTo(() => models.user)
+  user: types['models']['user'];
 
-  @ForeignKey(() => Project)
-  @Column
+  @sequelize.ForeignKey(() => models.project)
+  @sequelize.Column
   project_id: number;
-  @BelongsTo(() => Project)
-  project: Project;
+  @sequelize.BelongsTo(() => models.project)
+  project: types['models']['project'];
 
-  @Comment('личный проект')
-  @Column({ defaultValue: false })
+  @sequelize.Comment('личный проект')
+  @sequelize.Column({ defaultValue: false })
   personal: boolean;
 
-  @Comment('имя пользователя в проекте')
-  @Column
-  user_name: string
+  @sequelize.Comment('имя пользователя в проекте')
+  @sequelize.Column
+  user_name: string;
 
-  @Comment('персональные настройки видимости')
-  @Column({ type: DataType.JSON, defaultValue: {} })
+  @sequelize.Comment('персональные настройки видимости')
+  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: object;
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

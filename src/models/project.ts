@@ -1,46 +1,33 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  AutoIncrement,
-  HasMany,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-} from 'sequelize-typescript';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { ProjectToUser } from './project_to_user';
-import { Task } from './task';
-
-@Table({ tableName: 'project' })
-export class Project extends Model {
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+@sequelize.Table({ tableName: 'project' })
+export class Project extends sequelize.Model {
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @Column
+  @sequelize.Column
   title: string;
 
-  @Column({ type: DataType.JSON, defaultValue: {} })
+  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: object;
 
-  @ApiProperty({ type: ()=>[ProjectToUser] })
-  @HasMany(() => ProjectToUser, 'project_id')
-  __user: ProjectToUser[];
+  @swagger.ApiProperty({ type: ()=>[models.project2user] })
+  @sequelize.HasMany(() => models.project2user, 'project_id')
+  __user: types['models']['project2user'][];
 
-  @ApiProperty({ type: ()=>[Task] })
-  @HasMany(() => Task, 'project_id')
-  __task: Task[];
+  @swagger.ApiProperty({ type: ()=>[models.task] })
+  @sequelize.HasMany(() => models.task, 'project_id')
+  __task: types['models']['task'][];
 
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

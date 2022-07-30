@@ -1,36 +1,24 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { Task } from './task';
+@sequelize.Table({ tableName: 'hashtag' })
+export class Hashtag extends sequelize.Model {
 
-@Table({ tableName: 'hashtag' })
-export class Hashtag extends Model {
-
-  @ForeignKey(() => Task)
-  @Column
+  @sequelize.ForeignKey(() => models.task)
+  @sequelize.Column
   task_id: number;
-  @BelongsTo(() => Task)
-  task: Task;
+  @sequelize.BelongsTo(() => models.task)
+  task: types['models']['task'];
 
-  @Comment('хэштег')
-  @Column
+  @sequelize.Comment('хэштег')
+  @sequelize.Column
   hashtag: string
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

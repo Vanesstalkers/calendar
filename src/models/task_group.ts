@@ -1,36 +1,24 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { Task } from './task';
-
-@Table({ tableName: 'task_group' })
-export class TaskGroup extends Model {
+@sequelize.Table({ tableName: 'task_group' })
+export class TaskGroup extends sequelize.Model {
   
-  @ForeignKey(() => Task)
-  @Column
+  @sequelize.ForeignKey(() => models.task)
+  @sequelize.Column
   task_id: number;
-  @BelongsTo(() => Task)
-  task: Task;
+  @sequelize.BelongsTo(() => models.task)
+  task: types['models']['task'];
 
-  @Comment('название группы')
-  @Column
+  @sequelize.Comment('название группы')
+  @sequelize.Column
   name: string
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

@@ -1,44 +1,32 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  ForeignKey,
-  BelongsTo,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-  Comment,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { User } from './user';
+@sequelize.Table({ tableName: 'user_to_user' })
+export class UserToUser extends sequelize.Model {
 
-@Table({ tableName: 'user_to_user' })
-export class UserToUser extends Model {
-
-  @ForeignKey(() => User)
-  @Column
+  @sequelize.ForeignKey(() => models.user)
+  @sequelize.Column
   user_id: number;
-  @BelongsTo(() => User)
-  user: User;
+  @sequelize.BelongsTo(() => models.user)
+  user: types['models']['user'];
 
 
-  @ForeignKey(() => User)
-  @Column
+  @sequelize.ForeignKey(() => models.user)
+  @sequelize.Column
   user_rel_id: number;
-  @BelongsTo(() => User)
-  reluser: User;
+  @sequelize.BelongsTo(() => models.user)
+  reluser: types['models']['user'];
 
-  @Comment('приоритет')
-  @Column
+  @sequelize.Comment('приоритет')
+  @sequelize.Column
   priority: number
 
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

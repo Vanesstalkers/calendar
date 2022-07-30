@@ -1,71 +1,56 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  AutoIncrement,
-  HasMany,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-} from 'sequelize-typescript';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { ProjectToUser } from './project_to_user';
-import { Task } from './task';
-import { TaskToUser } from './task_to_user';
-import { UserToUser } from './user_to_user';
-
-@Table({ tableName: 'user' })
-export class User extends Model {
+@sequelize.Table({ tableName: 'user' })
+export class User extends sequelize.Model {
   // non-db fields
-  @ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
+  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
   preventSendSms: boolean;
 
   // db fields
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @Column
+  @sequelize.Column
   name: string;
 
-  @ApiProperty({ description: 'Номер телефона', example: '9265126677' })
-  @Column
+  @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
+  @sequelize.Column
   phone: string;
 
-  @Column({ allowNull: true })
+  @sequelize.Column({ allowNull: true })
   position: string;
 
-  @Column({ allowNull: true })
+  @sequelize.Column({ allowNull: true })
   timezone: string;
 
-  @Column({ type: DataType.JSON, defaultValue: {} })
+  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: {
     currentProject: object;
   };
 
-  @HasMany(() => ProjectToUser, 'user_id')
-  __project: ProjectToUser[];
+  @sequelize.HasMany(() => models.project2user, 'user_id')
+  __project: types['models']['project2user'][];
 
-  @HasMany(() => Task, 'exec_user')
-  __task: Task[];
+  @sequelize.HasMany(() => models.task, 'exec_user')
+  __task: types['models']['task'][];
 
-  @HasMany(() => TaskToUser, 'exec_user')
-  __tasktouser: TaskToUser[];
+  @sequelize.HasMany(() => models.task2user, 'exec_user')
+  __tasktouser: types['models']['task2user'][];
 
-  @HasMany(() => UserToUser, 'user_id')
-  __usertouser: UserToUser[];
+  @sequelize.HasMany(() => models.user2user, 'user_id')
+  __usertouser: types['models']['user2user'][];
 
-  @HasMany(() => UserToUser, 'user_rel_id')
-  __relusertouser: UserToUser[];
+  @sequelize.HasMany(() => models.user2user, 'user_rel_id')
+  __relusertouser: types['models']['user2user'][];
 
-  @CreatedAt
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }
