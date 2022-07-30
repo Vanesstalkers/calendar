@@ -19,13 +19,13 @@ import { SessionStorageI } from './storage.interface';
 
 @Controller('session')
 export class SessionController {
-  constructor(private service: SessionService, private utils: UtilsService) {}
+  constructor(private sessionService: SessionService, private utils: UtilsService) {}
 
   @Get('getStorage')
   @Header('Content-Type', 'application/json')
   async getStorage(
     @Session() session: FastifySession,
   ): Promise<SessionStorageI> {
-    return await this.service.getStorage(session);
+    return await this.sessionService.getStorage(session);
   }
 }

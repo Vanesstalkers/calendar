@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
+import { exceptonAnswerDTO } from './dto/httpAnswer';
+
 @Catch()
 export class UniversalExceptionFilter implements ExceptionFilter {
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
@@ -18,9 +20,9 @@ export class UniversalExceptionFilter implements ExceptionFilter {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
 
-    const responseBody: any = {
+    const responseBody: exceptonAnswerDTO = {
       status: 'error',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       path: httpAdapter.getRequestUrl(ctx.getRequest()),
     };
     let responseStatus = HttpStatus.INTERNAL_SERVER_ERROR;

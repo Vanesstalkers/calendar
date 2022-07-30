@@ -14,6 +14,7 @@ import {
   Default,
   Comment as sequelizeComment,
 } from 'sequelize-typescript';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { User } from './user';
 import { Project } from './project';
@@ -41,10 +42,9 @@ export class Task extends Model {
   @Column({ defaultValue: true })
   require: boolean;
   
-  @sequelizeComment('когда выполнена')
+  @ApiProperty({ description: 'когда выполнена', example: '07.07.1977' })
   @Column({ allowNull: true })
   exec_end_time: Date;
-
   
   @ForeignKey(() => User)
   @sequelizeComment('фактический исполнитель')
@@ -53,11 +53,11 @@ export class Task extends Model {
   @BelongsTo(() => User)
   user: User;
 
-  @sequelizeComment('заголовок задачи')
+  @ApiProperty({ description: 'Заголовок задачи' })
   @Column
   title: string;
 
-  @sequelizeComment('описание задачи')
+  @ApiProperty({ description: 'Описание задачи' })
   @Column(DataType.TEXT)
   info: string;
 

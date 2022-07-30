@@ -13,6 +13,7 @@ export class SessionService {
   async getState(session: FastifySession): Promise<SessionStorageI> { 
     const storage = await this.getStorage(session) ?? {};
     return {
+      userId: storage.userId ?? null,
       registration: storage.registration === true,
       login: storage.login === true,
       currentProject: storage.currentProject ?? null,
@@ -56,4 +57,10 @@ export class SessionService {
       { ttl: 0 },
     );
   }
+
+  async getUserId(session: FastifySession): Promise<number> {
+    const storage = await this.getStorage(session);
+    return storage.userId;
+  }
+
 }

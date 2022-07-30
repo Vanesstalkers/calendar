@@ -8,6 +8,7 @@ import {
   Query,
   Param,
   Req,
+  Res,
   BadRequestException,
   ForbiddenException,
   UseGuards,
@@ -19,7 +20,10 @@ import {
   ApiQuery,
   ApiProperty,
   ApiPropertyOptional,
+  ApiResponse,
   ApiTags,
+  ApiExtraModels,
+  getSchemaPath,
 } from '@nestjs/swagger';
 
 import { UserService } from './user.service';
@@ -31,6 +35,11 @@ import { SessionStorageI } from '../session/storage.interface';
 
 import { User } from '../models/user';
 
+import {
+  exceptonAnswerDTO,
+  emptyAnswerDTO,
+  successAnswerDTO,
+} from '../dto/httpAnswer';
 import { validateSession, isLoggedIn } from '../decorators/test.decorator';
 
 class getOneQueryDTO {
@@ -50,9 +59,19 @@ class loginQueryDTO {
   @ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
   preventSendSms: string;
 }
+class changeCurrentProjectDTO {
+  @ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
+  projectId: number;
+}
 
 @Controller('user')
 @ApiTags('user')
+@ApiResponse({
+  status: 400,
+  description: 'Формат ответа для всех ошибок',
+  type: () => exceptonAnswerDTO,
+})
+@ApiExtraModels(emptyAnswerDTO, successAnswerDTO)
 @UseGuards(validateSession)
 export class UserController {
   constructor(
@@ -86,6 +105,7 @@ export class UserController {
         async () => {
           const createResult = await this.userService.create(data);
           this.sessionService.updateStorageById(sessionStorageId, {
+            userId: createResult.user.id,
             registration: true,
             currentProject: {
               id: createResult.project.id,
@@ -129,6 +149,7 @@ export class UserController {
         async () => {
           const user = await this.userService.getOne({ phone: data.phone });
           this.sessionService.updateStorageById(storageId, {
+            userId: user.id,
             registration: true,
             login: true,
             currentProject: user.config.currentProject,
@@ -145,7 +166,6 @@ export class UserController {
 
   @Get('code')
   @Header('Content-Type', 'application/json')
-  @UseGuards(isLoggedIn)
   async code(@Query() data: codeQueryDTO, @Session() session: FastifySession) {
     if (!data?.code) throw new BadRequestException('Auth code is empty');
 
@@ -168,12 +188,30 @@ export class UserController {
   @Get('getOne')
   @Header('Content-Type', 'application/json')
   @UseGuards(isLoggedIn)
+  @ApiResponse(new successAnswerDTO(User, emptyAnswerDTO))
   async getOne(
     @Query() data: getOneQueryDTO,
-    @Session() session: FastifySession,
-  ): Promise<User> {
-    if (data.id) throw new BadRequestException('User ID is empty');
+  ): Promise<{ status: string; data: User | emptyAnswerDTO }> {
+    if (!data.id) throw new BadRequestException('User ID is empty');
 
-    return await this.userService.getOne({ id: data.id });
+    const result = await this.userService.getOne({ id: data.id });
+    return { status: 'ok', data: result || new emptyAnswerDTO() };
+  }
+
+  @Post('changeCurrentProject')
+  @UseGuards(isLoggedIn)
+  async changeCurrentProject(
+    @Query() data: changeCurrentProjectDTO,
+    @Session() session: FastifySession,
+  ): Promise<successAnswerDTO> {
+    this.sessionService.updateStorageById(session.storageId, {
+      
+    });
+    // const userId = await this.sessionService.getUserId(session);
+    // await this.userService.changeCurrentProject({
+    //   projectId: data.projectId,
+    //   userId,
+    // });
+    return { status: 'ok' };
   }
 }

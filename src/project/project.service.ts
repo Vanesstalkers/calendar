@@ -10,28 +10,53 @@ import { ProjectToUser } from '../models/project_to_user';
 export class ProjectService {
   constructor(
     private sequelize: Sequelize,
-    @InjectModel(Project) private modelProject: typeof Project,
-    @InjectModel(User) private modelUser: typeof User,
+    @InjectModel(Project) private projectModel: typeof Project,
     @InjectModel(ProjectToUser)
-    private modelProjectToUser: typeof ProjectToUser,
+    private projectToUserModel: typeof ProjectToUser,
   ) {}
 
-  async getOne(id: number): Promise<Project> {
-    const findData = await this.modelProject.findOne({
+  async create(data: { project: Project; userId: number }): Promise<Project> {
+    const project = await this.projectModel.create({
+      title: data.project.title,
+    });
+    await this.projectToUserModel.create({
+      project_id: project.id,
+      user_id: data.userId,
+      role: 'owner',
+    });
+    return project;
+  }
+
+  async getOne(data: { id: number; userId?: number }): Promise<any> {
+    const whereProjectToUser: { user_id?: number } = {};
+    if (data.userId) whereProjectToUser.user_id = data.userId;
+    const findData = await this.projectModel.findOne({
       where: {
-        id,
+        id: data.id,
       },
-      include: {
-        model: ProjectToUser,
-        attributes: ['userId'],
-        include: [
-          {
-            model: User,
-            attributes: ['name'],
-          },
-        ],
-      },
+      //attributes: ['id'],
+      include: { all: true, nested: true },
+      // include: [
+      //   {
+      //     //attributes: ['user_id'],
+      //     model: ProjectToUser,
+      //     where: whereProjectToUser,
+      //     include: [
+      //       {
+      //         model: User,
+      //       },
+      //     ],
+      //     //required: false
+      //   },
+      // ],
     });
     return findData;
+
+    // const queryResult = await this.sequelize.query(
+    //   `
+    //   SELECT * FROM project WHERE id = :id
+    // `,
+    //   { replacements: { id: data.id } },
+    // );
   }
 }

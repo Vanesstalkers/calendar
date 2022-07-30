@@ -10,6 +10,7 @@ import {
   UpdatedAt,
   DeletedAt,
 } from 'sequelize-typescript';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { ProjectToUser } from './project_to_user';
 import { Task } from './task';
@@ -27,9 +28,11 @@ export class Project extends Model {
   @Column({ type: DataType.JSON, defaultValue: {} })
   config: object;
 
+  @ApiProperty({ type: ()=>[ProjectToUser] })
   @HasMany(() => ProjectToUser, 'project_id')
   __user: ProjectToUser[];
 
+  @ApiProperty({ type: ()=>[Task] })
   @HasMany(() => Task, 'project_id')
   __task: Task[];
 

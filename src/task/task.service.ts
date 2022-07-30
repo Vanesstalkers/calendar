@@ -11,19 +11,28 @@ import { ProjectToUser } from '../models/project_to_user';
 export class TaskService {
   constructor(
     private sequelize: Sequelize,
-    @InjectModel(Task) private modelTask: typeof Task,
+    @InjectModel(Task) private taskModel: typeof Task,
     @InjectModel(User) private modelUser: typeof User,
   ) {}
 
+  async create(data: { task: Task; userId: number, projectId: number }): Promise<Task> {
+    const task = await this.taskModel.create({
+      ...data.task,
+      project_id: data.projectId
+    });
+    // await this.projectToUserModel.create({
+    //   project_id: project.id,
+    //   user_id: data.userId,
+    //   role: 'owner',
+    // });
+    return task;
+  }
+
   async getOne(id: number): Promise<Task> {
-    const findData = await this.modelTask.findOne({
+    const findData = await this.taskModel.findOne({
       where: {
         id,
       },
-      //include: {
-      //  model: User,
-      //  attributes: ['name'],
-      //},
       include: { all: true, nested: true },
     });
     return findData;

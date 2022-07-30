@@ -11,6 +11,7 @@ import {
   DeletedAt,
   Comment,
 } from 'sequelize-typescript';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { User } from './user';
 import { Project } from './project';
@@ -18,11 +19,13 @@ import { Project } from './project';
 @Table({ tableName: 'project_to_user' })
 export class ProjectToUser extends Model {
   @Column({ allowNull: true })
+  @ApiProperty({ description: 'роль пользователя в проекте' })
   role: string;
 
   @ForeignKey(() => User)
   @Column
   user_id: number;
+  @ApiProperty({ type: ()=>User })
   @BelongsTo(() => User)
   user: User;
 
@@ -30,8 +33,7 @@ export class ProjectToUser extends Model {
   @Column
   project_id: number;
   @BelongsTo(() => Project)
-  project: User;
-
+  project: Project;
 
   @Comment('личный проект')
   @Column({ defaultValue: false })
