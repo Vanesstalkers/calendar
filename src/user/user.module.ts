@@ -4,7 +4,7 @@ import { models } from '../globalImport';
 
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { AuthService } from '../auth/auth.service';
 

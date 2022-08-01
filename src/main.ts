@@ -8,7 +8,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as stream from 'stream';
 
 import { AppModule } from './app.module';
-import { UniversalExceptionFilter } from './exception.filter';
+import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 async function bootstrap() {
   try {

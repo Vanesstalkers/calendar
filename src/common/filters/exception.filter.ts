@@ -1,45 +1,40 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  UnauthorizedException,
-  BadRequestException,
-  ForbiddenException,
-  HttpStatus,
-} from '@nestjs/common';
+
+
+import * as nestjs from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { exceptonAnswerDTO } from './dto/httpAnswer';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
+import { Session as FastifySession } from '@fastify/secure-session';
+import { decorators, interfaces, models, types } from '../../globalImport';
 
 export function dbErrorCatcher(err: Error): any {
   console.log('dbErrorCatcher', { err });
   if (err.name === 'SequelizeDatabaseError') {
-    throw new BadRequestException(err.message);
+    throw new nestjs.BadRequestException(err.message);
   } else {
     throw err;
   }
 }
 
-@Catch()
-export class UniversalExceptionFilter implements ExceptionFilter {
+@nestjs.Catch()
+export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
-  catch(exception: unknown, host: ArgumentsHost): void {
+  catch(exception: unknown, host: nestjs.ArgumentsHost): void {
     console.log('UniversalExceptionFilter', { exception });
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
-
-    const responseBody: exceptonAnswerDTO = {
+    const responseBody: types['interfaces']['response']['exception'] = {
       status: 'error',
       timestamp: new Date(),
       path: httpAdapter.getRequestUrl(ctx.getRequest()),
     };
-    let responseStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+    let responseStatus = nestjs.HttpStatus.INTERNAL_SERVER_ERROR;
 
     const knownException =
-      exception instanceof HttpException ||
-      exception instanceof UnauthorizedException ||
-      exception instanceof BadRequestException ||
-      exception instanceof ForbiddenException;
+      exception instanceof nestjs.HttpException ||
+      exception instanceof nestjs.UnauthorizedException ||
+      exception instanceof nestjs.BadRequestException ||
+      exception instanceof nestjs.ForbiddenException;
     if (knownException) {
       responseStatus = exception.getStatus();
       responseBody.msg = exception.message;

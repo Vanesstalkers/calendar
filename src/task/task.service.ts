@@ -4,7 +4,10 @@ import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types, exception } from '../globalImport';
+import * as fs from 'fs';
+import * as stream from 'stream';
+import * as util from 'util';
+import { decorators, interfaces, models, types, exception } from '../globalImport';
 
 @nestjs.Injectable()
 export class TaskService {

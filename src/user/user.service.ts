@@ -5,7 +5,7 @@ import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types, exception } from '../globalImport';
+import { decorators, interfaces, models, types, exception } from '../globalImport';
 
 // import { Injectable, ForbiddenException } from '@nestjs/common';
 // import { InjectModel } from '@nestjs/sequelize';

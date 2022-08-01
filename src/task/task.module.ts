@@ -7,7 +7,7 @@ import { TaskService } from './task.service';
 import { UserService } from '../user/user.service';
 import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 
 @Module({
   imports: [

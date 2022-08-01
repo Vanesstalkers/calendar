@@ -2,16 +2,16 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types } from '../globalImport';
+import { decorators, interfaces, models, types } from '../globalImport';
 
 import { UserService } from './user.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 import { AuthService } from '../auth/auth.service';
 import { SessionService } from '../session/session.service';
-import { SessionI } from '../session/session.interface';
-import { SessionStorageI } from '../session/storage.interface';
+import { SessionI } from '../session/interfaces/session.interface';
+import { SessionStorageI } from '../session/interfaces/storage.interface';
 
-import { validateSession, isLoggedIn } from '../decorators/test.decorator';
+import { validateSession, isLoggedIn } from '../common/decorators/access.decorators';
 
 class getOneQueryDTO {
   @swagger.ApiProperty({
@@ -46,9 +46,9 @@ class changeCurrentProjectDTO {
 @swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
-  type: () => dto.response.exception,
+  type: () => interfaces.response.exception,
 })
-@swagger.ApiExtraModels(dto.response.empty, dto.response.success)
+@swagger.ApiExtraModels(interfaces.response.empty, interfaces.response.success)
 @nestjs.UseGuards(validateSession)
 export class UserController {
   constructor(
@@ -178,16 +178,16 @@ export class UserController {
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(isLoggedIn)
   @swagger.ApiResponse(
-    new dto.response.success(models.user, dto.response.empty),
+    new interfaces.response.success(models.user, interfaces.response.empty),
   )
   async getOne(@nestjs.Query() data: getOneQueryDTO): Promise<{
     status: string;
-    data: types['models']['user'] | types['dto']['response']['empty'];
+    data: types['models']['user'] | types['interfaces']['response']['empty'];
   }> {
     if (!data.id) throw new nestjs.BadRequestException('User ID is empty');
 
     const result = await this.userService.getOne({ id: data.id });
-    return { status: 'ok', data: result || new dto.response.empty() };
+    return { status: 'ok', data: result || new interfaces.response.empty() };
   }
 
   @nestjs.Get('search')
@@ -195,7 +195,7 @@ export class UserController {
   @nestjs.UseGuards(isLoggedIn)
   async search(@nestjs.Query('query') query: string): Promise<{
     status: string;
-    data: [types['models']['user'] | types['dto']['response']['empty']] | [];
+    data: [types['models']['user'] | types['interfaces']['response']['empty']] | [];
   }> {
     const result = await this.userService.search(query);
     return { status: 'ok', data: result };
@@ -206,7 +206,7 @@ export class UserController {
   async changeCurrentProject(
     @nestjs.Query() data: changeCurrentProjectDTO,
     @nestjs.Session() session: FastifySession,
-  ): Promise<types['dto']['response']['success']> {
+  ): Promise<types['interfaces']['response']['success']> {
     this.sessionService.updateStorageById(session.storageId, {});
     // const userId = await this.sessionService.getUserId(session);
     // await this.userService.changeCurrentProject({

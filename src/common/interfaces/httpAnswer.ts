@@ -1,8 +1,8 @@
 import * as swagger from '@nestjs/swagger';
 
-export class emptyAnswerDTO {}
+export class emptyAnswerI {}
 
-export class createdAnswerDTO {
+export class createdAnswerI {
   constructor(...refs: any[]) {
     return {
       status: 201,
@@ -28,7 +28,7 @@ export class createdAnswerDTO {
   }
 }
 
-export class successAnswerDTO {
+export class successAnswerI {
   constructor(...refs: any[]) {
     return {
       status: 200,
@@ -48,7 +48,7 @@ export class successAnswerDTO {
   }
 }
 
-export class exceptonAnswerDTO {
+export class exceptonAnswerI {
   @swagger.ApiProperty({ example: 'err', description: 'Статус ответа' })
   status: string;
   @swagger.ApiProperty({ description: 'Метка времени' })

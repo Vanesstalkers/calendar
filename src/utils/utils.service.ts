@@ -1,6 +1,6 @@
 import * as nestjs from '@nestjs/common';
 import axios from 'axios';
-import config from './config';
+import config from '../config';
 
 @nestjs.Injectable()
 export class UtilsService {

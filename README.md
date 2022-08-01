@@ -1,14 +1,16 @@
 # Установка и запуск
 ## Установка
 ```bash
-# install
 $ npm install
 ```
-\+ пример конфига в config.example (переименовать в config.ts и заполнить)
-\+ создать БД
+Далее: создать БД
 ```bash
-# install db
-npx sequelize-cli db:migrate
+$ npx sequelize-cli init
+```
+Далее: отредактировать созданный config/postgres.json
+
+```bash
+$ npx sequelize-cli db:migrate
 ```
 
 ## Запуск
@@ -20,7 +22,6 @@ $ npm run start:prod
 ```
 # Комментарии по разработке
 ## Работа с БД
-Все таблицы БД описываем и складываем отдельными файлами в /src/entity.
 Заливаем обновления в БД миграциями (синхронизация БД через Sequalize должна быть отключена).
 
 ## Работа с ошибками

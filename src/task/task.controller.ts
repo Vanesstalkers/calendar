@@ -2,7 +2,7 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify-multipart';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types } from '../globalImport';
+import { decorators, interfaces, models, types } from '../globalImport';
 import * as util from 'node:util';
 import * as fs from 'node:fs';
 import * as stream from 'node:stream';
@@ -10,7 +10,7 @@ import * as stream from 'node:stream';
 import { TaskService } from './task.service';
 import { UserService } from '../user/user.service';
 import { ProjectService } from '../project/project.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { resolve } from 'node:path';
 
@@ -33,7 +33,7 @@ class createDTO {
 @swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
-  type: () => dto.response.exception,
+  type: () => interfaces.response.exception,
 })
 @nestjs.UseGuards(decorators.validateSession)
 export class TaskController {
@@ -46,7 +46,7 @@ export class TaskController {
   ) {}
 
   @nestjs.Post('create')
-  @swagger.ApiResponse(new dto.response.created())
+  @swagger.ApiResponse(new interfaces.response.created())
   @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiConsumes('multipart/form-data')
   @nestjs.UseGuards(decorators.isLoggedIn)

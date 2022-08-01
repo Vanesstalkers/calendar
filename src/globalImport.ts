@@ -1,17 +1,17 @@
 import {
-  exceptonAnswerDTO,
-  emptyAnswerDTO,
-  successAnswerDTO,
-  createdAnswerDTO,
-} from './dto/httpAnswer';
+  exceptonAnswerI,
+  emptyAnswerI,
+  successAnswerI,
+  createdAnswerI,
+} from './common/interfaces/httpAnswer';
 
 import {
   validateSession,
   isLoggedIn,
-  Multipart,
-} from './decorators/test.decorator';
+} from './common/decorators/access.decorators';
+import { Multipart } from './common/decorators/multipart.decorators';
 
-import { dbErrorCatcher } from './exception.filter';
+import { dbErrorCatcher } from './common/filters/exception.filter';
 
 import { User } from './models/user';
 import { Project } from './models/project';
@@ -25,12 +25,12 @@ import { Tick } from './models/tick';
 import { Comment } from './models/comment';
 import { File } from './models/file';
 
-export const dto = {
+export const interfaces = {
   response: {
-    exception: exceptonAnswerDTO,
-    empty: emptyAnswerDTO,
-    success: successAnswerDTO,
-    created: createdAnswerDTO,
+    exception: exceptonAnswerI,
+    empty: emptyAnswerI,
+    success: successAnswerI,
+    created: createdAnswerI,
   },
 };
 
@@ -63,11 +63,12 @@ export type types = {
     validateSession: validateSession;
     isLoggedIn: isLoggedIn;
   };
-  dto: {
+  interfaces: {
     response: {
-      empty: emptyAnswerDTO;
-      success: successAnswerDTO;
-      created: createdAnswerDTO;
+      exception: exceptonAnswerI;
+      empty: emptyAnswerI;
+      success: successAnswerI;
+      created: createdAnswerI;
     };
   };
   models: {
