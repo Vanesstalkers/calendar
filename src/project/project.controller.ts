@@ -9,12 +9,9 @@ import { UtilsService } from '../utils.service';
 import { SessionService } from '../session/session.service';
 
 class getOneDTO {
-  @swagger.ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
+  @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
   projectId: number;
-  @swagger.ApiPropertyOptional({
-    example: '1,2,3...',
-    description: 'ID пользователя',
-  })
+  @swagger.ApiPropertyOptional({ example: 1, description: 'ID пользователя' })
   userId?: number;
 }
 

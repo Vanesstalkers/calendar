@@ -37,7 +37,7 @@ class loginQueryDTO {
   preventSendSms: string;
 }
 class changeCurrentProjectDTO {
-  @swagger.ApiProperty({ example: '1,2,3...', description: 'ID проекта' })
+  @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
   projectId: number;
 }
 
@@ -188,6 +188,17 @@ export class UserController {
 
     const result = await this.userService.getOne({ id: data.id });
     return { status: 'ok', data: result || new dto.response.empty() };
+  }
+
+  @nestjs.Get('search')
+  @nestjs.Header('Content-Type', 'application/json')
+  @nestjs.UseGuards(isLoggedIn)
+  async search(@nestjs.Query('query') query: string): Promise<{
+    status: string;
+    data: [types['models']['user'] | types['dto']['response']['empty']] | [];
+  }> {
+    const result = await this.userService.search(query);
+    return { status: 'ok', data: result };
   }
 
   @nestjs.Post('changeCurrentProject')

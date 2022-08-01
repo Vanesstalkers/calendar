@@ -5,7 +5,7 @@ import {
 } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { Readable } from 'stream';
+import * as stream from 'stream';
 
 import { AppModule } from './app.module';
 import { UniversalExceptionFilter } from './exception.filter';
@@ -19,6 +19,10 @@ async function bootstrap() {
         abortOnError: false,
       },
     );
+    app.register(require('@fastify/multipart'), {
+      //attachFieldsToBody: 'keyValues',
+    });
+    app.enableCors();
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
@@ -49,7 +53,7 @@ async function bootstrap() {
   //     rawbody += chunk;
   //   });
   //   req.on('end', function () {
-  //     class ReadableString extends Readable {
+  //     class ReadableString extends stream.Readable {
   //       private sent = false;
   //       constructor(private str: string) {
   //         super();

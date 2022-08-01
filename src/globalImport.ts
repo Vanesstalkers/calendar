@@ -2,9 +2,16 @@ import {
   exceptonAnswerDTO,
   emptyAnswerDTO,
   successAnswerDTO,
+  createdAnswerDTO,
 } from './dto/httpAnswer';
 
-import { validateSession, isLoggedIn } from './decorators/test.decorator';
+import {
+  validateSession,
+  isLoggedIn,
+  Multipart,
+} from './decorators/test.decorator';
+
+import { dbErrorCatcher } from './exception.filter';
 
 import { User } from './models/user';
 import { Project } from './models/project';
@@ -23,6 +30,7 @@ export const dto = {
     exception: exceptonAnswerDTO,
     empty: emptyAnswerDTO,
     success: successAnswerDTO,
+    created: createdAnswerDTO,
   },
 };
 
@@ -43,7 +51,13 @@ export const models = {
 export const decorators = {
   validateSession,
   isLoggedIn,
+  Multipart,
 };
+
+export const exception = {
+  dbErrorCatcher,
+};
+
 export type types = {
   decorators: {
     validateSession: validateSession;
@@ -53,6 +67,7 @@ export type types = {
     response: {
       empty: emptyAnswerDTO;
       success: successAnswerDTO;
+      created: createdAnswerDTO;
     };
   };
   models: {

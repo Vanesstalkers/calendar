@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@fastify/multipart": "^7.1.0",
     "@fastify/secure-session": "^5.2.0",
     "@fastify/static": "^6.4.1",
     "@nestjs/common": "^9.0.0",
@@ -37,6 +38,7 @@
     "cache-manager-redis-store": "^2.0.0",
     "create-nestjs-middleware-module": "^0.2.2",
     "cross-env": "^7.0.3",
+    "fastify-multipart": "^5.4.0",
     "fastify-secure-session": "^3.2.0",
     "pg": "^8.7.3",
     "reflect-metadata": "^0.1.13",

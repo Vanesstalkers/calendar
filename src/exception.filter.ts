@@ -11,6 +11,15 @@ import {
 import { HttpAdapterHost } from '@nestjs/core';
 import { exceptonAnswerDTO } from './dto/httpAnswer';
 
+export function dbErrorCatcher(err: Error): any {
+  console.log('dbErrorCatcher', { err });
+  if (err.name === 'SequelizeDatabaseError') {
+    throw new BadRequestException(err.message);
+  } else {
+    throw err;
+  }
+}
+
 @Catch()
 export class UniversalExceptionFilter implements ExceptionFilter {
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}

@@ -4,7 +4,7 @@ import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types } from '../globalImport';
+import { decorators, dto, models, types, exception } from '../globalImport';
 
 @nestjs.Injectable()
 export class ProjectService {
@@ -31,29 +31,46 @@ export class ProjectService {
     return project;
   }
 
-  async getOne(data: { id: number; userId?: number }): Promise<any> {
+  async getOne(
+    data: { id: number; userId?: number },
+    config: {
+      checkExists?: boolean;
+      include?: boolean;
+      attributes?: string[];
+    } = {},
+  ): Promise<any> {
+    if (config.checkExists) {
+      config.include = false;
+      config.attributes = ['id'];
+    }
+
     const whereProjectToUser: { user_id?: number } = {};
     if (data.userId) whereProjectToUser.user_id = data.userId;
-    const findData = await this.projectModel.findOne({
-      where: {
-        id: data.id,
-      },
-      //attributes: ['id'],
-      include: { all: true, nested: true },
-      // include: [
-      //   {
-      //     //attributes: ['user_id'],
-      //     model: ProjectToUser,
-      //     where: whereProjectToUser,
-      //     include: [
-      //       {
-      //         model: User,
-      //       },
-      //     ],
-      //     //required: false
-      //   },
-      // ],
-    });
+    const findData = await this.projectModel
+      .findOne({
+        where: {
+          id: data.id,
+        },
+        attributes: config.attributes,
+        // include: { all: true, nested: true },
+        include:
+          config.include === false
+            ? undefined
+            : [
+                {
+                  //attributes: ['user_id'],
+                  model: models.project2user,
+                  where: whereProjectToUser,
+                  include: [
+                    {
+                      model: models.user,
+                    },
+                  ],
+                  // required: false
+                },
+              ],
+      })
+      .catch(exception.dbErrorCatcher);
     return findData;
 
     // const queryResult = await this.sequelize.query(
@@ -62,5 +79,12 @@ export class ProjectService {
     // `,
     //   { replacements: { id: data.id } },
     // );
+  }
+
+  async checkExists(id: number): Promise<boolean> {
+    const project = await this.getOne({ id }, { checkExists: true }).catch(
+      exception.dbErrorCatcher,
+    );
+    return project ? true : false;
   }
 }

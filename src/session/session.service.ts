@@ -13,10 +13,12 @@ import { SessionStorageI } from './storage.interface';
 
 @nestjs.Injectable()
 export class SessionService {
-  constructor(@nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache) {}
-  
-  async getState(session: FastifySession): Promise<SessionStorageI> { 
-    const storage = await this.getStorage(session) ?? {};
+  constructor(
+    @nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
+
+  async getState(session: FastifySession): Promise<SessionStorageI> {
+    const storage = (await this.getStorage(session)) ?? {};
     return {
       userId: storage.userId ?? null,
       registration: storage.registration === true,
@@ -37,7 +39,7 @@ export class SessionService {
     }
   }
 
-  async isLoggedIn(session: FastifySession){
+  async isLoggedIn(session: FastifySession) {
     const storage = await this.getStorage(session);
     return storage.login === true;
   }
@@ -55,7 +57,9 @@ export class SessionService {
   }
 
   async updateStorageById(storageId: string, data: SessionStorageI) {
-    const storageData: SessionStorageI = JSON.parse(await this.cacheManager.get(storageId));
+    const storageData: SessionStorageI = JSON.parse(
+      await this.cacheManager.get(storageId),
+    );
     await this.cacheManager.set(
       storageId,
       JSON.stringify({ ...storageData, ...data }),
@@ -67,5 +71,4 @@ export class SessionService {
     const storage = await this.getStorage(session);
     return storage.userId;
   }
-
 }

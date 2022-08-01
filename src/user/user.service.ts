@@ -1,10 +1,11 @@
 import * as nestjs from '@nestjs/common';
+import { Op } from 'sequelize';
 import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types } from '../globalImport';
+import { decorators, dto, models, types, exception } from '../globalImport';
 
 // import { Injectable, ForbiddenException } from '@nestjs/common';
 // import { InjectModel } from '@nestjs/sequelize';
@@ -25,29 +26,66 @@ export class UserService {
     private projectToUserModel: typeof models.project2user,
   ) {}
 
-  async getOne(where: {
-    id?: number;
-    phone?: string;
-  }): Promise<types['models']['user'] | null> {
-    const findData = await this.userModel.findOne({
-      where: where,
-      include: {
-        model: models.project2user,
-        attributes: ['project_id'],
-        include: [
-          {
-            model: models.project,
-            attributes: ['title'],
-          },
-        ],
-      },
-    });
+  async getOne(
+    data: {
+      id?: number;
+      phone?: string;
+    },
+    config: {
+      checkExists?: boolean;
+      include?: boolean;
+      attributes?: string[];
+    } = {},
+  ): Promise<types['models']['user'] | null> {
+    if (config.checkExists) {
+      config.include = false;
+      config.attributes = ['id'];
+    }
+
+    const where: typeof data = {};
+    if (data.id) where.id = data.id;
+    if (data.phone) where.phone = data.phone;
+
+    const findData = await this.userModel
+      .findOne({
+        where,
+        attributes: config.attributes,
+        include:
+          config.include === false
+            ? undefined
+            : [
+                {
+                  model: models.project2user,
+                  include: [
+                    {
+                      model: models.project,
+                      attributes: ['title'],
+                    },
+                  ],
+                },
+              ],
+      })
+      .catch(exception.dbErrorCatcher);
     return findData;
   }
 
-  async create(
-    data: types['models']['user'],
-  ): Promise<{
+  async search(query: string): Promise<[types['models']['user']] | []> {
+    const findData = await this.sequelize
+      .query(
+        `
+        SELECT u.id, u.name, f.link
+        FROM "user" u
+        LEFT JOIN "file" f ON f.parent_type = 'user' AND f.parent_id = u.id
+        WHERE u.phone LIKE :query OR LOWER(u.name) LIKE LOWER(:query)
+        LIMIT 1
+      `,
+        { replacements: { query: `%${query}%` } },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0];
+  }
+
+  async create(data: types['models']['user']): Promise<{
     user: types['models']['user'];
     project: types['models']['project'];
   }> {
@@ -71,5 +109,11 @@ export class UserService {
     });
 
     return { user, project };
+  }
+  async checkExists(id: number): Promise<boolean> {
+    const user = await this.getOne({ id }, { checkExists: true }).catch(
+      exception.dbErrorCatcher,
+    );
+    return user ? true : false;
   }
 }
