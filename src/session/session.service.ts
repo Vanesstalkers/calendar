@@ -1,18 +1,26 @@
+import * as nestjs from '@nestjs/common';
+import * as sequelize from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { Inject, Injectable, CACHE_MANAGER } from '@nestjs/common';
+import { decorators, dto, models, types } from '../globalImport';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 
 import { SessionI } from './session.interface';
 import { SessionStorageI } from './storage.interface';
 
-@Injectable()
+@nestjs.Injectable()
 export class SessionService {
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
-  
+  constructor(
+    @nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
+
   async getState(session: FastifySession): Promise<SessionStorageI> {
-    const storage = await this.getStorage(session) ?? {};
+    const storage = (await this.getStorage(session)) ?? {};
     return {
+      userId: storage.userId ?? null,
       registration: storage.registration === true,
       login: storage.login === true,
       currentProject: storage.currentProject ?? null,
@@ -31,7 +39,7 @@ export class SessionService {
     }
   }
 
-  async isLoggedIn(session: FastifySession){
+  async isLoggedIn(session: FastifySession) {
     const storage = await this.getStorage(session);
     return storage.login === true;
   }
@@ -49,11 +57,18 @@ export class SessionService {
   }
 
   async updateStorageById(storageId: string, data: SessionStorageI) {
-    const storageData: SessionStorageI = JSON.parse(await this.cacheManager.get(storageId));
+    const storageData: SessionStorageI = JSON.parse(
+      await this.cacheManager.get(storageId),
+    );
     await this.cacheManager.set(
       storageId,
       JSON.stringify({ ...storageData, ...data }),
       { ttl: 0 },
     );
+  }
+
+  async getUserId(session: FastifySession): Promise<number> {
+    const storage = await this.getStorage(session);
+    return storage.userId;
   }
 }

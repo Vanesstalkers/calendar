@@ -1,38 +1,33 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  AutoIncrement,
-  HasMany,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { ProjectToUser } from './project_to_user';
-
-@Table({ tableName: 'project' })
-export class Project extends Model {
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+@sequelize.Table({ tableName: 'project' })
+export class Project extends sequelize.Model {
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @Column
+  @sequelize.Column
   title: string;
 
-  @Column({ type: DataType.JSON, defaultValue: {} })
+  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: object;
 
-  @HasMany(() => ProjectToUser, 'projectId')
-  __user: ProjectToUser[];
+  @swagger.ApiProperty({ type: ()=>[models.project2user] })
+  @sequelize.HasMany(() => models.project2user, 'project_id')
+  __user: types['models']['project2user'][];
 
-  @CreatedAt
+  @swagger.ApiProperty({ type: ()=>[models.task] })
+  @sequelize.HasMany(() => models.task, 'project_id')
+  __task: types['models']['task'][];
+
+
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

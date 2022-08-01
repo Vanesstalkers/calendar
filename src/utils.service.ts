@@ -1,8 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import * as nestjs from '@nestjs/common';
 import axios from 'axios';
 import config from './config';
 
-@Injectable()
+@nestjs.Injectable()
 export class UtilsService {
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
@@ -27,7 +27,7 @@ export class UtilsService {
     const result = await axios({ method: 'POST', url, params, headers }).catch(
       (err) => {
         // временно пишем эту ошибку, но нужно добавить проверок отдельно на доступность сервера, и отдельно на несоответствие запроса формату АПИ
-        throw new ServiceUnavailableException();
+        throw new nestjs.ServiceUnavailableException();
       },
     );
     return result;

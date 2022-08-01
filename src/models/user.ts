@@ -1,53 +1,56 @@
-import {
-  Column,
-  Model,
-  Table,
-  DataType,
-  PrimaryKey,
-  AutoIncrement,
-  HasMany,
-  CreatedAt,
-  UpdatedAt,
-  DeletedAt,
-} from 'sequelize-typescript';
+import * as sequelize from 'sequelize-typescript';
+import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { ProjectToUser } from './project_to_user';
-
-@Table({ tableName: 'user' })
-export class User extends Model {
+@sequelize.Table({ tableName: 'user' })
+export class User extends sequelize.Model {
   // non-db fields
+  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
   preventSendSms: boolean;
 
   // db fields
-  @PrimaryKey
-  @AutoIncrement
-  @Column
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
   id: number;
 
-  @Column
+  @sequelize.Column
   name: string;
 
-  @Column
+  @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
+  @sequelize.Column
   phone: string;
 
-  @Column({ allowNull: true })
+  @sequelize.Column({ allowNull: true })
   position: string;
 
-  @Column({ allowNull: true })
+  @sequelize.Column({ allowNull: true })
   timezone: string;
 
-  @Column({ type: DataType.JSON, defaultValue: {} })
+  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: {
     currentProject: object;
   };
 
-  @HasMany(() => ProjectToUser, 'userId')
-  __project: ProjectToUser[];
+  @sequelize.HasMany(() => models.project2user, 'user_id')
+  __project: types['models']['project2user'][];
 
-  @CreatedAt
+  @sequelize.HasMany(() => models.task, 'exec_user')
+  __task: types['models']['task'][];
+
+  @sequelize.HasMany(() => models.task2user, 'exec_user')
+  __tasktouser: types['models']['task2user'][];
+
+  @sequelize.HasMany(() => models.user2user, 'user_id')
+  __usertouser: types['models']['user2user'][];
+
+  @sequelize.HasMany(() => models.user2user, 'user_rel_id')
+  __relusertouser: types['models']['user2user'][];
+
+  @sequelize.CreatedAt
   add_time: Date;
-  @UpdatedAt
+  @sequelize.UpdatedAt
   update_time: Date;
-  @DeletedAt
+  @sequelize.DeletedAt
   delete_time: Date;
 }

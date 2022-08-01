@@ -5,8 +5,8 @@ import {
   Global,
   CacheModule,
 } from '@nestjs/common';
-
 import { SequelizeModule } from '@nestjs/sequelize';
+import { models } from './globalImport';
 
 import config from './config';
 import type { ClientOpts } from 'redis';
@@ -15,6 +15,7 @@ import * as redisStore from 'cache-manager-redis-store';
 import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
+import { TaskModule } from './task/task.module';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
@@ -24,6 +25,8 @@ try {
     dialect: 'postgres',
     models: ['/models'],
     autoLoadModels: true,
+    synchronize: false, // если удалить или поставить в true, то начнет перетирать данные
+    // logging: false,
   });
 } catch (err) {
   // !!! нужно пробросить корректную ошибку
@@ -55,11 +58,24 @@ try {
     cacheImport,
     UserModule,
     SessionModule,
-    UserModule,
     ProjectModule,
+    TaskModule,
+    SequelizeModule.forFeature([
+      models.user,
+      models.project,
+      models.task,
+      models.project2user,
+      models.taskgroup,
+      models.hashtag,
+      models.task2user,
+      models.user2user,
+      models.tick,
+      models.comment,
+      models.file,
+    ]),
   ],
-  controllers: [],
   providers: [],
+  controllers: [],
 })
 export class AppModule implements NestModule {
   configure() {}

@@ -9,6 +9,16 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
+import { exceptonAnswerDTO } from './dto/httpAnswer';
+
+export function dbErrorCatcher(err: Error): any {
+  console.log('dbErrorCatcher', { err });
+  if (err.name === 'SequelizeDatabaseError') {
+    throw new BadRequestException(err.message);
+  } else {
+    throw err;
+  }
+}
 
 @Catch()
 export class UniversalExceptionFilter implements ExceptionFilter {
@@ -18,9 +28,9 @@ export class UniversalExceptionFilter implements ExceptionFilter {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
 
-    const responseBody: any = {
+    const responseBody: exceptonAnswerDTO = {
       status: 'error',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(),
       path: httpAdapter.getRequestUrl(ctx.getRequest()),
     };
     let responseStatus = HttpStatus.INTERNAL_SERVER_ERROR;
