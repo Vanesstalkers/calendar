@@ -4,16 +4,12 @@ import { models, types } from '../globalImport';
 
 @sequelize.Table({ tableName: 'user' })
 export class User extends sequelize.Model {
-  // non-db fields
-  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
-  preventSendSms: boolean;
-
-  // db fields
   @sequelize.PrimaryKey
   @sequelize.AutoIncrement
   @sequelize.Column
   id: number;
 
+  @swagger.ApiPropertyOptional({ description: 'Имя пользователя', example: 'Николай' })
   @sequelize.Column
   name: string;
 

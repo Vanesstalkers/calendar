@@ -4,7 +4,13 @@ import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, exception } from '../globalImport';
+import {
+  decorators,
+  interfaces,
+  models,
+  types,
+  exception,
+} from '../globalImport';
 
 @nestjs.Injectable()
 export class ProjectService {
@@ -17,7 +23,8 @@ export class ProjectService {
   ) {}
 
   async create(data: {
-    project: types['models']['project'];
+    project: { title: string };
+    project_link?: {personal: boolean},
     userId: number;
   }): Promise<types['models']['project']> {
     const project = await this.projectModel.create({
@@ -27,6 +34,7 @@ export class ProjectService {
       project_id: project.id,
       user_id: data.userId,
       role: 'owner',
+      personal: data?.project_link?.personal,
     });
     return project;
   }
@@ -71,7 +79,7 @@ export class ProjectService {
               ],
       })
       .catch(exception.dbErrorCatcher);
-    return findData;
+    return findData || null;
 
     // const queryResult = await this.sequelize.query(
     //   `

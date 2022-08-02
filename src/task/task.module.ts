@@ -13,6 +13,7 @@ import { UtilsService } from '../utils/utils.service';
   imports: [
     SequelizeModule.forFeature([
       models.user,
+      models.user2user,
       models.task,
       models.project,
       models.project2user,

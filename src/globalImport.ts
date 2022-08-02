@@ -25,6 +25,11 @@ import { Tick } from './models/tick';
 import { Comment } from './models/comment';
 import { File } from './models/file';
 
+export enum answerCode {
+  OK = 'ok',
+  ERR = 'err',
+}
+
 export const interfaces = {
   response: {
     exception: exceptonAnswerI,

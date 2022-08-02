@@ -2,20 +2,30 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types } from '../globalImport';
+import {
+  decorators,
+  interfaces,
+  models,
+  types,
+  answerCode,
+} from '../globalImport';
 
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
 import { AuthService } from '../auth/auth.service';
+import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
 import { SessionI } from '../session/interfaces/session.interface';
 import { SessionStorageI } from '../session/interfaces/storage.interface';
 
-import { validateSession, isLoggedIn } from '../common/decorators/access.decorators';
+import {
+  validateSession,
+  isLoggedIn,
+} from '../common/decorators/access.decorators';
 
 class getOneQueryDTO {
   @swagger.ApiProperty({
-    example: '1,2,3...',
+    example: 1,
     description: 'ID пользователя',
   })
   id: number;
@@ -26,6 +36,15 @@ class codeQueryDTO {
     description: 'Проверочный код из СМС',
   })
   code: string;
+}
+export class registrationQueryDTO {
+  @swagger.ApiProperty({ type: () => models.user })
+  user: types['models']['user'];
+  @swagger.ApiPropertyOptional({
+    description: 'Не отправлять СМС',
+    example: 'true',
+  })
+  preventSendSms: string;
 }
 class loginQueryDTO {
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
@@ -39,6 +58,28 @@ class loginQueryDTO {
 class changeCurrentProjectDTO {
   @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
   projectId: number;
+}
+class addContactDTO {
+  @swagger.ApiProperty({ example: 1, description: 'ID пользователя' })
+  userId: number;
+}
+export class searchDTO {
+  @swagger.ApiPropertyOptional({
+    description: 'Строка запрос',
+    example: 'Петров',
+  })
+  query: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Поиск по всем пользователям (не только в контактах)',
+    example: 'true|false',
+  })
+  globalSearch?: boolean;
+  @swagger.ApiPropertyOptional({
+    description: 'Лимит',
+    example: 10,
+  })
+  limit?: number;
+  userId?: number;
 }
 
 @nestjs.Controller('user')
@@ -55,6 +96,7 @@ export class UserController {
     private userService: UserService,
     private sessionService: SessionService,
     private authService: AuthService,
+    private projectService: ProjectService,
     private utils: UtilsService,
   ) {}
 
@@ -69,31 +111,41 @@ export class UserController {
 
   @nestjs.Post('registration')
   async registration(
-    @nestjs.Body() data: types['models']['user'],
+    @nestjs.Body() data: registrationQueryDTO,
     @nestjs.Session() session: FastifySession,
   ) {
-    if (this.utils.validatePhone(data?.phone))
+    if (this.utils.validatePhone(data?.user?.phone))
       throw new nestjs.BadRequestException('Phone number is incorrect');
 
-    const userExist = await this.userService.getOne({ phone: data.phone });
+    const userExist = await this.userService.getOne({ phone: data.user.phone });
     if (userExist)
       throw new nestjs.BadRequestException('Phone number already registred');
 
-    await this.sessionService.updateStorage(session, { phone: data.phone });
+    await this.sessionService.updateStorage(session, {
+      phone: data.user.phone,
+    });
 
     const sessionStorageId = session.storageId;
     const code = await this.authService
       .runAuthWithPhone(
-        data.phone,
+        data.user.phone,
         async () => {
-          const createResult = await this.userService.create(data);
+          const user = await this.userService.create(data.user);
+          await this.sessionService.updateStorage(session, { userId: user.id });
+          const personalProject = await this.projectService.create({
+            project: { title: `${user.id}th user's personal project` },
+            project_link: { personal: true },
+            userId: user.id,
+          });
+          const workProject = await this.projectService.create({
+            project: { title: `${user.id}th user's work project` },
+            userId: user.id,
+          });
+
+          this.changeCurrentProject({ projectId: personalProject.id }, session);
           this.sessionService.updateStorageById(sessionStorageId, {
-            userId: createResult.user.id,
             registration: true,
-            currentProject: {
-              id: createResult.project.id,
-              title: createResult.project.title,
-            },
+            login: true,
           });
         },
         data.preventSendSms,
@@ -190,15 +242,21 @@ export class UserController {
     return { status: 'ok', data: result || new interfaces.response.empty() };
   }
 
-  @nestjs.Get('search')
+  @nestjs.Post('search')
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(isLoggedIn)
-  async search(@nestjs.Query('query') query: string): Promise<{
-    status: string;
-    data: [types['models']['user'] | types['interfaces']['response']['empty']] | [];
+  async search(
+    @nestjs.Query() data: searchDTO,
+    @nestjs.Session() session: FastifySession,
+  ): Promise<{
+    status: answerCode;
+    data:
+      | [types['models']['user'] | types['interfaces']['response']['empty']]
+      | [];
   }> {
-    const result = await this.userService.search(query);
-    return { status: 'ok', data: result };
+    data.userId = await this.sessionService.getUserId(session);
+    const result = await this.userService.search(data);
+    return { status: answerCode.OK, data: result };
   }
 
   @nestjs.Post('changeCurrentProject')
@@ -207,12 +265,55 @@ export class UserController {
     @nestjs.Query() data: changeCurrentProjectDTO,
     @nestjs.Session() session: FastifySession,
   ): Promise<types['interfaces']['response']['success']> {
-    this.sessionService.updateStorageById(session.storageId, {});
-    // const userId = await this.sessionService.getUserId(session);
-    // await this.userService.changeCurrentProject({
-    //   projectId: data.projectId,
-    //   userId,
-    // });
-    return { status: 'ok' };
+    if (!data?.projectId)
+      throw new nestjs.BadRequestException('Project ID is empty');
+
+    const userId = await this.sessionService.getUserId(session);
+    const project = await this.projectService.getOne({
+      id: data.projectId,
+      userId,
+    });
+    if (!project)
+      throw new nestjs.BadRequestException(
+        'Project is not exist in user`s project list.',
+      );
+
+    const currentProject = { id: project.id, title: project.title };
+    await this.userService.update(userId, {
+      config: { currentProject },
+    });
+    this.sessionService.updateStorageById(session.storageId, {
+      currentProject,
+    });
+
+    return { status: answerCode.OK };
+  }
+
+  @nestjs.Post('addContact')
+  // @nestjs.UseGuards(isLoggedIn)
+  async addContact(
+    @nestjs.Query() data: addContactDTO,
+    @nestjs.Session() session: FastifySession,
+  ): Promise<types['interfaces']['response']['success']> {
+    if (!data?.userId) throw new nestjs.BadRequestException('User ID is empty');
+
+    if (!(await this.userService.checkExists(data.userId)))
+      throw new nestjs.BadRequestException('User does not exist');
+
+    const userId = await this.sessionService.getUserId(session);
+    this.userService.addContact({ userId, relUserId: data.userId });
+
+    return { status: answerCode.OK };
+  }
+
+  @nestjs.Post('update')
+  @swagger.ApiBody({ type: models.user })
+  @nestjs.UseGuards(isLoggedIn)
+  async update(
+    @nestjs.Body() data: types['models']['user'],
+    @nestjs.Session() session: FastifySession,
+  ) {
+    const userId = await this.sessionService.getUserId(session);
+    await this.userService.update(userId, data);
   }
 }

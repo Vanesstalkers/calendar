@@ -11,8 +11,6 @@ import { SessionService } from '../session/session.service';
 class getOneDTO {
   @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
   projectId: number;
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID пользователя' })
-  userId?: number;
 }
 
 @nestjs.Controller('project')
@@ -50,17 +48,17 @@ export class ProjectController {
   @swagger.ApiResponse(
     new interfaces.response.success(models.project, interfaces.response.empty),
   )
-  // @nestjs.UseGuards(decorators.isLoggedIn)
+  @nestjs.UseGuards(decorators.isLoggedIn)
   async getOne(
     @nestjs.Query() data: getOneDTO,
     @nestjs.Session() session: FastifySession,
   ): Promise<types['interfaces']['response']['success']> {
     if (!data?.projectId)
       throw new nestjs.BadRequestException('Project ID is empty');
-    //const userId = await this.sessionService.getUserId(session);
+    const userId = await this.sessionService.getUserId(session);
     const result = await this.projectService.getOne({
       id: data.projectId,
-      userId: data.userId,
+      userId,
     });
     return { status: 'ok', data: result || new interfaces.response.empty() };
   }

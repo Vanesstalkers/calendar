@@ -14,6 +14,14 @@ import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { resolve } from 'node:path';
 
+class getOneQueryDTO {
+  @swagger.ApiProperty({
+    example: 1,
+    description: 'ID задачи',
+  })
+  id: number;
+}
+
 class createDTO {
   @swagger.ApiProperty({ type: () => models.task })
   task: types['models']['task'];
@@ -97,7 +105,7 @@ export class TaskController {
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   async getOne(
-    @nestjs.Query() data: { id: number },
+    @nestjs.Query() data: getOneQueryDTO,
     @nestjs.Session() session: FastifySession,
   ): Promise<types['models']['task']> {
     if (!data?.id) throw new nestjs.BadRequestException('Task ID is empty');
