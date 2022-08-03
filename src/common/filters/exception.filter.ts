@@ -1,15 +1,26 @@
-
-
 import * as nestjs from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types } from '../../globalImport';
+import {
+  decorators,
+  interfaces,
+  models,
+  types,
+  httpAnswer,
+} from '../../globalImport';
 
-export function dbErrorCatcher(err: Error): any {
+export function dbErrorCatcher(err: any): any {
   console.log('dbErrorCatcher', { err });
-  if (err.name === 'SequelizeDatabaseError') {
+  if (err.name === 'SequelizeForeignKeyConstraintError') {
+    throw new nestjs.BadRequestException(
+      `DB entity does not exist (${err.parent?.detail})`,
+    );
+  } else if (
+    err.name === 'SequelizeDatabaseError' ||
+    err.message.includes('Invalid value')
+  ) {
     throw new nestjs.BadRequestException(err.message);
   } else {
     throw err;
@@ -24,7 +35,7 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
     const { httpAdapter } = this.httpAdapterHost;
     const ctx = host.switchToHttp();
     const responseBody: types['interfaces']['response']['exception'] = {
-      status: 'error',
+      ...httpAnswer.ERR,
       timestamp: new Date(),
       path: httpAdapter.getRequestUrl(ctx.getRequest()),
     };

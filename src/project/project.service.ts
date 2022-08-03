@@ -1,6 +1,7 @@
 import * as nestjs from '@nestjs/common';
 import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
@@ -12,6 +13,8 @@ import {
   exception,
 } from '../globalImport';
 
+import { UtilsService } from '../utils/utils.service';
+
 @nestjs.Injectable()
 export class ProjectService {
   constructor(
@@ -20,23 +23,44 @@ export class ProjectService {
     private projectModel: typeof models.project,
     @sequelize.InjectModel(models.project2user)
     private projectToUserModel: typeof models.project2user,
+    private utils: UtilsService,
   ) {}
 
-  async create(data: {
-    project: { title: string };
-    project_link?: {personal: boolean},
-    userId: number;
-  }): Promise<types['models']['project']> {
-    const project = await this.projectModel.create({
-      title: data.project.title,
-    });
-    await this.projectToUserModel.create({
-      project_id: project.id,
-      user_id: data.userId,
-      role: 'owner',
-      personal: data?.project_link?.personal,
-    });
+  async create(
+    projectData: types['models']['project'],
+    transaction?: Transaction,
+  ): Promise<types['models']['project']> {
+    const createTransaction = !transaction;
+    if (createTransaction) transaction = await this.sequelize.transaction();
+
+    const project = await this.projectModel
+      .create({}, { transaction })
+      .catch(exception.dbErrorCatcher);
+    await this.update(project.id, projectData, transaction);
+
+    if (createTransaction) await transaction.commit();
     return project;
+  }
+  async update(
+    projectId: number,
+    updateData: types['models']['project'],
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.utils.updateDB({
+      table: 'project',
+      id: projectId,
+      data: updateData,
+      handlers: {
+        __projecttouser: async (value: any) => {
+          const arr: any[] = Array.from(value);
+          for (const link of arr) {
+            await this.createLinkToUser(projectId, link.id, link, transaction);
+          }
+          return true;
+        },
+      },
+      transaction,
+    });
   }
 
   async getOne(
@@ -94,5 +118,35 @@ export class ProjectService {
       exception.dbErrorCatcher,
     );
     return project ? true : false;
+  }
+
+  async createLinkToUser(
+    project_id: number,
+    user_id: number,
+    linkData: types['models']['project2user'],
+    transaction?: Transaction,
+  ): Promise<types['models']['project2user']> {
+    const createTransaction = !transaction;
+    if (createTransaction) transaction = await this.sequelize.transaction();
+
+    const link = await this.projectToUserModel
+      .create({ project_id, user_id }, { transaction })
+      .catch(exception.dbErrorCatcher);
+    await this.updateLinkToUser(link.id, linkData, transaction);
+
+    if (createTransaction) await transaction.commit();
+    return link;
+  }
+  async updateLinkToUser(
+    linkId: number,
+    updateData: types['models']['project2user'],
+    transaction: Transaction,
+  ): Promise<void> {
+    await this.utils.updateDB({
+      table: 'project_to_user',
+      id: linkId,
+      data: updateData,
+      transaction,
+    });
   }
 }

@@ -15,14 +15,17 @@ export class Project extends sequelize.Model {
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: object;
 
-  @swagger.ApiProperty({ type: ()=>[models.project2user] })
+  @swagger.ApiPropertyOptional({
+    type: Array,
+    example: '[{"id":1},{"id":2}]',
+    description: 'Список проектов',
+  })
   @sequelize.HasMany(() => models.project2user, 'project_id')
-  __user: types['models']['project2user'][];
+  __projecttouser: types['models']['project2user'][];
 
-  @swagger.ApiProperty({ type: ()=>[models.task] })
+  @swagger.ApiProperty({ type: () => [models.task] })
   @sequelize.HasMany(() => models.task, 'project_id')
   __task: types['models']['task'][];
-
 
   @sequelize.CreatedAt
   add_time: Date;

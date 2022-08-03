@@ -1,4 +1,5 @@
 import * as nestjs from '@nestjs/common';
+import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
@@ -7,7 +8,7 @@ import {
   interfaces,
   models,
   types,
-  answerCode,
+  httpAnswer,
 } from '../globalImport';
 
 import { UserService } from './user.service';
@@ -17,11 +18,6 @@ import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
 import { SessionI } from '../session/interfaces/session.interface';
 import { SessionStorageI } from '../session/interfaces/storage.interface';
-
-import {
-  validateSession,
-  isLoggedIn,
-} from '../common/decorators/access.decorators';
 
 class getOneQueryDTO {
   @swagger.ApiProperty({
@@ -82,6 +78,15 @@ export class searchDTO {
   userId?: number;
 }
 
+class updateDTO {
+  @swagger.ApiProperty({ type: () => models.user })
+  userData: types['models']['user'];
+  @swagger.ApiPropertyOptional({ example: 1, description: 'ID пользователя' })
+  userId?: number;
+  // @swagger.ApiProperty({ type: 'string', format: 'binary' })
+  // iconFile: string;
+}
+
 @nestjs.Controller('user')
 @swagger.ApiTags('user')
 @swagger.ApiResponse({
@@ -90,9 +95,10 @@ export class searchDTO {
   type: () => interfaces.response.exception,
 })
 @swagger.ApiExtraModels(interfaces.response.empty, interfaces.response.success)
-@nestjs.UseGuards(validateSession)
+@nestjs.UseGuards(decorators.validateSession)
 export class UserController {
   constructor(
+    private sequelize: Sequelize,
     private userService: UserService,
     private sessionService: SessionService,
     private authService: AuthService,
@@ -106,7 +112,7 @@ export class UserController {
     @nestjs.Session() session: FastifySession,
   ) {
     const createResult = await this.userService.create(data);
-    return { status: 'ok' };
+    return httpAnswer.OK;
   }
 
   @nestjs.Post('registration')
@@ -130,20 +136,31 @@ export class UserController {
       .runAuthWithPhone(
         data.user.phone,
         async () => {
-          const user = await this.userService.create(data.user);
+          const transaction = await this.sequelize.transaction();
+          const user = await this.userService.create(data.user, transaction);
           await this.sessionService.updateStorage(session, { userId: user.id });
-          const personalProject = await this.projectService.create({
-            project: { title: `${user.id}th user's personal project` },
-            project_link: { personal: true },
-            userId: user.id,
-          });
-          const workProject = await this.projectService.create({
-            project: { title: `${user.id}th user's work project` },
-            userId: user.id,
-          });
 
-          this.changeCurrentProject({ projectId: personalProject.id }, session);
-          this.sessionService.updateStorageById(sessionStorageId, {
+          const personalProject = await this.projectService.create(
+            {
+              title: `${user.id}th user's personal project`,
+              __projecttouser: [{ id: user.id, personal: true }],
+            },
+            transaction,
+          );
+          const workProject = await this.projectService.create(
+            {
+              title: `${user.id}th user's work project`,
+              __projecttouser: [{ id: user.id }],
+            },
+            transaction,
+          );
+          await transaction.commit();
+
+          await this.changeCurrentProject(
+            { projectId: personalProject.id },
+            session,
+          );
+          await this.sessionService.updateStorageById(sessionStorageId, {
             registration: true,
             login: true,
           });
@@ -154,13 +171,14 @@ export class UserController {
         throw err;
       });
 
-    return { status: 'ok', msg: 'wait for auth code', code }; // !!! убрать code после отладки
+    return { ...httpAnswer.OK, msg: 'wait for auth code', code }; // !!! убрать code после отладки
   }
 
   @nestjs.Get('session')
   @nestjs.Header('Content-Type', 'application/json')
   async session(@nestjs.Session() session: FastifySession): Promise<object> {
-    return await this.sessionService.getState(session);
+    const result = await this.sessionService.getState(session);
+    return { ...httpAnswer.OK, data: result };
   }
 
   @nestjs.Post('login')
@@ -186,7 +204,7 @@ export class UserController {
         data.phone,
         async () => {
           const user = await this.userService.getOne({ phone: data.phone });
-          this.sessionService.updateStorageById(storageId, {
+          await this.sessionService.updateStorageById(storageId, {
             userId: user.id,
             registration: true,
             login: true,
@@ -199,7 +217,7 @@ export class UserController {
         throw err;
       });
 
-    return { status: 'ok', msg: 'wait for auth code', code };
+    return { ...httpAnswer.OK, msg: 'wait for auth code', code };
   }
 
   @nestjs.Get('code')
@@ -221,14 +239,14 @@ export class UserController {
       });
 
     if (checkAuthCode === false)
-      return { status: 'error', msg: 'Wrong auth code' };
+      return { ...httpAnswer.ERR, msg: 'Wrong auth code' };
 
-    return { status: 'ok' };
+    return httpAnswer.OK;
   }
 
   @nestjs.Get('getOne')
   @nestjs.Header('Content-Type', 'application/json')
-  @nestjs.UseGuards(isLoggedIn)
+  @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(
     new interfaces.response.success(models.user, interfaces.response.empty),
   )
@@ -239,28 +257,29 @@ export class UserController {
     if (!data.id) throw new nestjs.BadRequestException('User ID is empty');
 
     const result = await this.userService.getOne({ id: data.id });
-    return { status: 'ok', data: result || new interfaces.response.empty() };
+    return {
+      ...httpAnswer.OK,
+      data: result || new interfaces.response.empty(),
+    };
   }
 
   @nestjs.Post('search')
   @nestjs.Header('Content-Type', 'application/json')
-  @nestjs.UseGuards(isLoggedIn)
+  @nestjs.UseGuards(decorators.isLoggedIn)
   async search(
     @nestjs.Query() data: searchDTO,
     @nestjs.Session() session: FastifySession,
   ): Promise<{
-    status: answerCode;
-    data:
-      | [types['models']['user'] | types['interfaces']['response']['empty']]
-      | [];
+    status: string;
+    data: types['models']['user'] | types['interfaces']['response']['empty'];
   }> {
     data.userId = await this.sessionService.getUserId(session);
     const result = await this.userService.search(data);
-    return { status: answerCode.OK, data: result };
+    return { ...httpAnswer.OK, data: result };
   }
 
   @nestjs.Post('changeCurrentProject')
-  @nestjs.UseGuards(isLoggedIn)
+  @nestjs.UseGuards(decorators.isLoggedIn)
   async changeCurrentProject(
     @nestjs.Query() data: changeCurrentProjectDTO,
     @nestjs.Session() session: FastifySession,
@@ -279,18 +298,16 @@ export class UserController {
       );
 
     const currentProject = { id: project.id, title: project.title };
-    await this.userService.update(userId, {
-      config: { currentProject },
-    });
-    this.sessionService.updateStorageById(session.storageId, {
+    await this.userService.update(userId, { config: { currentProject } });
+    await this.sessionService.updateStorageById(session.storageId, {
       currentProject,
     });
 
-    return { status: answerCode.OK };
+    return httpAnswer.OK;
   }
 
   @nestjs.Post('addContact')
-  // @nestjs.UseGuards(isLoggedIn)
+  // @nestjs.UseGuards(decorators.isLoggedIn)
   async addContact(
     @nestjs.Query() data: addContactDTO,
     @nestjs.Session() session: FastifySession,
@@ -303,17 +320,19 @@ export class UserController {
     const userId = await this.sessionService.getUserId(session);
     this.userService.addContact({ userId, relUserId: data.userId });
 
-    return { status: answerCode.OK };
+    return httpAnswer.OK;
   }
 
   @nestjs.Post('update')
   @swagger.ApiBody({ type: models.user })
-  @nestjs.UseGuards(isLoggedIn)
+  @nestjs.UseGuards(decorators.isLoggedIn)
   async update(
-    @nestjs.Body() data: types['models']['user'],
+    @nestjs.Body() data: updateDTO,
     @nestjs.Session() session: FastifySession,
   ) {
     const userId = await this.sessionService.getUserId(session);
-    await this.userService.update(userId, data);
+    await this.userService.update(userId, data.userData);
+
+    return httpAnswer.OK;
   }
 }

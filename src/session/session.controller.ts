@@ -15,8 +15,8 @@ export class SessionController {
     private utils: UtilsService,
   ) {}
 
-  @nestjs.Get('getStorage')
-  @nestjs.Header('Content-Type', 'application/json')
+  // @nestjs.Get('getStorage')
+  // @nestjs.Header('Content-Type', 'application/json')
   async getStorage(
     @nestjs.Session() session: FastifySession,
   ): Promise<SessionStorageI> {

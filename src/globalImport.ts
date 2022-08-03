@@ -25,10 +25,10 @@ import { Tick } from './models/tick';
 import { Comment } from './models/comment';
 import { File } from './models/file';
 
-export enum answerCode {
-  OK = 'ok',
-  ERR = 'err',
-}
+export const httpAnswer = {
+  OK: { status: 'ok' },
+  ERR: { status: 'err' },
+};
 
 export const interfaces = {
   response: {
@@ -77,13 +77,13 @@ export type types = {
     };
   };
   models: {
-    user: User;
-    project: Project;
+    user: User | { id?: number; phone?: string; config?: any };
+    project: Project | { id?: number; title?: string };
     task: Task;
-    project2user: ProjectToUser;
+    project2user: ProjectToUser | { id?: number; personal?: boolean };
     taskgroup: TaskGroup;
     hashtag: Hashtag;
-    task2user: TaskToUser;
+    task2user: TaskToUser | { id?: number; role?: string; status?: string };
     user2user: UserToUser;
     tick: Tick;
     comment: Comment;

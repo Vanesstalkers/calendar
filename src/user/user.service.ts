@@ -2,6 +2,7 @@ import * as nestjs from '@nestjs/common';
 import { Op } from 'sequelize';
 import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
@@ -13,6 +14,7 @@ import {
   exception,
 } from '../globalImport';
 
+import { UtilsService } from '../utils/utils.service';
 import { searchDTO } from './user.controller';
 
 @nestjs.Injectable()
@@ -26,6 +28,7 @@ export class UserService {
     private projectModel: typeof models.project,
     @sequelize.InjectModel(models.project2user)
     private projectToUserModel: typeof models.project2user,
+    private utils: UtilsService,
   ) {}
 
   async getOne(
@@ -106,36 +109,33 @@ export class UserService {
   }
 
   async create(
-    data: types['models']['user'],
+    userData: types['models']['user'],
+    transaction?: Transaction,
   ): Promise<types['models']['user']> {
-    const user = await this.userModel.create({
-      name: data.name,
-      phone: data.phone,
-    });
+    const createTransaction = !transaction;
+    if (createTransaction) transaction = await this.sequelize.transaction();
+
+    const user = await this.userModel
+      .create({}, { transaction })
+      .catch(exception.dbErrorCatcher);
+    await this.update(user.id, userData, transaction);
+
+    if (createTransaction) await transaction.commit();
     return user;
   }
-  async update(userId: number, updateData: any): Promise<boolean> {
-    const setList = [],
-      replacements = { id: userId };
-    for (const [key, value] of Object.entries(updateData)) {
-      if (key === 'config') {
-        setList.push(`"config" = "config"::jsonb || :config::jsonb`);
-        replacements[key] = JSON.stringify(value);
-      } else {
-        setList.push(`"${key}" = :${key}`);
-        replacements[key] = value;
-      }
-    }
-    const queryResult = await this.sequelize
-      .query(
-        `
-      UPDATE "user" SET ${setList.join(',')} WHERE id = :id
-    `,
-        { replacements },
-      )
-      .catch(exception.dbErrorCatcher);
 
-    return true;
+  async update(
+    userId: number,
+    updateData: types['models']['user'],
+    transaction?: Transaction,
+  ): Promise<void> {
+    await this.utils.updateDB({
+      table: 'user',
+      id: userId,
+      data: updateData,
+      jsonKeys: ['config'],
+      transaction,
+    });
   }
 
   async checkExists(id: number): Promise<boolean> {
