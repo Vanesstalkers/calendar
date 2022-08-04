@@ -1,11 +1,12 @@
 import * as swagger from '@nestjs/swagger';
+import { interfaces } from '../../globalImport';
 
 export class emptyAnswerI {}
 
 export class createdAnswerI {
   constructor(...refs: any[]) {
     return {
-      status: 201,
+      status: 200,
       schema: {
         type: 'object',
         properties: {
@@ -29,9 +30,35 @@ export class createdAnswerI {
 }
 
 export class successAnswerI {
-  constructor(...refs: any[]) {
+  constructor(data: { models?: any[]; props?: any; code?: number } = {}) {
     return {
-      status: 200,
+      status: data.code || 200,
+      schema: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            example: 'ok',
+          },
+          data: data.models?.length
+            ? {
+                type: 'object',
+                oneOf: data.models.map((ref) => ({
+                  $ref: swagger.getSchemaPath(ref),
+                })),
+              }
+            : undefined,
+          ...(data.props || {}),
+        },
+      },
+    };
+  }
+}
+
+export class searchAnswerI {
+  constructor(data: { model?: any; props?: any; code?: number } = {}) {
+    return {
+      status: data.code || 200,
       schema: {
         type: 'object',
         properties: {
@@ -40,8 +67,16 @@ export class successAnswerI {
             example: 'ok',
           },
           data: {
-            oneOf: refs.map((ref) => ({ $ref: swagger.getSchemaPath(ref) })),
+            oneOf: [
+              {
+                type: 'array',
+                items: {
+                  $ref: swagger.getSchemaPath(data.model),
+                },
+              },
+            ],
           },
+          ...(data.props || {}),
         },
       },
     };

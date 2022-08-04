@@ -20,6 +20,7 @@ export class User extends sequelize.Model {
   @sequelize.Column({ allowNull: true })
   position: string;
 
+  @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   @sequelize.Column({ allowNull: true })
   timezone: string;
 

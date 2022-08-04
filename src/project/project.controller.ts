@@ -2,7 +2,14 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, httpAnswer } from '../globalImport';
+import {
+  decorators,
+  interfaces,
+  models,
+  types,
+  httpAnswer,
+  interceptors,
+} from '../globalImport';
 
 import { ProjectService } from './project.service';
 import { UtilsService } from '../utils/utils.service';
@@ -14,6 +21,8 @@ class getOneDTO {
 }
 
 @nestjs.Controller('project')
+@nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
+@nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('project')
 @swagger.ApiResponse({
   status: 400,
@@ -21,7 +30,6 @@ class getOneDTO {
   type: () => interfaces.response.exception,
 })
 @swagger.ApiExtraModels(models.project2user, models.user)
-@nestjs.UseGuards(decorators.validateSession)
 export class ProjectController {
   constructor(
     private projectService: ProjectService,
@@ -31,13 +39,19 @@ export class ProjectController {
 
   @nestjs.Post('create')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody({ type: models.project })
+  @swagger.ApiResponse(new interfaces.response.created())
   async create(
     @nestjs.Body() projectData: types['models']['project'],
     @nestjs.Session() session: FastifySession,
   ) {
     const userId = await this.sessionService.getUserId(session);
-    const createResult = await this.projectService.create(projectData);
-    return httpAnswer.OK;
+    if (!projectData.__projecttouser) projectData.__projecttouser = [];
+    if (!projectData.__projecttouser.find((item) => item.id === userId)) {
+      projectData.__projecttouser.push({ id: userId });
+    }
+    const project = await this.projectService.create(projectData);
+    return { ...httpAnswer.OK, data: { id: project.id } };
   }
 
   @nestjs.Get('getOne')
@@ -60,6 +74,9 @@ export class ProjectController {
       id: data.projectId,
       userId,
     });
-    return { ...httpAnswer.OK, data: result || new interfaces.response.empty() };
+    return {
+      ...httpAnswer.OK,
+      data: result || new interfaces.response.empty(),
+    };
   }
 }

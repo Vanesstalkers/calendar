@@ -9,6 +9,7 @@ import {
   types,
   exception,
   httpAnswer,
+  interceptors,
 } from '../globalImport';
 
 import { TaskService } from './task.service';
@@ -44,13 +45,14 @@ class updateDTO {
 }
 
 @nestjs.Controller('task')
+@nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
+@nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('task')
 @swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
   type: () => interfaces.response.exception,
 })
-@nestjs.UseGuards(decorators.validateSession)
 export class TaskController {
   constructor(
     private taskService: TaskService,

@@ -2,6 +2,7 @@ import {
   exceptonAnswerI,
   emptyAnswerI,
   successAnswerI,
+  searchAnswerI,
   createdAnswerI,
 } from './common/interfaces/httpAnswer';
 
@@ -12,6 +13,7 @@ import {
 import { Multipart } from './common/decorators/multipart.decorators';
 
 import { dbErrorCatcher } from './common/filters/exception.filter';
+import { PostStatusInterceptor } from './common/interceptors/request.interceptor';
 
 import { User } from './models/user';
 import { Project } from './models/project';
@@ -25,16 +27,22 @@ import { Tick } from './models/tick';
 import { Comment } from './models/comment';
 import { File } from './models/file';
 
+import { SessionStorageI } from './session/interfaces/storage.interface';
+
 export const httpAnswer = {
   OK: { status: 'ok' },
   ERR: { status: 'err' },
 };
 
 export const interfaces = {
+  session: {
+    storage: SessionStorageI,
+  },
   response: {
     exception: exceptonAnswerI,
     empty: emptyAnswerI,
     success: successAnswerI,
+    search: searchAnswerI,
     created: createdAnswerI,
   },
 };
@@ -63,6 +71,10 @@ export const exception = {
   dbErrorCatcher,
 };
 
+export const interceptors = {
+  PostStatusInterceptor,
+};
+
 export type types = {
   decorators: {
     validateSession: validateSession;
@@ -78,7 +90,7 @@ export type types = {
   };
   models: {
     user: User | { id?: number; phone?: string; config?: any };
-    project: Project | { id?: number; title?: string };
+    project: Project | { id?: number; title?: string; __projecttouser?: any[] };
     task: Task;
     project2user: ProjectToUser | { id?: number; personal?: boolean };
     taskgroup: TaskGroup;

@@ -9,6 +9,11 @@ export class Project extends sequelize.Model {
   @sequelize.Column
   id: number;
 
+  @swagger.ApiPropertyOptional({
+    type: 'string',
+    example: 'Проект №1',
+    description: 'Название проекта',
+  })
   @sequelize.Column
   title: string;
 

@@ -9,6 +9,7 @@ import {
   models,
   types,
   httpAnswer,
+  interceptors,
 } from '../globalImport';
 
 import { UserService } from './user.service';
@@ -42,7 +43,7 @@ export class registrationQueryDTO {
   })
   preventSendSms: string;
 }
-class loginQueryDTO {
+class authQueryDTO {
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone: string;
   @swagger.ApiPropertyOptional({
@@ -88,14 +89,19 @@ class updateDTO {
 }
 
 @nestjs.Controller('user')
+@nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
+@nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('user')
 @swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
   type: () => interfaces.response.exception,
 })
-@swagger.ApiExtraModels(interfaces.response.empty, interfaces.response.success)
-@nestjs.UseGuards(decorators.validateSession)
+@swagger.ApiExtraModels(
+  interfaces.response.empty,
+  interfaces.response.success,
+  interfaces.session.storage,
+)
 export class UserController {
   constructor(
     private sequelize: Sequelize,
@@ -115,7 +121,8 @@ export class UserController {
     return httpAnswer.OK;
   }
 
-  @nestjs.Post('registration')
+  //@nestjs.Post('registration')
+  @nestjs.Header('Content-Type', 'application/json')
   async registration(
     @nestjs.Body() data: registrationQueryDTO,
     @nestjs.Session() session: FastifySession,
@@ -176,15 +183,20 @@ export class UserController {
 
   @nestjs.Get('session')
   @nestjs.Header('Content-Type', 'application/json')
+  @swagger.ApiResponse(
+    new interfaces.response.success({
+      models: [interfaces.session.storage],
+    }),
+  )
   async session(@nestjs.Session() session: FastifySession): Promise<object> {
     const result = await this.sessionService.getState(session);
     return { ...httpAnswer.OK, data: result };
   }
 
-  @nestjs.Post('login')
+  //@nestjs.Post('login')
   @nestjs.Header('Content-Type', 'application/json')
   async login(
-    @nestjs.Body() data: loginQueryDTO,
+    @nestjs.Body() data: authQueryDTO,
     @nestjs.Session() session: FastifySession,
   ) {
     if (this.utils.validatePhone(data?.phone))
@@ -220,11 +232,64 @@ export class UserController {
     return { ...httpAnswer.OK, msg: 'wait for auth code', code };
   }
 
+  @nestjs.Post('auth')
+  @nestjs.Header('Content-Type', 'application/json')
+  @swagger.ApiResponse(
+    new interfaces.response.success({
+      props: {
+        code: {
+          type: 'string',
+          example: '4476',
+          description: 'Отправленный код (для отладки)',
+        },
+      },
+    }),
+  )
+  async auth(
+    @nestjs.Body() data: authQueryDTO,
+    @nestjs.Session() session: FastifySession,
+  ) {
+    if (this.utils.validatePhone(data?.phone))
+      throw new nestjs.BadRequestException('Phone number is incorrect');
+
+    const userExist = await this.userService.getOne({ phone: data.phone });
+    if (userExist) {
+      return this.login(data, session);
+    } else {
+      return this.registration(
+        {
+          user: { phone: data.phone },
+          preventSendSms: data.preventSendSms,
+        },
+        session,
+      );
+    }
+  }
+
   @nestjs.Get('code')
   @nestjs.Header('Content-Type', 'application/json')
+  @swagger.ApiResponse(new interfaces.response.success())
+  @swagger.ApiResponse({
+    status: 201,
+    description: 'Код указан с ошибкой (реальный код ответа будет 200)',
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          example: 'err',
+        },
+        msg: {
+          type: 'string',
+          example: 'Wrong auth code',
+        },
+      },
+    },
+  })
   async code(
     @nestjs.Query() data: codeQueryDTO,
     @nestjs.Session() session: FastifySession,
+    @nestjs.Res({ passthrough: true }) res: fastify.FastifyReply,
   ) {
     if (!data?.code) throw new nestjs.BadRequestException('Auth code is empty');
 
@@ -239,7 +304,7 @@ export class UserController {
       });
 
     if (checkAuthCode === false)
-      return { ...httpAnswer.ERR, msg: 'Wrong auth code' };
+      throw new nestjs.ForbiddenException('Wrong auth code');
 
     return httpAnswer.OK;
   }
@@ -248,7 +313,9 @@ export class UserController {
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(
-    new interfaces.response.success(models.user, interfaces.response.empty),
+    new interfaces.response.success({
+      models: [models.user, interfaces.response.empty],
+    }),
   )
   async getOne(@nestjs.Query() data: getOneQueryDTO): Promise<{
     status: string;
@@ -266,6 +333,7 @@ export class UserController {
   @nestjs.Post('search')
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: models.user }))
   async search(
     @nestjs.Query() data: searchDTO,
     @nestjs.Session() session: FastifySession,
@@ -280,6 +348,7 @@ export class UserController {
 
   @nestjs.Post('changeCurrentProject')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
   async changeCurrentProject(
     @nestjs.Query() data: changeCurrentProjectDTO,
     @nestjs.Session() session: FastifySession,
@@ -307,7 +376,8 @@ export class UserController {
   }
 
   @nestjs.Post('addContact')
-  // @nestjs.UseGuards(decorators.isLoggedIn)
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
   async addContact(
     @nestjs.Query() data: addContactDTO,
     @nestjs.Session() session: FastifySession,
@@ -324,8 +394,9 @@ export class UserController {
   }
 
   @nestjs.Post('update')
-  @swagger.ApiBody({ type: models.user })
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody({ type: models.user })
+  @swagger.ApiResponse(new interfaces.response.success())
   async update(
     @nestjs.Body() data: updateDTO,
     @nestjs.Session() session: FastifySession,
