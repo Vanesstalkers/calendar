@@ -17,8 +17,11 @@ import { UtilsService } from '../utils/utils.service';
 import { AuthService } from '../auth/auth.service';
 import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
+import { FileService } from '../file/file.service';
 import { SessionI } from '../session/interfaces/session.interface';
 import { SessionStorageI } from '../session/interfaces/storage.interface';
+import { userUpdateDTO } from './user.dto';
+import { validateSession } from 'src/common/decorators/access.decorators';
 
 class getOneQueryDTO {
   @swagger.ApiProperty({
@@ -57,8 +60,11 @@ class changeCurrentProjectDTO {
   projectId: number;
 }
 class addContactDTO {
-  @swagger.ApiProperty({ example: 1, description: 'ID пользователя' })
-  userId: number;
+  @swagger.ApiProperty({
+    example: 1,
+    description: 'ID пользователя (контакта)',
+  })
+  contactId: number;
 }
 export class searchDTO {
   @swagger.ApiPropertyOptional({
@@ -68,7 +74,7 @@ export class searchDTO {
   query: string;
   @swagger.ApiPropertyOptional({
     description: 'Поиск по всем пользователям (не только в контактах)',
-    example: 'true|false',
+    example: true,
   })
   globalSearch?: boolean;
   @swagger.ApiPropertyOptional({
@@ -77,15 +83,6 @@ export class searchDTO {
   })
   limit?: number;
   userId?: number;
-}
-
-class updateDTO {
-  @swagger.ApiProperty({ type: () => models.user })
-  userData: types['models']['user'];
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID пользователя' })
-  userId?: number;
-  // @swagger.ApiProperty({ type: 'string', format: 'binary' })
-  // iconFile: string;
 }
 
 @nestjs.Controller('user')
@@ -109,6 +106,7 @@ export class UserController {
     private sessionService: SessionService,
     private authService: AuthService,
     private projectService: ProjectService,
+    private fileService: FileService,
     private utils: UtilsService,
   ) {}
 
@@ -128,7 +126,10 @@ export class UserController {
     @nestjs.Session() session: FastifySession,
   ) {
     if (this.utils.validatePhone(data?.user?.phone))
-      throw new nestjs.BadRequestException('Phone number is incorrect');
+      throw new nestjs.BadRequestException({
+        code: 'BAD_PHONE_NUMBER',
+        msg: 'Phone number is incorrect',
+      });
 
     const userExist = await this.userService.getOne({ phone: data.user.phone });
     if (userExist)
@@ -200,7 +201,10 @@ export class UserController {
     @nestjs.Session() session: FastifySession,
   ) {
     if (this.utils.validatePhone(data?.phone))
-      throw new nestjs.BadRequestException('Phone number is incorrect');
+      throw new nestjs.BadRequestException({
+        code: 'BAD_PHONE_NUMBER',
+        msg: 'Phone number is incorrect',
+      });
 
     const userExist = await this.userService.getOne({ phone: data.phone });
     if (!userExist)
@@ -250,7 +254,10 @@ export class UserController {
     @nestjs.Session() session: FastifySession,
   ) {
     if (this.utils.validatePhone(data?.phone))
-      throw new nestjs.BadRequestException('Phone number is incorrect');
+      throw new nestjs.BadRequestException({
+        code: 'BAD_PHONE_NUMBER',
+        msg: 'Phone number is incorrect',
+      });
 
     const userExist = await this.userService.getOne({ phone: data.phone });
     if (userExist) {
@@ -335,7 +342,7 @@ export class UserController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: models.user }))
   async search(
-    @nestjs.Query() data: searchDTO,
+    @nestjs.Body() data: searchDTO,
     @nestjs.Session() session: FastifySession,
   ): Promise<{
     status: string;
@@ -382,27 +389,33 @@ export class UserController {
     @nestjs.Query() data: addContactDTO,
     @nestjs.Session() session: FastifySession,
   ): Promise<types['interfaces']['response']['success']> {
-    if (!data?.userId) throw new nestjs.BadRequestException('User ID is empty');
-
-    if (!(await this.userService.checkExists(data.userId)))
-      throw new nestjs.BadRequestException('User does not exist');
+    if (!data?.contactId)
+      throw new nestjs.BadRequestException('contactId is empty');
+    if (!(await this.userService.checkExists(data.contactId)))
+      throw new nestjs.BadRequestException(
+        `User (id=${data.contactId}) does not exist`,
+      );
 
     const userId = await this.sessionService.getUserId(session);
-    this.userService.addContact({ userId, relUserId: data.userId });
+    await this.userService.addContact({ userId, contactId: data.contactId });
 
     return httpAnswer.OK;
   }
 
   @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: models.user })
+  @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
   async update(
-    @nestjs.Body() data: updateDTO,
+    @nestjs.Body() @decorators.Multipart() data: userUpdateDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
     const userId = await this.sessionService.getUserId(session);
     await this.userService.update(userId, data.userData);
+    data.iconFile.parent_type = 'user';
+    data.iconFile.parent_id = userId;
+    data.iconFile.file_type = 'icon';
+    await this.fileService.create(data.iconFile);
 
     return httpAnswer.OK;
   }

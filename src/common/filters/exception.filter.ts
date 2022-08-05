@@ -11,17 +11,34 @@ import {
   httpAnswer,
 } from '../../globalImport';
 
+export function fsErrorCatcher(err: any): any {
+  console.log('fsErrorCatcher', { err });
+  if (err.code === 'ENOENT') {
+    throw new nestjs.InternalServerErrorException({
+      code: 'ENOENT',
+      msg: err.message,
+    });
+    //
+  } else {
+    throw err;
+  }
+}
+
 export function dbErrorCatcher(err: any): any {
   console.log('dbErrorCatcher', { err });
   if (err.name === 'SequelizeForeignKeyConstraintError') {
-    throw new nestjs.BadRequestException(
-      `DB entity does not exist (${err.parent?.detail})`,
-    );
+    throw new nestjs.BadRequestException({
+      code: 'DB_BAD_QUERY',
+      msg: `DB entity does not exist (${err.parent?.detail})`,
+    });
   } else if (
     err.name === 'SequelizeDatabaseError' ||
     err.message.includes('Invalid value')
   ) {
-    throw new nestjs.BadRequestException(err.message);
+    throw new nestjs.BadRequestException({
+      code: 'DB_BAD_QUERY',
+      msg: err.message,
+    });
   } else {
     throw err;
   }
@@ -45,10 +62,13 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
       exception instanceof nestjs.HttpException ||
       exception instanceof nestjs.UnauthorizedException ||
       exception instanceof nestjs.BadRequestException ||
-      exception instanceof nestjs.ForbiddenException;
+      exception instanceof nestjs.ForbiddenException ||
+      exception instanceof nestjs.InternalServerErrorException;
     if (knownException) {
       responseStatus = exception.getStatus();
-      responseBody.msg = exception.message;
+      const exceptionData: any = exception.getResponse();
+      responseBody.msg = exceptionData.msg || exception.message;
+      responseBody.code = exceptionData.code;
     } else {
       // !!! добавить запись в лог
     }

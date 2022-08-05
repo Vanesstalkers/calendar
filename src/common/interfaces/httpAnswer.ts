@@ -92,4 +92,6 @@ export class exceptonAnswerI {
   path: string;
   @swagger.ApiPropertyOptional({ description: 'Сообщение об ошибке' })
   msg?: string;
+  @swagger.ApiPropertyOptional({ description: 'Код ошибки' })
+  code?: string;
 }

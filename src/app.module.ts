@@ -16,6 +16,7 @@ import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
 import { TaskModule } from './task/task.module';
+import { FileModule } from './file/file.module';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
@@ -60,6 +61,7 @@ try {
     SessionModule,
     ProjectModule,
     TaskModule,
+    FileModule,
     SequelizeModule.forFeature([
       models.user,
       models.project,

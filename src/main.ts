@@ -20,6 +20,7 @@ async function bootstrap() {
       },
     );
     app.register(require('@fastify/multipart'), {
+      fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
     });
     app.enableCors();

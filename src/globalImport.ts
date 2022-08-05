@@ -10,9 +10,9 @@ import {
   validateSession,
   isLoggedIn,
 } from './common/decorators/access.decorators';
-import { Multipart } from './common/decorators/multipart.decorators';
+import { notNull, Multipart } from './common/decorators/argument.decorators';
 
-import { dbErrorCatcher } from './common/filters/exception.filter';
+import { dbErrorCatcher, fsErrorCatcher } from './common/filters/exception.filter';
 import { PostStatusInterceptor } from './common/interceptors/request.interceptor';
 
 import { User } from './models/user';
@@ -65,10 +65,12 @@ export const decorators = {
   validateSession,
   isLoggedIn,
   Multipart,
+  notNull,
 };
 
 export const exception = {
   dbErrorCatcher,
+  fsErrorCatcher,
 };
 
 export const interceptors = {

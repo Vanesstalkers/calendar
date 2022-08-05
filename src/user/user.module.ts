@@ -8,6 +8,7 @@ import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { AuthService } from '../auth/auth.service';
 import { ProjectService } from '../project/project.service';
+import { FileService } from '../file/file.service';
 
 @Module({
   imports: [
@@ -17,9 +18,10 @@ import { ProjectService } from '../project/project.service';
       models.project,
       models.task,
       models.project2user,
+      models.file,
     ]),
   ],
-  providers: [UtilsService, UserService, SessionService, ProjectService, AuthService],
+  providers: [UtilsService, UserService, SessionService, ProjectService, AuthService, FileService],
   controllers: [UserController],
 })
 export class UserModule {}
