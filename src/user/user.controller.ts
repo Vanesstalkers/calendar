@@ -20,7 +20,7 @@ import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
 import { SessionI } from '../session/interfaces/session.interface';
 import { SessionStorageI } from '../session/interfaces/storage.interface';
-import { userUpdateDTO } from './user.dto';
+import { userUpdateQueryDTO } from './user.dto';
 import { validateSession } from 'src/common/decorators/access.decorators';
 
 class getOneQueryDTO {
@@ -407,15 +407,20 @@ export class UserController {
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
   async update(
-    @nestjs.Body() @decorators.Multipart() data: userUpdateDTO, // без @nestjs.Body() не будет работать swagger
+    @nestjs.Body() @decorators.Multipart() data: userUpdateQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
+    if (data.userData.phone){
+      throw new nestjs.BadRequestException('Access denied to change phone number');
+    }
     const userId = await this.sessionService.getUserId(session);
     await this.userService.update(userId, data.userData);
-    data.iconFile.parent_type = 'user';
-    data.iconFile.parent_id = userId;
-    data.iconFile.file_type = 'icon';
-    await this.fileService.create(data.iconFile);
+    if (data.iconFile) {
+      data.iconFile.parent_type = 'user';
+      data.iconFile.parent_id = userId;
+      data.iconFile.file_type = 'icon';
+      await this.fileService.create(data.iconFile);
+    }
 
     return httpAnswer.OK;
   }

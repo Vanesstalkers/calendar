@@ -1,5 +1,6 @@
 import * as nestjs from '@nestjs/common';
 import * as sequelize from '@nestjs/sequelize';
+import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
@@ -13,6 +14,7 @@ import {
   exception,
 } from '../globalImport';
 
+import { TickService } from '../tick/tick.service';
 import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Injectable()
@@ -23,6 +25,7 @@ export class TaskService {
     @sequelize.InjectModel(models.user) private userModel: typeof models.user,
     @sequelize.InjectModel(models.task2user)
     private taskToUserModel: typeof models.task2user,
+    private tickService: TickService,
     private utils: UtilsService,
   ) {}
 
@@ -60,46 +63,107 @@ export class TaskService {
           }
           return true;
         },
+        __tick: async (value: any) => {
+          const arr: any[] = Array.from(value);
+          for (const tick of arr) {
+            await this.tickService.create(taskId, tick, transaction);
+          }
+          return true;
+        },
       },
       transaction,
     });
   }
 
   async getOne(
-    data: { id: number; userId?: number },
+    data: { id: number; userId: number },
     config: {
       checkExists?: boolean;
       include?: boolean;
       attributes?: string[];
     } = {},
+    transaction?: Transaction,
   ): Promise<any> {
     if (config.checkExists) {
       config.include = false;
       config.attributes = ['id'];
     }
 
-    const whereTaskToUser: { user_id?: number } = {};
-    if (data.userId) whereTaskToUser.user_id = data.userId;
-    const findData = await this.taskModel
-      .findOne({
-        where: {
-          id: data.id,
+    const findData = await this.sequelize
+      .query(
+        `--sql
+                SELECT    task.title
+                        , task.info
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    role
+                                            , user_id
+                                            , status --, t2u.user_name
+                                    FROM      "task_to_user" AS t2u
+                                    WHERE     delete_time IS NULL AND      
+                                              task_id = task.id
+                                    ) AS ROW
+                          ) AS userList
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    id
+                                    FROM      "file"
+                                    WHERE     delete_time IS NULL AND      
+                                              parent_id = task.id AND      
+                                              parent_type = 'task'
+                                    ) AS ROW
+                          ) AS fileList
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    id
+                                            , text
+                                            , status
+                                    FROM      "tick"
+                                    WHERE     delete_time IS NULL AND      
+                                              task_id = task.id
+                                    ) AS ROW
+                          ) AS tickList
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    id
+                                            , text
+                                            , array(
+                                              SELECT    row_to_json(ROW)
+                                              FROM      (
+                                                        SELECT    id
+                                                        FROM      "file"
+                                                        WHERE     delete_time IS NULL AND      
+                                                                  parent_id = comment.id AND      
+                                                                  parent_type = 'comment'
+                                                        ) AS ROW
+                                              ) AS fileList
+                                    FROM      "comment" AS comment
+                                    WHERE     delete_time IS NULL AND      
+                                              task_id = task.id
+                                    ) AS ROW
+                          ) AS commentList
+                FROM      "task" AS task
+                LEFT JOIN "task_to_user" AS t2u ON t2u.delete_time IS NULL AND      
+                          t2u.task_id = task.id AND      
+                          t2u.user_id = :userId
+                WHERE     task.delete_time IS NULL AND      
+                          task.id = :id AND
+                          t2u.id IS NOT NULL
+                LIMIT    
+                          1
+        `,
+        {
+          type: QueryTypes.SELECT,
+          replacements: { id: data.id || null, userId: data.userId || null },
+          transaction,
         },
-        attributes: config.attributes,
-        // include: { all: true, nested: true },
-        include: config.include === false
-            ? undefined
-            :  [
-          {
-            //attributes: ['user_id'],
-            model: models.task2user,
-            where: whereTaskToUser,
-            include: [{ model: models.user }],
-            // required: false
-          },
-        ],
-      })
+      )
       .catch(exception.dbErrorCatcher);
+
     return findData || null;
   }
 

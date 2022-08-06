@@ -22,7 +22,10 @@ export class isLoggedIn implements CanActivate {
     // const role = this.reflector.get<string>('role', context.getHandler());
     const request = context.switchToHttp().getRequest();
     if ((await this.sessionService.isLoggedIn(request.session)) !== true)
-      throw new nestjs.ForbiddenException('Access denied');
+      throw new nestjs.ForbiddenException({
+        code: 'NEED_LOGIN',
+        msg: 'Access denied (login first)',
+      });
     return true;
   }
 }

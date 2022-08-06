@@ -15,7 +15,7 @@ import { notNull, Multipart } from './common/decorators/argument.decorators';
 import { dbErrorCatcher, fsErrorCatcher } from './common/filters/exception.filter';
 import { PostStatusInterceptor } from './common/interceptors/request.interceptor';
 
-import { User } from './models/user';
+import * as userDTO from './user/user.dto';
 import { Project } from './models/project';
 import { Task } from './models/task';
 import { ProjectToUser } from './models/project_to_user';
@@ -23,8 +23,8 @@ import { TaskGroup } from './models/task_group';
 import { Hashtag } from './models/hashtag';
 import { TaskToUser } from './models/task_to_user';
 import { UserToUser } from './models/user_to_user';
-import { Tick } from './models/tick';
-import { Comment } from './models/comment';
+import * as tickDTO from './tick/tick.dto';
+import * as commentDTO from './comment/comment.dto';
 import { File } from './models/file';
 
 import { SessionStorageI } from './session/interfaces/storage.interface';
@@ -48,7 +48,7 @@ export const interfaces = {
 };
 
 export const models = {
-  user: User,
+  user: userDTO.User,
   project: Project,
   task: Task,
   project2user: ProjectToUser,
@@ -56,8 +56,8 @@ export const models = {
   hashtag: Hashtag,
   task2user: TaskToUser,
   user2user: UserToUser,
-  tick: Tick,
-  comment: Comment,
+  tick: tickDTO.Tick,
+  comment: commentDTO.Comment,
   file: File,
 };
 
@@ -91,7 +91,7 @@ export type types = {
     };
   };
   models: {
-    user: User | { id?: number; phone?: string; config?: any };
+    user: userDTO.User | { id?: number; phone?: string; config?: any };
     project: Project | { id?: number; title?: string; __projecttouser?: any[] };
     task: Task;
     project2user: ProjectToUser | { id?: number; personal?: boolean };
@@ -99,8 +99,8 @@ export type types = {
     hashtag: Hashtag;
     task2user: TaskToUser | { id?: number; role?: string; status?: string };
     user2user: UserToUser;
-    tick: Tick;
-    comment: Comment;
+    tick: tickDTO.Tick;
+    comment: commentDTO.Comment;
     file: File;
   };
 };

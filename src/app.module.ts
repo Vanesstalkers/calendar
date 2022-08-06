@@ -16,7 +16,10 @@ import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
 import { TaskModule } from './task/task.module';
+import { CommentModule } from './comment/comment.module';
+import { TickModule } from './tick/tick.module';
 import { FileModule } from './file/file.module';
+import { UtilsModule } from './utils/utils.module';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
@@ -61,7 +64,10 @@ try {
     SessionModule,
     ProjectModule,
     TaskModule,
+    CommentModule,
+    TickModule,
     FileModule,
+    UtilsModule,
     SequelizeModule.forFeature([
       models.user,
       models.project,
@@ -71,8 +77,8 @@ try {
       models.hashtag,
       models.task2user,
       models.user2user,
-      models.tick,
       models.comment,
+      models.tick,
       models.file,
     ]),
   ],

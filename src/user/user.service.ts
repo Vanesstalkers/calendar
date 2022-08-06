@@ -39,50 +39,50 @@ export class UserService {
       config.attributes = ['id'];
     }
 
-    const where: typeof data = {};
-    if (data.id) where.id = data.id;
-    if (data.phone) where.phone = data.phone;
-
     const findData = await this.sequelize
       .query(
         `--sql
-                SELECT    u.name,
-                          u.phone,
-                          u.position,
-                          u.timezone,
-                          u.config,
-                          ARRAY(
+                SELECT    u.id
+                        , u.phone
+                        , u.phone
+                        , u.position
+                        , u.timezone
+                        , u.config
+                        , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    p2u.role,
-                                              p2u.project_id,
-                                              p2u.personal,
-                                              p2u.user_name
+                                    SELECT    p2u.role
+                                            , p2u.project_id
+                                            , p2u.personal
+                                            , p2u.user_name
                                     FROM      "project_to_user" AS p2u
-                                    WHERE     p2u.delete_time IS NULL
-                                    AND       p2u.user_id = u.id
+                                    WHERE     p2u.delete_time IS NULL AND      
+                                              p2u.user_id = u.id
                                     ) AS ROW
-                          ) projectList,
-                          (
+                          ) AS projectList
+                        , (
                           SELECT    id
                           FROM      "file" AS f
-                          WHERE     u.delete_time IS NULL
-                          AND       f.parent_id = u.id
-                          AND       parent_type = 'user'
-                          AND       file_type = 'icon'
+                          WHERE     f.delete_time IS NULL AND      
+                                    f.parent_id = u.id AND      
+                                    parent_type = 'user' AND      
+                                    file_type = 'icon'
                           ORDER BY  f.add_time DESC
                           LIMIT    
                                     1
-                          ) icon_file_id
+                          ) AS icon_file_id
                 FROM      "user" AS u
-                WHERE     u.id = :id
-                AND       u.delete_time IS NULL
+                WHERE     (
+                          u.id = :id OR       
+                          u.phone = :phone
+                          ) AND      
+                          u.delete_time IS NULL
                 LIMIT    
                           1
         `,
         {
           type: QueryTypes.SELECT,
-          replacements: { id: data.id },
+          replacements: { id: data.id || null, phone: data.phone || null },
           transaction,
         },
       )
@@ -100,20 +100,19 @@ export class UserService {
     const findData = await this.sequelize
       .query(
         `--sql
-                SELECT    u.id,
-                          u.name,
-                          f.file_name
+                SELECT    u.id
+                        , u.name
+                        , f.file_name
                 FROM      "user" u
-                LEFT JOIN "file" f ON f.parent_type = 'user'
-                AND       f.parent_id = u.id
-                LEFT JOIN "user_to_user" u2u ON u2u.user_id = :user_id
-                AND       u2u.user_rel_id = u.id
-                WHERE     u.id != :user_id
-                AND       (
-                          u.phone LIKE :query
-                OR        LOWER(u.name) LIKE LOWER(:query)
-                          )
-                ${customWhere.join(' AND ')}
+                LEFT JOIN "file" f ON f.parent_type = 'user' AND      
+                          f.parent_id = u.id
+                LEFT JOIN "user_to_user" u2u ON u2u.user_id = :user_id AND      
+                          u2u.user_rel_id = u.id
+                WHERE     u.id != :user_id AND      
+                          (
+                          u.phone LIKE :query OR       
+                          LOWER(u.name) LIKE LOWER(:query)
+                          ) ${customWhere.join(' AND ')}
                 LIMIT    
                           :limit
         `,
@@ -150,6 +149,8 @@ export class UserService {
     updateData: types['models']['user'],
     transaction?: Transaction,
   ): Promise<void> {
+    if (updateData.phone) delete updateData.phone; // менять номер телефона запрещено
+
     await this.utils.updateDB({
       table: 'user',
       id: userId,
