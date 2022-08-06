@@ -59,7 +59,7 @@ export class TaskService {
         __tasktouser: async (value: any) => {
           const arr: any[] = Array.from(value);
           for (const link of arr) {
-            await this.createLinkToUser(taskId, link.id, link, transaction);
+            await this.upsertLinkToUser(taskId, link.id, link, transaction);
           }
           return true;
         },
@@ -167,7 +167,7 @@ export class TaskService {
     return findData || null;
   }
 
-  async createLinkToUser(
+  async upsertLinkToUser(
     task_id: number,
     user_id: number,
     linkData: types['models']['task2user'],
@@ -177,17 +177,20 @@ export class TaskService {
     if (createTransaction) transaction = await this.sequelize.transaction();
 
     const link = await this.taskToUserModel
-      .create({ task_id, user_id }, { transaction })
+      .upsert(
+        { task_id, user_id },
+        { conflictFields: ['user_id', 'task_id'], transaction },
+      )
       .catch(exception.dbErrorCatcher);
-    await this.updateLinkToUser(link.id, linkData, transaction);
+    await this.updateLinkToUser(link[0].id, linkData, transaction);
 
     if (createTransaction) await transaction.commit();
-    return link;
+    return link[0];
   }
   async updateLinkToUser(
     linkId: number,
     updateData: types['models']['task2user'],
-    transaction: Transaction,
+    transaction?: Transaction,
   ): Promise<void> {
     await this.utils.updateDB({
       table: 'task_to_user',
@@ -195,5 +198,17 @@ export class TaskService {
       data: updateData,
       transaction,
     });
+  }
+  async getLinkToUser(taskId: number, userId: number): Promise<any> {
+    const findData = await this.taskToUserModel
+      .findOne({
+        where: {
+          task_id: taskId,
+          user_id: userId,
+        },
+        attributes: ['id'],
+      })
+      .catch(exception.dbErrorCatcher);
+    return findData || null;
   }
 }

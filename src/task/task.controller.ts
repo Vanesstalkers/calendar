@@ -44,6 +44,16 @@ class updateDTO {
   // iconFile: string;
 }
 
+class confirmByUserDTO {
+  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  taskId: number;
+  @swagger.ApiProperty({
+    example: 'inwork',
+    description: 'Пользователь принял задачу',
+  })
+  status: string;
+}
+
 @nestjs.Controller('task')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @nestjs.UseGuards(decorators.validateSession)
@@ -73,6 +83,8 @@ export class TaskController {
   ) {
     if (!data.projectId)
       throw new nestjs.BadRequestException('Project ID is empty');
+
+    if (!data.taskData.__tasktouser) data.taskData.__tasktouser = [];
     // const projectExists = await this.projectService.checkExists(projectId);
     // if (!projectExists)
     //   throw new nestjs.BadRequestException('Project does not exist');
@@ -97,7 +109,7 @@ export class TaskController {
     const task = await this.taskService
       .create(parseInt(data.projectId), data.taskData)
       .catch(exception.dbErrorCatcher);
-      
+
     return { ...httpAnswer.OK, data: { id: task.id } };
   }
 
@@ -121,13 +133,31 @@ export class TaskController {
   }
 
   @nestjs.Post('update')
-  @swagger.ApiBody({ type: updateDTO })
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody({ type: updateDTO })
   async update(
     @nestjs.Session() session: FastifySession,
     @nestjs.Body() data: updateDTO,
   ) {
     await this.taskService.update(data.taskId, data.taskData);
+
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Post('confirmByUser')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody({ type: confirmByUserDTO })
+  async confirmByUser(
+    @nestjs.Session() session: FastifySession,
+    @nestjs.Body() data: confirmByUserDTO,
+  ) {
+    const userId = await this.sessionService.getUserId(session);
+    const link = await this.taskService.getLinkToUser(data.taskId, userId);
+    if (!link)
+      throw new nestjs.BadRequestException(
+        `Task (id=${data.taskId}) not found for user (id=${userId})`,
+      );
+    await this.taskService.updateLinkToUser(link.id, { status: data.status });
 
     return httpAnswer.OK;
   }

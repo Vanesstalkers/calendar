@@ -104,13 +104,6 @@ export class ProjectService {
       })
       .catch(exception.dbErrorCatcher);
     return findData || null;
-
-    // const queryResult = await this.sequelize.query(
-    //   `
-    //   SELECT * FROM project WHERE id = :id
-    // `,
-    //   { replacements: { id: data.id } },
-    // );
   }
 
   async checkExists(id: number): Promise<boolean> {
