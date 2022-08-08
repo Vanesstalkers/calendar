@@ -2,40 +2,67 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify-multipart';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types } from '../globalImport';
-import * as util from 'node:util';
-import * as fs from 'node:fs';
-import * as stream from 'node:stream';
+import {
+  decorators,
+  interfaces,
+  models,
+  types,
+  exception,
+  httpAnswer,
+  interceptors,
+} from '../globalImport';
 
 import { TaskService } from './task.service';
 import { UserService } from '../user/user.service';
 import { ProjectService } from '../project/project.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
-import { resolve } from 'node:path';
+
+class getOneQueryDTO {
+  @swagger.ApiProperty({
+    example: 1,
+    description: 'ID задачи',
+  })
+  id: number;
+}
 
 class createDTO {
   @swagger.ApiProperty({ type: () => models.task })
-  task: types['models']['task'];
-  @swagger.ApiProperty({
-    example: '1,2',
-    description: 'Список исполнителей (без постановщика)',
-  })
-  executors: string;
-  @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
+  taskData: types['models']['task'];
+  @swagger.ApiPropertyOptional({ example: 1, description: 'ID проекта' })
   projectId: string;
+  @swagger.ApiPropertyOptional({ type: 'string', format: 'binary' })
+  file?: string;
+}
+
+class updateDTO {
+  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  taskId: number;
+  @swagger.ApiProperty({ type: () => models.task })
+  taskData: types['models']['task'];
   // @swagger.ApiProperty({ type: 'string', format: 'binary' })
   // iconFile: string;
 }
 
+class confirmByUserDTO {
+  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  taskId: number;
+  @swagger.ApiProperty({
+    example: 'inwork',
+    description: 'Пользователь принял задачу',
+  })
+  status: string;
+}
+
 @nestjs.Controller('task')
+@nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
+@nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('task')
 @swagger.ApiResponse({
   status: 400,
   description: 'Формат ответа для всех ошибок',
-  type: () => dto.response.exception,
+  type: () => interfaces.response.exception,
 })
-@nestjs.UseGuards(decorators.validateSession)
 export class TaskController {
   constructor(
     private taskService: TaskService,
@@ -46,62 +73,92 @@ export class TaskController {
   ) {}
 
   @nestjs.Post('create')
-  @swagger.ApiResponse(new dto.response.created())
+  @swagger.ApiResponse(new interfaces.response.created())
   @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiConsumes('multipart/form-data')
   @nestjs.UseGuards(decorators.isLoggedIn)
   async create(
-    @nestjs.Req() req: fastify.FastifyRequest,
     @nestjs.Session() session: FastifySession,
     @nestjs.Body() @decorators.Multipart() data: createDTO, // без @nestjs.Body() не будет работать swagger
   ) {
     if (!data.projectId)
       throw new nestjs.BadRequestException('Project ID is empty');
-    const projectId = parseInt(data.projectId);
-    const projectExists = await this.projectService.checkExists(projectId);
-    if (!projectExists)
-      throw new nestjs.BadRequestException('Project does not exist');
 
+    if (!data.taskData.__tasktouser) data.taskData.__tasktouser = [];
+    // const projectExists = await this.projectService.checkExists(projectId);
+    // if (!projectExists)
+    //   throw new nestjs.BadRequestException('Project does not exist');
+
+    // for (const execUser of data.task.__tasktouser || []) {
+    //   const userExists = await this.userService.checkExists(execUser.id);
+    //   if (!userExists)
+    //     throw new nestjs.BadRequestException('User does not exist');
+    // }
     const userId = await this.sessionService.getUserId(session);
-
-    const executorList = [];
-    for (const id of data.executors?.split(',') || []) {
-      const execUserId = parseInt(id);
-      const userExists = await this.userService.checkExists(execUserId);
-      if (!userExists)
-        throw new nestjs.BadRequestException('User does not exist');
-      executorList.push(execUserId);
-    }
-    if (!executorList.includes(userId)) executorList.push(userId);
-
-    const createResult = await this.taskService
-      .create({
-        task: data.task,
-        userId,
-        projectId,
-        executors: executorList,
-      })
-      .catch((err: any) => {
-        if (err.name === 'SequelizeForeignKeyConstraintError') {
-          throw new nestjs.BadRequestException(
-            `DB entity does not exist (${err.parent?.detail})`,
-          );
-        } else {
-          throw err;
-        }
+    if (!data.taskData.__tasktouser.find((user) => user.id === userId))
+      data.taskData.__tasktouser.push({
+        id: userId,
+        role: 'owner',
+        status: 'wait_for_confirm',
       });
-    return { status: 'ok', data: { id: createResult.id } };
+    for (const link of data.taskData.__tasktouser) {
+      if (!link.role) link.role = 'exec';
+      if (!link.status) link.status = 'confirm';
+    }
+
+    const task = await this.taskService
+      .create(parseInt(data.projectId), data.taskData)
+      .catch(exception.dbErrorCatcher);
+
+    return { ...httpAnswer.OK, data: { id: task.id } };
   }
 
   @nestjs.Get('getOne')
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   async getOne(
-    @nestjs.Query() data: { id: number },
+    @nestjs.Query() data: getOneQueryDTO,
     @nestjs.Session() session: FastifySession,
-  ): Promise<types['models']['task']> {
+  ): Promise<{
+    status: string;
+    data: types['models']['task'] | types['interfaces']['response']['empty'];
+  }> {
     if (!data?.id) throw new nestjs.BadRequestException('Task ID is empty');
+    const userId = await this.sessionService.getUserId(session);
+    const result = await this.taskService.getOne({ id: data.id, userId });
+    return {
+      ...httpAnswer.OK,
+      data: result || new interfaces.response.empty(),
+    };
+  }
 
-    return await this.taskService.getOne(data.id);
+  @nestjs.Post('update')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody({ type: updateDTO })
+  async update(
+    @nestjs.Session() session: FastifySession,
+    @nestjs.Body() data: updateDTO,
+  ) {
+    await this.taskService.update(data.taskId, data.taskData);
+
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Post('confirmByUser')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody({ type: confirmByUserDTO })
+  async confirmByUser(
+    @nestjs.Session() session: FastifySession,
+    @nestjs.Body() data: confirmByUserDTO,
+  ) {
+    const userId = await this.sessionService.getUserId(session);
+    const link = await this.taskService.getLinkToUser(data.taskId, userId);
+    if (!link)
+      throw new nestjs.BadRequestException(
+        `Task (id=${data.taskId}) not found for user (id=${userId})`,
+      );
+    await this.taskService.updateLinkToUser(link.id, { status: data.status });
+
+    return httpAnswer.OK;
   }
 }

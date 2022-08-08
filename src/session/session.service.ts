@@ -4,12 +4,12 @@ import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, dto, models, types } from '../globalImport';
+import { decorators, interfaces, models, types } from '../globalImport';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 
-import { SessionI } from './session.interface';
-import { SessionStorageI } from './storage.interface';
+import { SessionI } from './interfaces/session.interface';
+import { SessionStorageI } from './interfaces/storage.interface';
 
 @nestjs.Injectable()
 export class SessionService {

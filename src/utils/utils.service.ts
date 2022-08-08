@@ -1,9 +1,19 @@
 import * as nestjs from '@nestjs/common';
+import { Sequelize } from 'sequelize-typescript';
 import axios from 'axios';
-import config from './config';
+import config from '../config';
+import {
+  decorators,
+  interfaces,
+  models,
+  types,
+  exception,
+} from '../globalImport';
 
 @nestjs.Injectable()
 export class UtilsService {
+  constructor(private sequelize: Sequelize) {}
+
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
   }
@@ -31,5 +41,41 @@ export class UtilsService {
       },
     );
     return result;
+  }
+
+  async updateDB({
+    table,
+    id,
+    data,
+    handlers = {},
+    jsonKeys = [],
+    transaction,
+  }) {
+    const setList = [];
+    const replacements = { id };
+
+    for (const [key, value] of Object.entries(data)) {
+      if (key === 'id') continue;
+      if (handlers[key]) {
+        if (await handlers[key](value, transaction)) continue;
+      }
+
+      if (jsonKeys.includes(key)) {
+        setList.push(`"${key}" = "${key}"::jsonb || :${key}::jsonb`);
+        replacements[key] = JSON.stringify(value);
+      } else {
+        setList.push(`"${key}" = :${key}`);
+        replacements[key] = value;
+      }
+    }
+
+    if (setList.length) {
+      await this.sequelize
+        .query(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, {
+          replacements,
+          transaction,
+        })
+        .catch(exception.dbErrorCatcher);
+    }
   }
 }

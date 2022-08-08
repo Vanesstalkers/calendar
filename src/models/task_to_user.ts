@@ -4,13 +4,24 @@ import { models, types } from '../globalImport';
 
 @sequelize.Table({ tableName: 'task_to_user' })
 export class TaskToUser extends sequelize.Model {
+  public setData(data: {
+    id: number;
+    role?: string;
+    status?: string;
+  }): TaskToUser {
+    for (const [key, value] of Object.entries(data)) this[key] = value;
+    return this;
+  }
+  @sequelize.PrimaryKey
+  @sequelize.AutoIncrement
+  @sequelize.Column
+  id: number;
 
   @sequelize.ForeignKey(() => models.user)
   @sequelize.Column
   user_id: number;
   @sequelize.BelongsTo(() => models.user)
   user: types['models']['user'];
-
 
   @sequelize.ForeignKey(() => models.task)
   @sequelize.Column
@@ -20,11 +31,11 @@ export class TaskToUser extends sequelize.Model {
 
   @sequelize.Comment('роль пользователя в задаче')
   @sequelize.Column
-  role: string
+  role: string;
 
   @sequelize.Comment('статус задачи у пользователя')
   @sequelize.Column
-  status: string
+  status: string;
 
   @sequelize.CreatedAt
   add_time: Date;

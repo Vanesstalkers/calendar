@@ -4,16 +4,15 @@ import { models, types } from '../globalImport';
 
 @sequelize.Table({ tableName: 'user' })
 export class User extends sequelize.Model {
-  // non-db fields
-  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: 'true' })
-  preventSendSms: boolean;
-
-  // db fields
   @sequelize.PrimaryKey
   @sequelize.AutoIncrement
   @sequelize.Column
   id: number;
 
+  @swagger.ApiPropertyOptional({
+    description: 'Имя пользователя',
+    example: 'Николай',
+  })
   @sequelize.Column
   name: string;
 
@@ -24,12 +23,18 @@ export class User extends sequelize.Model {
   @sequelize.Column({ allowNull: true })
   position: string;
 
+  @swagger.ApiPropertyOptional({
+    description: 'Таймзона',
+    example: 'Europe/Saratov',
+  })
   @sequelize.Column({ allowNull: true })
   timezone: string;
 
+  @swagger.ApiProperty({ type: 'object', example: '{"phoneCode": "+7"}' })
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: {
     currentProject: object;
+    phoneCode: string;
   };
 
   @sequelize.HasMany(() => models.project2user, 'user_id')
@@ -53,4 +58,13 @@ export class User extends sequelize.Model {
   update_time: Date;
   @sequelize.DeletedAt
   delete_time: Date;
+}
+
+export class userUpdateQueryDTO {
+  // @swagger.ApiPropertyOptional({ example: 1, description: 'ID пользователя' })
+  // userId?: number;
+  @swagger.ApiProperty({ type: () => models.user })
+  userData: types['models']['user'];
+  @swagger.ApiPropertyOptional({ type: 'string', format: 'binary' })
+  iconFile: types['models']['file'];
 }

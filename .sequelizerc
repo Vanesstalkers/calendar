@@ -1,5 +1,5 @@
 module.exports = {
-  'config': './config/postgres.json',
+  'config': './config/database/postgres/config.json',
   'models-path': './src/models',
   'seeders-path': './seeders',
   'migrations-path': './migrations',

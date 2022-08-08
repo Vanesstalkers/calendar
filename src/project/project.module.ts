@@ -5,7 +5,7 @@ import { models } from '../globalImport';
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
 import { SessionService } from '../session/session.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 
 @Module({
   imports: [

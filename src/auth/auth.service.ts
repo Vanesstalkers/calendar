@@ -1,5 +1,5 @@
 import * as nestjs from '@nestjs/common';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Injectable()
 export class AuthService {

@@ -75,6 +75,11 @@ export class Task extends sequelize.Model {
   @sequelize.HasMany(() => models.hashtag, 'task_id')
   __hashtag: types['models']['hashtag'][];
 
+  @swagger.ApiPropertyOptional({
+    type: Array,
+    example: '[{"id":1},{"id":2}]',
+    description: 'Список исполнителей (без постановщика)',
+  })
   @sequelize.HasMany(() => models.task2user, 'task_id')
   __tasktouser: types['models']['task2user'][];
 
