@@ -1,19 +1,27 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { models } from '../globalImport';
 
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { UtilsService } from '../utils.service';
+import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { AuthService } from '../auth/auth.service';
-import User from '../entity/user';
-import Project from '../entity/project';
-import Task from '../entity/task';
-import LinkProjectToUser from '../entity/project_to_user';
+import { ProjectService } from '../project/project.service';
+import { FileService } from '../file/file.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Project, Task, LinkProjectToUser])],
-  providers: [UtilsService, UserService, SessionService, AuthService],
+  imports: [
+    SequelizeModule.forFeature([
+      models.user,
+      models.user2user,
+      models.project,
+      models.task,
+      models.project2user,
+      models.file,
+    ]),
+  ],
+  providers: [UtilsService, UserService, SessionService, ProjectService, AuthService, FileService],
   controllers: [UserController],
 })
 export class UserModule {}

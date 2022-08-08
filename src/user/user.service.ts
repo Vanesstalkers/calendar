@@ -1,100 +1,185 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import * as nestjs from '@nestjs/common';
+import * as sequelize from '@nestjs/sequelize';
+import { QueryTypes } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize/types';
+import { exception, models, types } from '../globalImport';
 
-import User from '../entity/user';
-import Project from '../entity/project';
-import LinkProjectToUser from '../entity/project_to_user';
+import { UtilsService } from '../utils/utils.service';
+import { searchDTO } from './user.controller';
 
-@Injectable()
+@nestjs.Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User) private repository: Repository<User>,
-    @InjectRepository(Project) private projectRepository: Repository<Project>,
-    @InjectRepository(LinkProjectToUser)
-    private joinToProjectRepository: Repository<LinkProjectToUser>,
-    private dataSource: DataSource,
+    private sequelize: Sequelize,
+    @sequelize.InjectModel(models.user) private userModel: typeof models.user,
+    @sequelize.InjectModel(models.user2user)
+    private userToUserModel: typeof models.user2user,
+    @sequelize.InjectModel(models.project)
+    private projectModel: typeof models.project,
+    @sequelize.InjectModel(models.project2user)
+    private projectToUserModel: typeof models.project2user,
+    private utils: UtilsService,
   ) {}
 
-  async getOne(where: { id?: number; phone?: string }): Promise<User> {
-    const findData = await this.repository.findOne({
-      where: { id: where.id, phone: where.phone },
-      relations: ['join_project', 'join_project.project'],
-    });
-    return findData;
+  async getOne(
+    data: {
+      id?: number;
+      phone?: string;
+    },
+    config: {
+      checkExists?: boolean;
+      include?: boolean;
+      attributes?: string[];
+    } = {},
+    transaction?: Transaction,
+  ): Promise<types['models']['user'] | null> {
+    if (config.checkExists) {
+      config.include = false;
+      config.attributes = ['id'];
+    }
+
+    const findData = await this.sequelize
+      .query(
+        `--sql
+                SELECT    u.id
+                        , u.phone
+                        , u.phone
+                        , u.position
+                        , u.timezone
+                        , u.config
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    p2u.role
+                                            , p2u.project_id
+                                            , p2u.personal
+                                            , p2u.user_name
+                                    FROM      "project_to_user" AS p2u
+                                    WHERE     p2u.delete_time IS NULL AND      
+                                              p2u.user_id = u.id
+                                    ) AS ROW
+                          ) AS projectList
+                        , (
+                          SELECT    id
+                          FROM      "file" AS f
+                          WHERE     f.delete_time IS NULL AND      
+                                    f.parent_id = u.id AND      
+                                    parent_type = 'user' AND      
+                                    file_type = 'icon'
+                          ORDER BY  f.add_time DESC
+                          LIMIT    
+                                    1
+                          ) AS icon_file_id
+                FROM      "user" AS u
+                WHERE     (
+                          u.id = :id OR       
+                          u.phone = :phone
+                          ) AND      
+                          u.delete_time IS NULL
+                LIMIT    
+                          1
+        `,
+        {
+          type: QueryTypes.SELECT,
+          replacements: { id: data.id || null, phone: data.phone || null },
+          transaction,
+        },
+      )
+      .catch(exception.dbErrorCatcher);
+
+    return findData[0] || null;
   }
 
-  async create(data: User): Promise<{ user: User; project: Project }> {
-    var project, user, join;
-    await this.dataSource.manager.transaction(async (manager) => {
-      const repository = manager.withRepository(this.repository);
-      const projectRepository = manager.withRepository(this.projectRepository);
-      const joinToProjectRepository = manager.withRepository(
-        this.joinToProjectRepository,
-      );
+  async search(
+    data: searchDTO = { query: '', limit: 10 },
+  ): Promise<[types['models']['user']] | []> {
+    const customWhere = [''];
+    if (!data.globalSearch) customWhere.push('u2u.id IS NOT NULL');
 
-      project = new Project();
-      project.title = data.name + '`s personal project';
-      await projectRepository.save(project);
-
-      user = new User();
-      user.name = data.name;
-      user.phone = data.phone;
-      user.config = {
-        currentProject: {
-          id: project.id,
-          title: project.title,
+    const findData = await this.sequelize
+      .query(
+        `--sql
+                SELECT    u.id
+                        , u.name
+                        , f.file_name
+                FROM      "user" u
+                LEFT JOIN "file" f ON f.parent_type = 'user' AND      
+                          f.parent_id = u.id
+                LEFT JOIN "user_to_user" u2u ON u2u.user_id = :user_id AND      
+                          u2u.user_rel_id = u.id
+                WHERE     u.id != :user_id AND      
+                          (
+                          u.phone LIKE :query OR       
+                          LOWER(u.name) LIKE LOWER(:query)
+                          ) ${customWhere.join(' AND ')}
+                LIMIT    
+                          :limit
+        `,
+        {
+          replacements: {
+            query: `%${(data.query || '').trim()}%`,
+            user_id: data.userId,
+            limit: data.limit,
+          },
         },
-      };
-      await repository.save(user);
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0];
+  }
 
-      join = new LinkProjectToUser();
-      join.user = user;
-      join.project = project;
-      join.role = 'owner';
-      await joinToProjectRepository.save(join);
+  async create(
+    userData: types['models']['user'],
+    transaction?: Transaction,
+  ): Promise<types['models']['user']> {
+    const createTransaction = !transaction;
+    if (createTransaction) transaction = await this.sequelize.transaction();
+
+    const user = await this.userModel
+      .create({}, { transaction })
+      .catch(exception.dbErrorCatcher);
+    await this.update(user.id, userData, transaction);
+
+    if (createTransaction) await transaction.commit();
+    return user;
+  }
+
+  async update(
+    userId: number,
+    updateData: types['models']['user'],
+    transaction?: Transaction,
+  ): Promise<void> {
+    if (updateData.phone) delete updateData.phone; // менять номер телефона запрещено
+
+    await this.utils.updateDB({
+      table: 'user',
+      id: userId,
+      data: updateData,
+      jsonKeys: ['config'],
+      transaction,
     });
+  }
 
-    // const user = await this.dataSource
-    //   .createQueryBuilder()
-    //   .insert()
-    //   .into(User)
-    //   .values([{ phone: data.phone, name: data.name }])
-    //   .returning('id')
-    //   .execute();
-    // const project = await this.dataSource
-    //   .createQueryBuilder()
-    //   .insert()
-    //   .into(Project)
-    //   .values([
-    //     { user_id: user.raw[0].id, name: data.name + '`s main project' },
-    //   ])
-    //   .returning('id')
-    //   .execute();
-    // console.log({ user_id: user.raw[0].id, project_id: project.raw[0].id });
+  async checkExists(id: number): Promise<boolean> {
+    const user = await this.getOne({ id }, { checkExists: true }).catch(
+      exception.dbErrorCatcher,
+    );
+    return user ? true : false;
+  }
 
-    // const user = await this.dataSource
-    //   .createQueryRunner()
-    //   .query(
-    //     `INSERT INTO "user" ("phone", "name") VALUES($1, $2) RETURNING id`,
-    //     [data.phone, data.name],
-    //   )
-    //   .catch((err) => {
-    //     console.log({ err });
-    //     throw err;
-    //   });
-    // const project = await this.dataSource
-    //   .createQueryRunner()
-    //   .query(
-    //     `INSERT INTO project (user_id, name) values ($1, $2) RETURNING id`,
-    //     [user[0].id, data.name + '`s main project'],
-    //   )
-    //   .catch((err) => {
-    //     console.log({ err });
-    //     throw err;
-    //   });
-    // console.log({ user, project });
-
-    return { user, project };
+  async addContact(data: { userId: number; contactId: number }) {
+    const result = await this.sequelize.transaction(async (transaction) => {
+      const link = await this.userToUserModel
+        .create(
+          {
+            user_id: data.userId,
+            user_rel_id: data.contactId,
+          },
+          { transaction },
+        )
+        .catch(exception.dbErrorCatcher);
+      return link;
+    });
+    return result;
   }
 }

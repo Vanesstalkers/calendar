@@ -1,11 +1,17 @@
+# Установка и запуск
 ## Установка
 ```bash
-# install
 $ npm install
 ```
-\+ пример конфига в config.example (переименовать в config.ts и заполнить)
-\+ создать БД
-\+ выполнить пункт `run migration` из раздела [Работа с БД](#Работа-с-БД)
+Далее: создать БД
+```bash
+$ npx sequelize-cli init
+```
+Далее: отредактировать созданный config/postgres.json
+
+```bash
+$ npx sequelize-cli db:migrate
+```
 
 ## Запуск
 ```bash
@@ -14,16 +20,9 @@ $ npm run start:dev
 # run production mode
 $ npm run start:prod
 ```
-
+# Комментарии по разработке
 ## Работа с БД
-Все таблицы БД описываем и складываем отдельными файлами в /src/entity.
-Заливаем обновления в БД миграциями (синхронизация БД через TypeORM отключена):
-```bash
-# create migration
-$ npx typeorm-ts-node-esm migration:generate migrations/test -d ./src/migration-data-source.ts
-# run migration
-$ npx typeorm-ts-node-esm migration:run -d ./src/migration-data-source.ts
-```
+Заливаем обновления в БД миграциями (синхронизация БД через Sequalize должна быть отключена).
 
 ## Работа с ошибками
 Универсальный обработчик ошибок: /src/exception.filter.ts.

@@ -4,10 +4,11 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
-import { Readable } from 'stream';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as stream from 'stream';
 
 import { AppModule } from './app.module';
-import { UniversalExceptionFilter } from './exception.filter';
+import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 async function bootstrap() {
   try {
@@ -18,6 +19,11 @@ async function bootstrap() {
         abortOnError: false,
       },
     );
+    app.register(require('@fastify/multipart'), {
+      fileSize: 1000000,
+      //attachFieldsToBody: 'keyValues',
+    });
+    app.enableCors();
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
@@ -26,6 +32,15 @@ async function bootstrap() {
     app.useGlobalFilters(
       new UniversalExceptionFilter(app.get(HttpAdapterHost)),
     );
+
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('API description')
+      .setDescription('')
+      .setVersion('1.0')
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api', app, document);
+
     await app.listen(3000);
   } catch (err) {
     console.log('abortOnError catched', { err });
@@ -39,7 +54,7 @@ async function bootstrap() {
   //     rawbody += chunk;
   //   });
   //   req.on('end', function () {
-  //     class ReadableString extends Readable {
+  //     class ReadableString extends stream.Readable {
   //       private sent = false;
   //       constructor(private str: string) {
   //         super();

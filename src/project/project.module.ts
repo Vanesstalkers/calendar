@@ -1,17 +1,21 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { models } from '../globalImport';
 
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
 import { SessionService } from '../session/session.service';
-import { UtilsService } from '../utils.service';
-import User from '../entity/user';
-import Project from '../entity/project';
-import Task from '../entity/task';
-import LinkProjectToUser from '../entity/project_to_user';
+import { UtilsService } from '../utils/utils.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Project, Task, LinkProjectToUser])],
+  imports: [
+    SequelizeModule.forFeature([
+      models.user,
+      models.project,
+      models.task,
+      models.project2user,
+    ]),
+  ],
   providers: [SessionService, UtilsService, ProjectService],
   controllers: [ProjectController],
 })

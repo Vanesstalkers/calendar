@@ -5,7 +5,9 @@ import {
   Global,
   CacheModule,
 } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { models } from './globalImport';
+
 import config from './config';
 import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
@@ -13,15 +15,22 @@ import * as redisStore from 'cache-manager-redis-store';
 import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
+import { TaskModule } from './task/task.module';
+import { CommentModule } from './comment/comment.module';
+import { TickModule } from './tick/tick.module';
+import { FileModule } from './file/file.module';
+import { UtilsModule } from './utils/utils.module';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
 try {
-  dbImport = TypeOrmModule.forRoot({
+  dbImport = SequelizeModule.forRoot({
     ...config.pg,
-    type: 'postgres',
-    autoLoadEntities: true, //entities: [], // - для ручного импорта
-    synchronize: false,
+    dialect: 'postgres',
+    models: ['/models'],
+    autoLoadModels: true,
+    synchronize: false, // если удалить или поставить в true, то начнет перетирать данные
+    // logging: false,
   });
 } catch (err) {
   // !!! нужно пробросить корректную ошибку
@@ -48,9 +57,33 @@ try {
 
 @Global()
 @Module({
-  imports: [dbImport, cacheImport, SessionModule, UserModule, ProjectModule],
-  controllers: [],
+  imports: [
+    dbImport,
+    cacheImport,
+    UserModule,
+    SessionModule,
+    ProjectModule,
+    TaskModule,
+    CommentModule,
+    TickModule,
+    FileModule,
+    UtilsModule,
+    SequelizeModule.forFeature([
+      models.user,
+      models.project,
+      models.task,
+      models.project2user,
+      models.taskgroup,
+      models.hashtag,
+      models.task2user,
+      models.user2user,
+      models.comment,
+      models.tick,
+      models.file,
+    ]),
+  ],
   providers: [],
+  controllers: [],
 })
 export class AppModule implements NestModule {
   configure() {}
