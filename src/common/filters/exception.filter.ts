@@ -31,7 +31,7 @@ export function dbErrorCatcher(err: any): any {
       code: 'DB_BAD_QUERY',
       msg: `DB entity does not exist (${err.parent?.detail})`,
     });
-  } else if(err.name === 'SequelizeUniqueConstraintError'){
+  } else if (err.name === 'SequelizeUniqueConstraintError') {
     throw new nestjs.BadRequestException({
       code: 'DB_BAD_QUERY',
       msg: `Dublicate unique key (${err.parent?.detail})`,

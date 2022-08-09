@@ -61,14 +61,14 @@ export class TaskService {
           for (const link of arr) {
             await this.upsertLinkToUser(taskId, link.id, link, transaction);
           }
-          return true;
+          return { preventDefault: true };
         },
         __tick: async (value: any) => {
           const arr: any[] = Array.from(value);
           for (const tick of arr) {
             await this.tickService.create(taskId, tick, transaction);
           }
-          return true;
+          return { preventDefault: true };
         },
       },
       transaction,

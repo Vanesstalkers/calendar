@@ -56,7 +56,7 @@ export class ProjectService {
           for (const link of arr) {
             await this.createLinkToUser(projectId, link.id, link, transaction);
           }
-          return true;
+          return { preventDefault: true };
         },
       },
       transaction,
@@ -90,15 +90,32 @@ export class ProjectService {
             ? undefined
             : [
                 {
-                  //attributes: ['user_id'],
+                  attributes: ['role', 'personal', 'user_name', 'user_id'],
                   model: models.project2user,
                   where: whereProjectToUser,
                   include: [
                     {
                       model: models.user,
+                      attributes: ['name'],
                     },
                   ],
                   // required: false
+                },
+                {
+                  model: models.task,
+                  include: [
+                    {
+                      attributes: ['role', 'status', 'user_id'],
+                      model: models.task2user,
+                      include: [
+                        {
+                          model: models.user,
+                          attributes: ['name'],
+                        },
+                      ],
+                      // required: false
+                    },
+                  ],
                 },
               ],
       })

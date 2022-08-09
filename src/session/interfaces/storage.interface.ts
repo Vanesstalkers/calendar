@@ -8,7 +8,7 @@ class currentProject {
 }
 
 export class SessionStorageI {
-  @swagger.ApiProperty({ description: 'Идентификатор в БД', example: 1 })
+  @swagger.ApiProperty({ type: 'number | null', description: 'Идентификатор в БД', example: 1 })
   userId?: number;
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone?: string;

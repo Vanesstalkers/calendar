@@ -19,10 +19,7 @@ export class Task extends sequelize.Model {
   @sequelize.Column({ defaultValue: true })
   require: boolean;
 
-  @swagger.ApiProperty({
-    description: 'когда выполнена',
-    example: '07.07.1977',
-  })
+  @swagger.ApiProperty({ description: 'Когда фактически выполнена', example: '2022-07-08T20:00:00.000Z (new  Date().toISOString())' })
   @sequelize.Column({ allowNull: true })
   exec_end_time: Date;
 
@@ -33,32 +30,32 @@ export class Task extends sequelize.Model {
   @sequelize.BelongsTo(() => models.user)
   user: types['models']['user'];
 
-  @swagger.ApiProperty({ description: 'Заголовок задачи' })
+  @swagger.ApiProperty({ type: 'string', description: 'Заголовок задачи' })
   @sequelize.Column
   title: string;
 
-  @swagger.ApiProperty({ description: 'Описание задачи' })
+  @swagger.ApiProperty({ type: 'string', description: 'Описание задачи' })
   @sequelize.Column(sequelize.DataType.TEXT)
   info: string;
 
-  @sequelize.Comment('дата задачи')
+  //@swagger.ApiProperty({ type: 'string', description: 'Дата задачи' })
   @sequelize.Column
   date: Date;
 
-  @sequelize.Comment('время начала')
+  @swagger.ApiProperty({ type: 'string', description: 'Время начала', example: '2022-07-08T19:00:00.000Z (new  Date().toISOString())' })
   @sequelize.Column
   start_time: Date;
 
-  @sequelize.Comment('время окончания')
+  @swagger.ApiPropertyOptional({ type: 'string | null', description: 'Время окончания', example: '2022-07-08T20:00:00.000Z (new  Date().toISOString())' })
   @sequelize.Column({ allowNull: true })
   end_time: Date;
 
-  @sequelize.Comment('формат учета времени')
+  @swagger.ApiPropertyOptional({ type: 'string', description: 'Формат учета времени' })
   @sequelize.Column
   time_type: string;
 
-  @sequelize.Comment('регулярная задача')
-  @sequelize.Column({ defaultValue: true })
+  @swagger.ApiPropertyOptional({ type: 'boolean', description: 'Регулярная задача' })
+  @sequelize.Column({ defaultValue: false })
   regular: boolean;
 
   @sequelize.Comment('внешний источник задачи')

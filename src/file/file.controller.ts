@@ -38,13 +38,12 @@ export class FileController {
   ) {}
 
   @nestjs.Get('get/:id')
+  @nestjs.UseGuards(decorators.isLoggedIn)
   async getOne(
     @nestjs.Param('id') id: 'string',
     @nestjs.Session() session: FastifySession,
     @nestjs.Res({ passthrough: true }) res: FastifyReply,
   ): Promise<nestjs.StreamableFile> {
-    if ((await this.sessionService.isLoggedIn(session)) !== true)
-      throw new nestjs.ForbiddenException('Access denied');
     if (!id) throw new nestjs.BadRequestException('File ID is empty');
 
     const file = await this.service.getOne(parseInt(id));
@@ -52,9 +51,14 @@ export class FileController {
       'Content-Type': file.file_mimetype,
       'Content-Disposition': `filename="${file.file_name}"`,
     });
-    return new nestjs.StreamableFile(
-      fs.createReadStream('./uploads/' + file.link),
-    );
+
+    // if (!fs.existsSync('./uploads/' + file.link)) {
+    //   !!! это не работает как надо
+    //   throw new nestjs.InternalServerErrorException({msg: 'File not found on disk'});
+    // } else {
+    const fileStream = fs.createReadStream('./uploads/' + file.link);
+    return new nestjs.StreamableFile(fileStream);
+    // }
   }
 
   @nestjs.Post('/upload')

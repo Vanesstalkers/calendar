@@ -43,7 +43,7 @@ export class UserService {
       .query(
         `--sql
                 SELECT    u.id
-                        , u.phone
+                        , u.name
                         , u.phone
                         , u.position
                         , u.timezone
@@ -71,6 +71,16 @@ export class UserService {
                           LIMIT    
                                     1
                           ) AS icon_file_id
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    u2u.user_rel_id
+                                            , u2u.priority
+                                    FROM      "user_to_user" AS u2u
+                                    WHERE     u2u.delete_time IS NULL AND      
+                                              u2u.user_id = u.id
+                                    ) AS ROW
+                          ) AS contactList
                 FROM      "user" AS u
                 WHERE     (
                           u.id = :id OR       
@@ -136,7 +146,7 @@ export class UserService {
     if (createTransaction) transaction = await this.sequelize.transaction();
 
     const user = await this.userModel
-      .create({}, { transaction })
+      .create({ phone: userData.phone }, { transaction })
       .catch(exception.dbErrorCatcher);
     await this.update(user.id, userData, transaction);
 

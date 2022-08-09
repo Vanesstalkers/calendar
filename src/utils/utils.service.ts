@@ -56,16 +56,23 @@ export class UtilsService {
 
     for (const [key, value] of Object.entries(data)) {
       if (key === 'id') continue;
+
+      let replaceValue = value,
+        dbHandler = false;
       if (handlers[key]) {
-        if (await handlers[key](value, transaction)) continue;
+        const handlerResult = await handlers[key](value, transaction);
+        if (handlerResult.preventDefault) continue;
+        if (handlerResult.replaceValue)
+          replaceValue = handlerResult.replaceValue;
+        //if (handlerResult.dbHandler) dbHandler = handlerResult.dbHandler;
       }
 
       if (jsonKeys.includes(key)) {
         setList.push(`"${key}" = "${key}"::jsonb || :${key}::jsonb`);
-        replacements[key] = JSON.stringify(value);
+        replacements[key] = JSON.stringify(replaceValue);
       } else {
         setList.push(`"${key}" = :${key}`);
-        replacements[key] = value;
+        replacements[key] = replaceValue;
       }
     }
 

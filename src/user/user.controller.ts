@@ -42,18 +42,27 @@ export class registrationQueryDTO {
   user: types['models']['user'];
   @swagger.ApiPropertyOptional({
     description: 'Не отправлять СМС',
-    example: 'true',
+    example: true,
   })
-  preventSendSms: string;
+  preventSendSms: boolean;
+}
+class userConfigDTO {
+  @swagger.ApiPropertyOptional({
+    description: 'Код страны (без префикса "+")',
+    example: '7',
+  })
+  phoneCode: string;
 }
 class authQueryDTO {
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone: string;
+  @swagger.ApiPropertyOptional({ type: () => userConfigDTO })
+  config: object;
   @swagger.ApiPropertyOptional({
     description: 'Не отправлять СМС',
-    example: 'true',
+    example: true,
   })
-  preventSendSms: string;
+  preventSendSms: boolean;
 }
 class changeCurrentProjectDTO {
   @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
@@ -265,7 +274,7 @@ export class UserController {
     } else {
       return this.registration(
         {
-          user: { phone: data.phone },
+          user: { phone: data.phone, config: data.config },
           preventSendSms: data.preventSendSms,
         },
         session,
@@ -273,12 +282,12 @@ export class UserController {
     }
   }
 
-  @nestjs.Get('code')
+  @nestjs.Post('code')
   @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.success())
   @swagger.ApiResponse({
     status: 201,
-    description: 'Код указан с ошибкой (реальный код ответа будет 200)',
+    description: 'Код введен с ошибкой (реальный код ответа будет 403)',
     schema: {
       type: 'object',
       properties: {
@@ -294,7 +303,7 @@ export class UserController {
     },
   })
   async code(
-    @nestjs.Query() data: codeQueryDTO,
+    @nestjs.Body() data: codeQueryDTO,
     @nestjs.Session() session: FastifySession,
     @nestjs.Res({ passthrough: true }) res: fastify.FastifyReply,
   ) {
@@ -410,8 +419,10 @@ export class UserController {
     @nestjs.Body() @decorators.Multipart() data: userUpdateQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
-    if (data.userData.phone){
-      throw new nestjs.BadRequestException('Access denied to change phone number');
+    if (data.userData.phone) {
+      throw new nestjs.BadRequestException(
+        'Access denied to change phone number',
+      );
     }
     const userId = await this.sessionService.getUserId(session);
     await this.userService.update(userId, data.userData);
