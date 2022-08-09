@@ -9,8 +9,6 @@ import { SessionService } from '../session/session.service';
 import { UtilsService } from '../utils/utils.service';
 import { join } from 'path';
 
-console.log("path= ", join(__dirname, '../../../', 'client'));
-
 @Module({
   imports: [
     SequelizeModule.forFeature([

@@ -2,15 +2,7 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify-multipart';
 import { Session as FastifySession } from '@fastify/secure-session';
-import {
-  decorators,
-  interfaces,
-  models,
-  types,
-  exception,
-  httpAnswer,
-  interceptors,
-} from '../globalImport';
+import { decorators, interfaces, models, types, exception, httpAnswer, interceptors } from '../globalImport';
 
 import { TaskService } from './task.service';
 import { UserService } from '../user/user.service';
@@ -19,24 +11,21 @@ import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 
 class getOneQueryDTO {
-  @swagger.ApiProperty({
-    example: 1,
-    description: 'ID задачи',
-  })
+  @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
 }
 
 class createDTO {
   @swagger.ApiProperty({ type: () => models.task })
   taskData: types['models']['task'];
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID проекта' })
+  @swagger.ApiPropertyOptional({ description: 'ID проекта' })
   projectId: string;
   @swagger.ApiPropertyOptional({ type: 'string', format: 'binary' })
   file?: string;
 }
 
 class updateDTO {
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  @swagger.ApiPropertyOptional({ description: 'ID задачи' })
   taskId: number;
   @swagger.ApiProperty({ type: () => models.task })
   taskData: types['models']['task'];
@@ -45,7 +34,7 @@ class updateDTO {
 }
 
 class confirmByUserDTO {
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  @swagger.ApiPropertyOptional({ description: 'ID задачи' })
   taskId: number;
   @swagger.ApiProperty({
     example: 'inwork',
@@ -81,8 +70,7 @@ export class TaskController {
     @nestjs.Session() session: FastifySession,
     @nestjs.Body() @decorators.Multipart() data: createDTO, // без @nestjs.Body() не будет работать swagger
   ) {
-    if (!data.projectId)
-      throw new nestjs.BadRequestException('Project ID is empty');
+    if (!data.projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
     if (!data.taskData.__tasktouser) data.taskData.__tasktouser = [];
     // const projectExists = await this.projectService.checkExists(projectId);
@@ -106,9 +94,7 @@ export class TaskController {
       if (!link.status) link.status = 'confirm';
     }
 
-    const task = await this.taskService
-      .create(parseInt(data.projectId), data.taskData)
-      .catch(exception.dbErrorCatcher);
+    const task = await this.taskService.create(parseInt(data.projectId), data.taskData).catch(exception.dbErrorCatcher);
 
     return { ...httpAnswer.OK, data: { id: task.id } };
   }
@@ -135,10 +121,7 @@ export class TaskController {
   @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiBody({ type: updateDTO })
-  async update(
-    @nestjs.Session() session: FastifySession,
-    @nestjs.Body() data: updateDTO,
-  ) {
+  async update(@nestjs.Session() session: FastifySession, @nestjs.Body() data: updateDTO) {
     await this.taskService.update(data.taskId, data.taskData);
 
     return httpAnswer.OK;
@@ -147,16 +130,10 @@ export class TaskController {
   @nestjs.Post('confirmByUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiBody({ type: confirmByUserDTO })
-  async confirmByUser(
-    @nestjs.Session() session: FastifySession,
-    @nestjs.Body() data: confirmByUserDTO,
-  ) {
+  async confirmByUser(@nestjs.Session() session: FastifySession, @nestjs.Body() data: confirmByUserDTO) {
     const userId = await this.sessionService.getUserId(session);
     const link = await this.taskService.getLinkToUser(data.taskId, userId);
-    if (!link)
-      throw new nestjs.BadRequestException(
-        `Task (id=${data.taskId}) not found for user (id=${userId})`,
-      );
+    if (!link) throw new nestjs.BadRequestException(`Task (id=${data.taskId}) not found for user (id=${userId})`);
     await this.taskService.updateLinkToUser(link.id, { status: data.status });
 
     return httpAnswer.OK;

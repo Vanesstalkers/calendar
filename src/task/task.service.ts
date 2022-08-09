@@ -61,14 +61,14 @@ export class TaskService {
           for (const link of arr) {
             await this.upsertLinkToUser(taskId, link.id, link, transaction);
           }
-          return true;
+          return { preventDefault: true };
         },
         __tick: async (value: any) => {
           const arr: any[] = Array.from(value);
           for (const tick of arr) {
             await this.tickService.create(taskId, tick, transaction);
           }
-          return true;
+          return { preventDefault: true };
         },
       },
       transaction,
@@ -101,7 +101,7 @@ export class TaskService {
                                             , user_id
                                             , status --, t2u.user_name
                                     FROM      "task_to_user" AS t2u
-                                    WHERE     delete_time IS NULL AND      
+                                    WHERE     t2u.delete_time IS NULL AND      
                                               task_id = task.id
                                     ) AS ROW
                           ) AS userList
@@ -109,10 +109,10 @@ export class TaskService {
                           SELECT    row_to_json(ROW)
                           FROM      (
                                     SELECT    id
-                                    FROM      "file"
-                                    WHERE     delete_time IS NULL AND      
-                                              parent_id = task.id AND      
-                                              parent_type = 'task'
+                                    FROM      "file" AS taskFile
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "parentId" = task.id AND      
+                                              "parentType" = 'task'
                                     ) AS ROW
                           ) AS fileList
                         , array(
@@ -134,11 +134,11 @@ export class TaskService {
                                             , array(
                                               SELECT    row_to_json(ROW)
                                               FROM      (
-                                                        SELECT    id
-                                                        FROM      "file"
-                                                        WHERE     delete_time IS NULL AND      
-                                                                  parent_id = comment.id AND      
-                                                                  parent_type = 'comment'
+                                                        SELECT    "id"
+                                                        FROM      "file" AS commentFile
+                                                        WHERE     "deleteTime" IS NULL AND      
+                                                                  "parentId" = comment.id AND      
+                                                                  "parentType" = 'comment'
                                                         ) AS ROW
                                               ) AS fileList
                                     FROM      "comment" AS comment
@@ -151,7 +151,7 @@ export class TaskService {
                           t2u.task_id = task.id AND      
                           t2u.user_id = :userId
                 WHERE     task.delete_time IS NULL AND      
-                          task.id = :id AND
+                          task.id = :id AND      
                           t2u.id IS NOT NULL
                 LIMIT    
                           1

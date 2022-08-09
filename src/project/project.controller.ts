@@ -2,21 +2,16 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import {
-  decorators,
-  interfaces,
-  models,
-  types,
-  httpAnswer,
-  interceptors,
-} from '../globalImport';
+import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+
+import { projectUpdateQueryDTO } from './project.dto';
 
 import { ProjectService } from './project.service';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 
 class getOneDTO {
-  @swagger.ApiProperty({ example: 1, description: 'ID проекта' })
+  @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
 }
 
@@ -41,10 +36,7 @@ export class ProjectController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiBody({ type: models.project })
   @swagger.ApiResponse(new interfaces.response.created())
-  async create(
-    @nestjs.Body() projectData: types['models']['project'],
-    @nestjs.Session() session: FastifySession,
-  ) {
+  async create(@nestjs.Body() projectData: types['models']['project'], @nestjs.Session() session: FastifySession) {
     const userId = await this.sessionService.getUserId(session);
     if (!projectData.__projecttouser) projectData.__projecttouser = [];
     if (!projectData.__projecttouser.find((item) => item.id === userId)) {
@@ -67,8 +59,7 @@ export class ProjectController {
     status: string;
     data: types['models']['project'] | types['interfaces']['response']['empty'];
   }> {
-    if (!data?.projectId)
-      throw new nestjs.BadRequestException('Project ID is empty');
+    if (!data?.projectId) throw new nestjs.BadRequestException('Project ID is empty');
     const userId = await this.sessionService.getUserId(session);
     const result = await this.projectService.getOne({
       id: data.projectId,
@@ -78,5 +69,15 @@ export class ProjectController {
       ...httpAnswer.OK,
       data: result || new interfaces.response.empty(),
     };
+  }
+
+  @nestjs.Post('update')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async update(@nestjs.Body() data: projectUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
+    const projectId = data.projectId;
+    await this.projectService.update(projectId, data.projectData);
+
+    return httpAnswer.OK;
   }
 }

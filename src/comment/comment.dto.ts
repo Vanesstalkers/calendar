@@ -4,7 +4,6 @@ import { models, types } from '../globalImport';
 
 @sequelize.Table({ tableName: 'comment' })
 export class Comment extends sequelize.Model {
-
   @sequelize.PrimaryKey
   @sequelize.AutoIncrement
   @sequelize.Column
@@ -18,10 +17,7 @@ export class Comment extends sequelize.Model {
 
   @swagger.ApiProperty({ type: 'string', description: 'Тест комментария' })
   @sequelize.Column
-  text: string
-
-  @sequelize.HasMany(() => models.comment, 'parent_id')
-  __comment: types['models']['comment'][];
+  text: string;
 
   @sequelize.CreatedAt
   add_time: Date;
@@ -34,16 +30,13 @@ export class Comment extends sequelize.Model {
 export class createCommentDTO {
   @swagger.ApiProperty({ type: () => models.comment })
   commentData: types['models']['comment'];
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  @swagger.ApiPropertyOptional({ description: 'ID задачи' })
   taskId: number;
 }
 
 export class updateCommentDTO {
   @swagger.ApiProperty({ type: () => models.comment })
   commentData: types['models']['comment'];
-  @swagger.ApiPropertyOptional({
-    example: 1,
-    description: 'ID комментария',
-  })
+  @swagger.ApiPropertyOptional({ description: 'ID комментария' })
   commentId: number;
 }

@@ -1,14 +1,9 @@
 import * as swagger from '@nestjs/swagger';
 
-class currentProject {
-  @swagger.ApiProperty({ description: 'Идентификатор в БД', example: 1 })
-  id: number;
-  @swagger.ApiProperty({ description: 'Название', example: 'Проект №1' })
-  title: string;
-}
+import { userCurrentProjectDTO } from '../../user/user.dto'
 
 export class SessionStorageI {
-  @swagger.ApiProperty({ description: 'Идентификатор в БД', example: 1 })
+  @swagger.ApiProperty({ type: 'number | null', description: 'Идентификатор в БД' })
   userId?: number;
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone?: string;
@@ -21,7 +16,7 @@ export class SessionStorageI {
   registration?: boolean;
   @swagger.ApiProperty({
     description: 'Активный проект',
-    type: () => currentProject,
+    type: () => userCurrentProjectDTO,
   })
   currentProject?: object;
 }

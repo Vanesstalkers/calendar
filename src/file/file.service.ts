@@ -40,7 +40,7 @@ export class FileService {
     const uploadDir = 'uploads';
     const now = new Date();
     let path = [
-      data.parent_type,
+      data.parentType,
       now.getFullYear(),
       now.getMonth() + 1,
       now.getDay(),
@@ -50,19 +50,19 @@ export class FileService {
       await fs.promises.mkdir(checkPath, { recursive: true });
 
     const newName =
-      path + '/' + now.getTime() + Math.random() + '.' + data.file_extension;
+      path + '/' + now.getTime() + Math.random() + '.' + data.fileExtension;
     await fs.promises
-      .rename(uploadDir + '/' + data.file_name, uploadDir + '/' + newName)
+      .rename(uploadDir + '/' + data.fileName, uploadDir + '/' + newName)
       .catch(exception.fsErrorCatcher);
 
     const file = await this.modelFile.create({
       link: newName,
-      file_name: data.file_name,
-      file_extension: data.file_extension,
-      file_mimetype: data.file_mimetype,
-      parent_type: data.parent_type,
-      parent_id: data.parent_id,
-      file_type: data.file_type,
+      fileName: data.fileName,
+      fileExtension: data.fileExtension,
+      fileMimetype: data.fileMimetype,
+      parentType: data.parentType,
+      parentId: data.parentId,
+      fileType: data.fileType,
     });
 
     return file;
