@@ -34,14 +34,18 @@ export const Multipart = nestjs.createParamDecorator(
         // const decoded = Buffer.from(buff.toString(), 'base64').toString()
         // value[part.fieldname] = decoded // set `part.value` to specify the request body value
         value[part.fieldname] = {
-          file_name: part.filename,
-          file_mimetype: part.mimetype,
-          file_extension: part.filename.split('.').pop(),
+          fileName: part.filename,
+          fileMimetype: part.mimetype,
+          fileExtension: part.filename.split('.').pop(),
           link: tmpPath,
         };
       } else {
         if (part.value[0] === '{') {
-          value[part.fieldname] = JSON.parse(part.value);
+          try{
+            value[part.fieldname] = JSON.parse(part.value);
+          }catch(err){
+            throw new nestjs.BadRequestException({msg: 'Invalid JSON-data', code: "DB_BAD_QUERY"});
+          }
         } else {
           value[part.fieldname] = part.value;
         }

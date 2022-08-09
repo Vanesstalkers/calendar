@@ -19,7 +19,6 @@ import { FileService } from './file.service';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 
-import { File } from '../models/file';
 import { fileUploadDTO } from './file.dto';
 
 @nestjs.Controller('file')
@@ -48,8 +47,8 @@ export class FileController {
 
     const file = await this.service.getOne(parseInt(id));
     res.headers({
-      'Content-Type': file.file_mimetype,
-      'Content-Disposition': `filename="${file.file_name}"`,
+      'Content-Type': file.fileMimetype,
+      'Content-Disposition': `filename="${file.fileName}"`,
     });
 
     // if (!fs.existsSync('./uploads/' + file.link)) {

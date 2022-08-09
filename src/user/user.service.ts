@@ -6,7 +6,7 @@ import { Transaction } from 'sequelize/types';
 import { exception, models, types } from '../globalImport';
 
 import { UtilsService } from '../utils/utils.service';
-import { searchDTO } from './user.controller';
+import { userSearchQueryDTO } from './user.dto';
 
 @nestjs.Injectable()
 export class UserService {
@@ -33,7 +33,7 @@ export class UserService {
       attributes?: string[];
     } = {},
     transaction?: Transaction,
-  ): Promise<types['models']['user'] | null> {
+  ) {
     if (config.checkExists) {
       config.include = false;
       config.attributes = ['id'];
@@ -51,42 +51,42 @@ export class UserService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    p2u.role
-                                            , p2u.project_id
-                                            , p2u.personal
-                                            , p2u.user_name
-                                    FROM      "project_to_user" AS p2u
-                                    WHERE     p2u.delete_time IS NULL AND      
-                                              p2u.user_id = u.id
+                                    SELECT    "role"
+                                            , "project_id" as "projectId"
+                                            , "personal"
+                                            , "user_name" as "userName"
+                                    FROM      "project_to_user"
+                                    WHERE     "delete_time" IS NULL AND      
+                                              "user_id" = u.id
                                     ) AS ROW
-                          ) AS projectList
+                          ) AS "projectList"
                         , (
-                          SELECT    id
-                          FROM      "file" AS f
-                          WHERE     f.delete_time IS NULL AND      
-                                    f.parent_id = u.id AND      
-                                    parent_type = 'user' AND      
-                                    file_type = 'icon'
-                          ORDER BY  f.add_time DESC
+                          SELECT    "id"
+                          FROM      "file"
+                          WHERE     "deleteTime" IS NULL AND      
+                                    "parentId" = u.id AND      
+                                    "parentType" = 'user' AND      
+                                    "fileType" = 'icon'
+                          ORDER BY  "addTime" DESC
                           LIMIT    
                                     1
-                          ) AS icon_file_id
+                          ) AS "iconFileId"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    u2u.user_rel_id
-                                            , u2u.priority
-                                    FROM      "user_to_user" AS u2u
-                                    WHERE     u2u.delete_time IS NULL AND      
-                                              u2u.user_id = u.id
+                                    SELECT    "contactId"
+                                            , "priority"
+                                    FROM      "user_to_user"
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "userId" = u.id
                                     ) AS ROW
-                          ) AS contactList
+                          ) AS "contactList"
                 FROM      "user" AS u
                 WHERE     (
                           u.id = :id OR       
                           u.phone = :phone
                           ) AND      
-                          u.delete_time IS NULL
+                          u."deleteTime" IS NULL
                 LIMIT    
                           1
         `,
@@ -101,9 +101,7 @@ export class UserService {
     return findData[0] || null;
   }
 
-  async search(
-    data: searchDTO = { query: '', limit: 10 },
-  ): Promise<[types['models']['user']] | []> {
+  async search(data: userSearchQueryDTO = { query: '', limit: 10 }) {
     const customWhere = [''];
     if (!data.globalSearch) customWhere.push('u2u.id IS NOT NULL');
 
@@ -111,14 +109,23 @@ export class UserService {
       .query(
         `--sql
                 SELECT    u.id
+                        , u.phone
                         , u.name
-                        , f.file_name
+                        , iconFileId.id AS "iconFileId"
                 FROM      "user" u
-                LEFT JOIN "file" f ON f.parent_type = 'user' AND      
-                          f.parent_id = u.id
-                LEFT JOIN "user_to_user" u2u ON u2u.user_id = :user_id AND      
-                          u2u.user_rel_id = u.id
-                WHERE     u.id != :user_id AND      
+                LEFT JOIN LATERAL (
+                  SELECT    id
+                  FROM      "file"
+                  WHERE     "parentType" = 'user' AND      
+                            "parentId" = u.id AND
+                            "fileType" = 'icon'
+                  ORDER BY  "addTime" DESC
+                  LIMIT    
+                            1
+                  ) AS iconFileId ON true
+                LEFT JOIN "user_to_user" u2u ON u2u."userId" = :userId AND      
+                          u2u."contactId" = u.id
+                WHERE     u.id != :userId AND      
                           (
                           u.phone LIKE :query OR       
                           LOWER(u.name) LIKE LOWER(:query)
@@ -126,22 +133,13 @@ export class UserService {
                 LIMIT    
                           :limit
         `,
-        {
-          replacements: {
-            query: `%${(data.query || '').trim()}%`,
-            user_id: data.userId,
-            limit: data.limit,
-          },
-        },
+        { replacements: { query: `%${(data.query || '').trim()}%`, userId: data.userId, limit: data.limit } },
       )
       .catch(exception.dbErrorCatcher);
     return findData[0];
   }
 
-  async create(
-    userData: types['models']['user'],
-    transaction?: Transaction,
-  ): Promise<types['models']['user']> {
+  async create(userData: types['models']['user'], transaction?: Transaction): Promise<types['models']['user']> {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
@@ -154,42 +152,43 @@ export class UserService {
     return user;
   }
 
-  async update(
-    userId: number,
-    updateData: types['models']['user'],
-    transaction?: Transaction,
-  ): Promise<void> {
+  async update(userId: number, updateData: types['models']['user'], transaction?: Transaction) {
     if (updateData.phone) delete updateData.phone; // менять номер телефона запрещено
-
-    await this.utils.updateDB({
-      table: 'user',
-      id: userId,
-      data: updateData,
-      jsonKeys: ['config'],
-      transaction,
-    });
+    await this.utils.updateDB({ table: 'user', id: userId, data: updateData, jsonKeys: ['config'], transaction });
   }
 
-  async checkExists(id: number): Promise<boolean> {
-    const user = await this.getOne({ id }, { checkExists: true }).catch(
-      exception.dbErrorCatcher,
-    );
+  async checkExists(id: number) {
+    const user = await this.getOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher);
     return user ? true : false;
   }
 
   async addContact(data: { userId: number; contactId: number }) {
     const result = await this.sequelize.transaction(async (transaction) => {
       const link = await this.userToUserModel
-        .create(
-          {
-            user_id: data.userId,
-            user_rel_id: data.contactId,
-          },
-          { transaction },
-        )
+        .create({ userId: data.userId, contactId: data.contactId }, { transaction })
         .catch(exception.dbErrorCatcher);
       return link;
     });
     return result;
+  }
+  async getContact(userId: number, contactId: number, config: { attributes?: string[]; checkExists?: boolean } = {}) {
+    if (config.checkExists) {
+      config.attributes = ['id'];
+    }
+    const findData = await this.sequelize
+      .query(
+        `--sql
+        SELECT ${(config.attributes || ['*']).join(',')} 
+        FROM "user_to_user"
+        WHERE "userId" = :userId AND "contactId" = :contactId
+      `,
+        { replacements: { userId, contactId }, type: QueryTypes.SELECT },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0] || null;
+  }
+  async checkContactExists(userId: number, contactId: number) {
+    const contact = await this.getContact(userId, contactId, { checkExists: true }).catch(exception.dbErrorCatcher);
+    return contact ? true : false;
   }
 }

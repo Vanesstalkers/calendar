@@ -9,22 +9,14 @@ export class Project extends sequelize.Model {
   @sequelize.Column
   id: number;
 
-  @swagger.ApiPropertyOptional({
-    type: 'string',
-    example: 'Проект №1',
-    description: 'Название проекта',
-  })
+  @swagger.ApiPropertyOptional({ type: 'string', example: 'Проект №1', description: 'Название проекта' })
   @sequelize.Column
   title: string;
 
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: object;
 
-  @swagger.ApiPropertyOptional({
-    type: Array,
-    example: '[{"id":1},{"id":2}]',
-    description: 'Список проектов',
-  })
+  @swagger.ApiPropertyOptional({ type: Array, example: '[{"id":1},{"id":2}]', description: 'Список проектов' })
   @sequelize.HasMany(() => models.project2user, 'project_id')
   __projecttouser: types['models']['project2user'][];
 
@@ -38,4 +30,16 @@ export class Project extends sequelize.Model {
   update_time: Date;
   @sequelize.DeletedAt
   delete_time: Date;
+}
+
+class projectUpdateQueryDataDTO {
+  @swagger.ApiPropertyOptional({ type: 'string', example: 'Проект №1', description: 'Название проекта' })
+  title: string;
+}
+
+export class projectUpdateQueryDTO {
+  @swagger.ApiPropertyOptional({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ type: () => projectUpdateQueryDataDTO, description: 'schema: projectUpdateQueryDataDTO' })
+  projectData: projectUpdateQueryDataDTO;
 }

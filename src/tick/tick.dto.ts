@@ -39,16 +39,13 @@ export class Tick extends sequelize.Model {
 export class createTickDTO {
   @swagger.ApiProperty({ type: () => models.tick })
   tickData: types['models']['tick'];
-  @swagger.ApiPropertyOptional({ example: 1, description: 'ID задачи' })
+  @swagger.ApiPropertyOptional({ description: 'ID задачи' })
   taskId: number;
 }
 
 export class updateTickDTO {
   @swagger.ApiProperty({ type: () => models.tick })
   tickData: types['models']['tick'];
-  @swagger.ApiPropertyOptional({
-    example: 1,
-    description: 'ID пункта чек-листа',
-  })
+  @swagger.ApiPropertyOptional({ description: 'ID пункта чек-листа' })
   tickId: number;
 }

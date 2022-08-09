@@ -19,7 +19,7 @@ export class createdAnswerI {
             properties: {
               id: {
                 type: 'number',
-                example: '1',
+                example: 1,
               },
             },
           },
