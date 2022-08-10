@@ -8,16 +8,13 @@ import { decorators, interfaces, models, types } from '../globalImport';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 
-import { SessionI } from './interfaces/session.interface';
-import { SessionStorageI } from './interfaces/storage.interface';
-
 @nestjs.Injectable()
 export class SessionService {
   constructor(
     @nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
-  async getState(session: FastifySession): Promise<SessionStorageI> {
+  async getState(session: FastifySession) {
     const storage = (await this.getStorage(session)) ?? {};
     return {
       userId: storage.userId ?? null,
@@ -44,22 +41,20 @@ export class SessionService {
     return storage.login === true;
   }
 
-  async getStorage(session: FastifySession): Promise<SessionStorageI> {
+  async getStorage(session: FastifySession) {
     await this.validateSession(session);
     const storageId = session.get('storageId');
     return JSON.parse(await this.cacheManager.get(storageId));
   }
 
-  async updateStorage(session: FastifySession, data: SessionStorageI) {
+  async updateStorage(session: FastifySession, data: types['session']['storage']) {
     await this.validateSession(session);
     const storageId = session.get('storageId');
     await this.updateStorageById(storageId, data);
   }
 
-  async updateStorageById(storageId: string, data: SessionStorageI) {
-    const storageData: SessionStorageI = JSON.parse(
-      await this.cacheManager.get(storageId),
-    );
+  async updateStorageById(storageId: string, data: types['session']['storage']) {
+    const storageData = JSON.parse(await this.cacheManager.get(storageId));
     await this.cacheManager.set(
       storageId,
       JSON.stringify({ ...storageData, ...data }),
