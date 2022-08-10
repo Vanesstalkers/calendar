@@ -11,10 +11,10 @@ import { AuthService } from '../auth/auth.service';
 import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
-import { SessionI } from '../session/interfaces/session.interface';
-import { SessionStorageI } from '../session/interfaces/storage.interface';
+
 import {
   userAuthQueryDTO,
+  userAuthQueryDataDTO,
   userCodeQueryDTO,
   userGetOneQueryDTO,
   userGetOneAnswerDTO,
@@ -24,13 +24,6 @@ import {
   userAddContactQueryDTO,
   userUpdateQueryDTO,
 } from './user.dto';
-
-export class registrationQueryDTO {
-  @swagger.ApiProperty({ type: () => models.user })
-  user: types['models']['user'];
-  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: true })
-  preventSendSms: boolean;
-}
 
 @nestjs.Controller('user')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
@@ -59,6 +52,14 @@ export class UserController {
     private utils: UtilsService,
   ) {}
 
+  @nestjs.Get('session')
+  @nestjs.Header('Content-Type', 'application/json')
+  @swagger.ApiResponse(new interfaces.response.success({ models: [interfaces.session.storage] }))
+  async session(@nestjs.Session() session: FastifySession): Promise<object> {
+    const result = await this.sessionService.getState(session);
+    return { ...httpAnswer.OK, data: result };
+  }
+
   // @nestjs.Post('create')
   async create(@nestjs.Body() data: types['models']['user'], @nestjs.Session() session: FastifySession) {
     const createResult = await this.userService.create(data);
@@ -67,27 +68,23 @@ export class UserController {
 
   //@nestjs.Post('registration')
   @nestjs.Header('Content-Type', 'application/json')
-  async registration(@nestjs.Body() data: registrationQueryDTO, @nestjs.Session() session: FastifySession) {
-    if (this.utils.validatePhone(data?.user?.phone))
-      throw new nestjs.BadRequestException({
-        code: 'BAD_PHONE_NUMBER',
-        msg: 'Phone number is incorrect',
-      });
+  async registration(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
+    const phone = data.userData.phone;
+    if (this.utils.validatePhone(phone))
+      throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
-    const userExist = await this.userService.getOne({ phone: data.user.phone });
+    const userExist = await this.userService.getOne({ phone });
     if (userExist) throw new nestjs.BadRequestException('Phone number already registred');
 
-    await this.sessionService.updateStorage(session, {
-      phone: data.user.phone,
-    });
+    await this.sessionService.updateStorage(session, { phone });
 
     const sessionStorageId = session.storageId;
     const code = await this.authService
       .runAuthWithPhone(
-        data.user.phone,
+        phone,
         async () => {
           const transaction = await this.sequelize.transaction();
-          const user = await this.userService.create(data.user, transaction);
+          const user = await this.userService.create(data.userData, transaction);
           await this.sessionService.updateStorage(session, { userId: user.id });
 
           const personalProject = await this.projectService.create(
@@ -121,38 +118,24 @@ export class UserController {
     return { ...httpAnswer.OK, msg: 'wait for auth code', code }; // !!! убрать code после отладки
   }
 
-  @nestjs.Get('session')
-  @nestjs.Header('Content-Type', 'application/json')
-  @swagger.ApiResponse(
-    new interfaces.response.success({
-      models: [interfaces.session.storage],
-    }),
-  )
-  async session(@nestjs.Session() session: FastifySession): Promise<object> {
-    const result = await this.sessionService.getState(session);
-    return { ...httpAnswer.OK, data: result };
-  }
-
   //@nestjs.Post('login')
   @nestjs.Header('Content-Type', 'application/json')
   async login(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
-    if (this.utils.validatePhone(data?.phone))
-      throw new nestjs.BadRequestException({
-        code: 'BAD_PHONE_NUMBER',
-        msg: 'Phone number is incorrect',
-      });
+    const phone = data.userData.phone;
+    if (this.utils.validatePhone(phone))
+      throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
-    const userExist = await this.userService.getOne({ phone: data.phone });
+    const userExist = await this.userService.getOne({ phone });
     if (!userExist) throw new nestjs.BadRequestException('Phone number not found (use `registration` method first)');
 
-    await this.sessionService.updateStorage(session, { phone: data.phone });
+    await this.sessionService.updateStorage(session, { phone });
 
     const storageId = session.storageId;
     const code = await this.authService
       .runAuthWithPhone(
-        data.phone,
+        phone,
         async () => {
-          const user = await this.userService.getOne({ phone: data.phone });
+          const user = await this.userService.getOne({ phone });
           await this.sessionService.updateStorageById(storageId, {
             userId: user.id,
             registration: true,
@@ -183,23 +166,15 @@ export class UserController {
     }),
   )
   async auth(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
-    if (this.utils.validatePhone(data?.phone))
-      throw new nestjs.BadRequestException({
-        code: 'BAD_PHONE_NUMBER',
-        msg: 'Phone number is incorrect',
-      });
+    const phone = data.userData.phone;
+    if (this.utils.validatePhone(phone))
+      throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
-    const userExist = await this.userService.getOne({ phone: data.phone });
+    const userExist = await this.userService.getOne({ phone });
     if (userExist) {
       return this.login(data, session);
     } else {
-      return this.registration(
-        {
-          user: { phone: data.phone, config: data.config },
-          preventSendSms: data.preventSendSms,
-        },
-        session,
-      );
+      return this.registration(data, session);
     }
   }
 
@@ -226,7 +201,7 @@ export class UserController {
   async code(@nestjs.Body() data: userCodeQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data?.code) throw new nestjs.BadRequestException('Auth code is empty');
 
-    const sessionStorage: SessionStorageI = await this.sessionService.getStorage(session);
+    const sessionStorage = await this.sessionService.getStorage(session);
     const checkAuthCode = await this.authService.checkAuthCode(sessionStorage.phone, data.code).catch((err) => {
       if (err.message === 'Auth session not found') throw new nestjs.ForbiddenException('Send auth request first');
       else throw err;

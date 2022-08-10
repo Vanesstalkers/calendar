@@ -1,8 +1,18 @@
+import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
+import { models, types } from '../globalImport';
 
-import { userCurrentProjectDTO } from '../../user/user.dto'
+export interface sessionDTO {
+  storageId?: string;
+  /* 
+    добавить сюда userId мы не можем, так как процесс авторизации через СМС (в текущей реализации)
+    не позволяет записывать значения в сессию синхронно
+  */
+}
 
-export class SessionStorageI {
+import { userCurrentProjectDTO } from '../user/user.dto'
+
+export class sessionStorageDTO {
   @swagger.ApiProperty({ type: 'number | null', description: 'Идентификатор в БД' })
   userId?: number;
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })

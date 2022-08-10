@@ -6,7 +6,7 @@ import { Transaction } from 'sequelize/types';
 import { exception, models, types } from '../globalImport';
 
 import { UtilsService } from '../utils/utils.service';
-import { userSearchQueryDTO } from './user.dto';
+import { userAuthQueryDataDTO, userSearchQueryDTO, userUpdateQueryDataDTO } from './user.dto';
 
 @nestjs.Injectable()
 export class UserService {
@@ -139,7 +139,7 @@ export class UserService {
     return findData[0];
   }
 
-  async create(userData: types['models']['user'], transaction?: Transaction): Promise<types['models']['user']> {
+  async create(userData: userAuthQueryDataDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
@@ -152,9 +152,15 @@ export class UserService {
     return user;
   }
 
-  async update(userId: number, updateData: types['models']['user'], transaction?: Transaction) {
+  async update(userId: number, updateData: userUpdateQueryDataDTO, transaction?: Transaction) {
     if (updateData.phone) delete updateData.phone; // менять номер телефона запрещено
-    await this.utils.updateDB({ table: 'user', id: userId, data: updateData, jsonKeys: ['config'], transaction });
+    await this.utils.updateDB({
+      table: 'user',
+      id: userId,
+      data: updateData,
+      jsonKeys: ['config'],
+      transaction,
+    });
   }
 
   async checkExists(id: number) {

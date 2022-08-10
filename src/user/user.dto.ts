@@ -104,11 +104,15 @@ class userConfigWithCurProjectDTO {
   currentProject: object;
 }
 
-export class userAuthQueryDTO {
+export class userAuthQueryDataDTO {
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
-  phone: string;
+  phone?: string;
   @swagger.ApiPropertyOptional({ type: () => userConfigDTO })
-  config: object;
+  config?: object;
+}
+export class userAuthQueryDTO {
+  @swagger.ApiProperty({ type: () => userAuthQueryDataDTO, description: 'schema: userAuthQueryDataDTO' })
+  userData: userAuthQueryDataDTO;
   @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: true, type: 'boolean | null' })
   preventSendSms: boolean;
 }
@@ -192,19 +196,19 @@ export class userAddContactQueryDTO {
 }
 
 export class userUpdateQueryDataDTO {
-  phone: string;
+  phone?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя', example: 'Николай' })
-  name: string;
+  name?: string;
   @swagger.ApiPropertyOptional({ description: 'Описание контакта', example: 'CEO в Wazzup' })
-  position: string;
+  position?: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
-  timezone: string;
+  timezone?: string;
   @swagger.ApiPropertyOptional({ type: () => userConfigDTO })
-  config: object;
+  config?: object;
 }
 
 export class userUpdateQueryDTO {
-  @swagger.ApiPropertyOptional({ description: 'ID пользователя' })
+  @swagger.ApiProperty({ description: 'ID пользователя' })
   userId: number;
   @swagger.ApiProperty({ type: () => userUpdateQueryDataDTO, description: 'schema: userUpdateQueryDataDTO' })
   userData: userUpdateQueryDataDTO;

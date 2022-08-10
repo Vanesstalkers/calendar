@@ -6,10 +6,7 @@ import {
   createdAnswerI,
 } from './common/interfaces/httpAnswer';
 
-import {
-  validateSession,
-  isLoggedIn,
-} from './common/decorators/access.decorators';
+import { validateSession, isLoggedIn } from './common/decorators/access.decorators';
 import { notNull, Multipart } from './common/decorators/argument.decorators';
 
 import { dbErrorCatcher, fsErrorCatcher } from './common/filters/exception.filter';
@@ -26,7 +23,7 @@ import * as tickDTO from './tick/tick.dto';
 import * as commentDTO from './comment/comment.dto';
 import * as fileDTO from './file/file.dto';
 
-import { SessionStorageI } from './session/interfaces/storage.interface';
+import { sessionStorageDTO } from './session/session.dto';
 
 export const httpAnswer = {
   OK: { status: 'ok' },
@@ -35,7 +32,7 @@ export const httpAnswer = {
 
 export const interfaces = {
   session: {
-    storage: SessionStorageI,
+    storage: sessionStorageDTO,
   },
   response: {
     exception: exceptonAnswerI,
@@ -77,6 +74,9 @@ export const interceptors = {
 };
 
 export type types = {
+  session: {
+    storage: sessionStorageDTO;
+  };
   decorators: {
     validateSession: validateSession;
     isLoggedIn: isLoggedIn;
@@ -90,7 +90,7 @@ export type types = {
     };
   };
   models: {
-    user: userDTO.User | { id?: number; phone?: string; config?: any };
+    user: userDTO.User;
     project: projectDTO.Project | { id?: number; title?: string; __projecttouser?: any[] };
     task: Task;
     project2user: ProjectToUser | { id?: number; personal?: boolean };

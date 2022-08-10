@@ -6,7 +6,6 @@ import { decorators, interfaces, models, types } from '../globalImport';
 
 import { SessionService } from './session.service';
 import { UtilsService } from '../utils/utils.service';
-import { SessionStorageI } from './interfaces/storage.interface';
 
 @nestjs.Controller('session')
 export class SessionController {
@@ -17,9 +16,7 @@ export class SessionController {
 
   // @nestjs.Get('getStorage')
   // @nestjs.Header('Content-Type', 'application/json')
-  async getStorage(
-    @nestjs.Session() session: FastifySession,
-  ): Promise<SessionStorageI> {
+  async getStorage(@nestjs.Session() session: FastifySession) {
     return await this.sessionService.getStorage(session);
   }
 }
