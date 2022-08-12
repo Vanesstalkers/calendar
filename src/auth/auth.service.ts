@@ -6,16 +6,10 @@ export class AuthService {
   private authSessions = {};
   constructor(private utils: UtilsService) {}
 
-  async runAuthWithPhone(
-    phone: string,
-    successHandler: () => Promise<void>,
-    preventSendSms: boolean | string = false,
-  ) {
+  async runAuthWithPhone(phone: string, successHandler: () => Promise<void>, preventSendSms: boolean | string = false) {
     const code = this.utils.randomCode();
 
-    const smsProviderResult = preventSendSms
-      ? { data: {} }
-      : await this.utils.sendSMS(phone, code);
+    const smsProviderResult = preventSendSms ? { data: {} } : await this.utils.sendSMS(phone, code);
     this.authSessions[phone] = {
       authCode: code,
       successHandler,
@@ -32,8 +26,7 @@ export class AuthService {
     if (!check) {
       return false;
     } else {
-      if (this.authSessions[phone].successHandler)
-        await this.authSessions[phone].successHandler();
+      if (this.authSessions[phone].successHandler) await this.authSessions[phone].successHandler();
       delete this.authSessions[phone];
       return true;
     }

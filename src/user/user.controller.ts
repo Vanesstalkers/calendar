@@ -77,7 +77,7 @@ export class UserController {
     if (userExist) throw new nestjs.BadRequestException('Phone number already registred');
 
     await this.sessionService.updateStorage(session, { phone });
-
+    const sessionStorage = await this.sessionService.getStorage(session);
     const sessionStorageId = session.storageId;
     const code = await this.authService
       .runAuthWithPhone(
@@ -88,18 +88,12 @@ export class UserController {
           await this.sessionService.updateStorage(session, { userId: user.id });
 
           const personalProject = await this.projectService.create(
-            {
-              title: `${user.id}th user's personal project`,
-              __projecttouser: [{ id: user.id, personal: true }],
-            },
-            transaction,
+            { title: `${user.id}th user's personal project`, userList: [{ userId: user.id }] },
+            { transaction, personalProject: true },
           );
           const workProject = await this.projectService.create(
-            {
-              title: `${user.id}th user's work project`,
-              __projecttouser: [{ id: user.id }],
-            },
-            transaction,
+            { title: `${user.id}th user's work project`, userList: [{ userId: user.id }] },
+            { transaction },
           );
           await transaction.commit();
 
@@ -115,7 +109,7 @@ export class UserController {
         throw err;
       });
 
-    return { ...httpAnswer.OK, msg: 'wait for auth code', code }; // !!! убрать code после отладки
+    return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } }; // !!! убрать code после отладки
   }
 
   //@nestjs.Post('login')
@@ -149,7 +143,7 @@ export class UserController {
         throw err;
       });
 
-    return { ...httpAnswer.OK, msg: 'wait for auth code', code };
+    return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } };
   }
 
   @nestjs.Post('auth')
@@ -157,15 +151,25 @@ export class UserController {
   @swagger.ApiResponse(
     new interfaces.response.success({
       props: {
-        code: {
-          type: 'string',
-          example: '4476',
-          description: 'Отправленный код (для отладки)',
+        data: {
+          type: 'object',
+          required: ['code'],
+          properties: {
+            code: {
+              type: 'string',
+              example: '4476',
+              description: 'Отправленный код (для отладки)',
+            },
+          },
         },
       },
     }),
   )
-  async auth(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
+  async auth(
+    @nestjs.Body() data: userAuthQueryDTO,
+    @nestjs.Session() session: FastifySession,
+    @nestjs.Res({ passthrough: true }) res: fastify.FastifyReply,
+  ) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
       throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
@@ -242,10 +246,7 @@ export class UserController {
     if (!data?.projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
     const userId = await this.sessionService.getUserId(session);
-    const project = await this.projectService.getOne({
-      id: data.projectId,
-      userId,
-    });
+    const project = await this.projectService.getOne({ id: data.projectId });
     if (!project) throw new nestjs.BadRequestException('Project is not exist in user`s project list.');
 
     const currentProject = { id: project.id, title: project.title };

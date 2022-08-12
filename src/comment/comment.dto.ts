@@ -11,7 +11,7 @@ export class Comment extends sequelize.Model {
 
   @sequelize.ForeignKey(() => models.task)
   @sequelize.Column
-  task_id: number;
+  taskId: number;
   @sequelize.BelongsTo(() => models.task)
   task: types['models']['task'];
 
@@ -20,11 +20,11 @@ export class Comment extends sequelize.Model {
   text: string;
 
   @sequelize.CreatedAt
-  add_time: Date;
+  addTime: Date;
   @sequelize.UpdatedAt
-  update_time: Date;
+  updateTime: Date;
   @sequelize.DeletedAt
-  delete_time: Date;
+  deleteTime: Date;
 }
 
 export class createCommentDTO {

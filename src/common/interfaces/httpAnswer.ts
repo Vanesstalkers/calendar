@@ -9,6 +9,7 @@ export class createdAnswerI {
       status: 200,
       schema: {
         type: 'object',
+        required: ['status'],
         properties: {
           status: {
             type: 'string',
@@ -16,6 +17,7 @@ export class createdAnswerI {
           },
           data: {
             type: 'object',
+            required: ['id'],
             properties: {
               id: {
                 type: 'number',
@@ -35,6 +37,7 @@ export class successAnswerI {
       status: data.code || 200,
       schema: {
         type: 'object',
+        required: ['status'],
         properties: {
           status: {
             type: 'string',
@@ -61,6 +64,7 @@ export class searchAnswerI {
       status: data.code || 200,
       schema: {
         type: 'object',
+        required: ['status'],
         properties: {
           status: {
             type: 'string',

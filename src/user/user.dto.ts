@@ -2,6 +2,8 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { interfaces, models, types } from '../globalImport';
 
+import { projectToUserDTO } from '../project/project.dto';
+
 @sequelize.Table({ tableName: 'user' })
 export class User extends sequelize.Model {
   @sequelize.PrimaryKey
@@ -24,20 +26,16 @@ export class User extends sequelize.Model {
   @sequelize.Column({ allowNull: true })
   timezone: string;
 
-  //@swagger.ApiProperty({ type: () => userConfigDTO })
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
-  config: {
-    currentProject: object;
-    phoneCode: string;
-  };
+  config: { currentProject: object; phoneCode: string };
 
-  @sequelize.HasMany(() => models.project2user, 'user_id')
+  @sequelize.HasMany(() => models.project2user, 'userId')
   projectList: types['models']['project2user'][];
 
-  @sequelize.HasMany(() => models.task, 'exec_user')
+  @sequelize.HasMany(() => models.task, 'execUser')
   execTaskList: types['models']['task'][];
 
-  @sequelize.HasMany(() => models.task2user, 'exec_user')
+  @sequelize.HasMany(() => models.task2user, 'execUser')
   taskList: types['models']['task2user'][];
 
   @sequelize.HasMany(() => models.user2user, 'userId')
@@ -88,7 +86,7 @@ export class userCurrentProjectDTO {
 }
 
 export class userCodeQueryDTO {
-  @swagger.ApiProperty({ example: '4523', description: 'Проверочный код из СМС' })
+  @swagger.ApiProperty({ description: 'Проверочный код из СМС', example: '4523' })
   code: string;
 }
 
@@ -100,20 +98,20 @@ class userConfigDTO {
 class userConfigWithCurProjectDTO {
   @swagger.ApiPropertyOptional({ description: 'Код страны (без префикса "+")', example: '7' })
   phoneCode: string;
-  @swagger.ApiPropertyOptional({ type: () => userCurrentProjectDTO })
+  @swagger.ApiPropertyOptional({ description: 'Текущий проект', type: userCurrentProjectDTO })
   currentProject: object;
 }
 
 export class userAuthQueryDataDTO {
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone?: string;
-  @swagger.ApiPropertyOptional({ type: () => userConfigDTO })
+  @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigDTO })
   config?: object;
 }
 export class userAuthQueryDTO {
-  @swagger.ApiProperty({ type: () => userAuthQueryDataDTO, description: 'schema: userAuthQueryDataDTO' })
+  @swagger.ApiProperty({ description: 'schema: userAuthQueryDataDTO', type: userAuthQueryDataDTO })
   userData: userAuthQueryDataDTO;
-  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', example: true, type: 'boolean | null' })
+  @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', type: 'boolean | null', example: true })
   preventSendSms: boolean;
 }
 
@@ -122,26 +120,10 @@ export class userGetOneQueryDTO {
   userId: number;
 }
 
-class userProjectListDTO {
-  @swagger.ApiPropertyOptional({
-    type: 'string',
-    example: 'owner',
-    enum: ['owner', 'exec'],
-    description: 'Роль в проекте',
-  })
-  role: string;
-  @swagger.ApiProperty({ description: 'ID проекта' })
-  projectId: number;
-  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', example: true, type: 'boolean | null' })
-  personal: boolean;
-  @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', example: 'Коля', type: 'string | null' })
-  userName: string;
-}
-
 class userContactListDTO {
   @swagger.ApiProperty({ description: 'ID пользователя-контакта' })
   contactId: number;
-  @swagger.ApiPropertyOptional({ description: 'Отметка избранного контакта', type: 'number | null' })
+  @swagger.ApiPropertyOptional({ description: 'Отметка избранного контакта', type: 'number | null', example: false })
   priority: number;
 }
 
@@ -150,27 +132,27 @@ export class userGetOneAnswerDTO {
   id: number;
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone: string;
-  @swagger.ApiProperty({ description: 'Имя пользователя', example: 'Николай', type: 'string' })
+  @swagger.ApiProperty({ description: 'Имя пользователя', type: 'string', example: 'Николай' })
   name: string;
-  @swagger.ApiPropertyOptional({ description: 'Описание контакта', example: 'CEO в Wazzup', type: 'string | null' })
+  @swagger.ApiPropertyOptional({ description: 'Описание контакта', type: 'string | null', example: 'CEO в Wazzup' })
   position: string;
-  @swagger.ApiProperty({ description: 'Таймзона', example: 'Europe/Saratov' })
+  @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone: string;
-  @swagger.ApiProperty({ type: () => userConfigWithCurProjectDTO })
+  @swagger.ApiProperty({ description: 'Конфиг пользователя', type: userConfigWithCurProjectDTO })
   config: object;
-  @swagger.ApiPropertyOptional({ type: () => [userProjectListDTO] })
+  @swagger.ApiProperty({ description: 'Список проектов', type: [projectToUserDTO] })
   projectList: object;
-  @swagger.ApiPropertyOptional({ type: () => [userContactListDTO] })
+  @swagger.ApiProperty({ description: 'Список контактов', type: [userContactListDTO] })
   contactList: object;
 }
 
 export class userSearchQueryDTO {
   userId?: number;
-  @swagger.ApiPropertyOptional({ description: 'Строка запроса', example: 'Петров' })
+  @swagger.ApiProperty({ description: 'Строка запроса', example: 'Петров' })
   query: string;
-  @swagger.ApiPropertyOptional({ description: 'Поиск по всем пользователям (не только в контактах)', example: true })
+  @swagger.ApiPropertyOptional({ description: 'Поиск по всем пользователям (не только в контактах)', example: true, type: 'boolean | null' })
   globalSearch?: boolean;
-  @swagger.ApiPropertyOptional({ description: 'Лимит', example: 10 })
+  @swagger.ApiProperty({ description: 'Лимит', example: 10 })
   limit?: number;
 }
 
@@ -181,7 +163,7 @@ export class userSearchAnswerDTO {
   phone: string;
   @swagger.ApiProperty({ description: 'Имя пользователя', example: 'Петров' })
   name: string;
-  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null' })
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
   iconFileId: number;
 }
 
@@ -203,15 +185,15 @@ export class userUpdateQueryDataDTO {
   position?: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone?: string;
-  @swagger.ApiPropertyOptional({ type: () => userConfigDTO })
+  @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigDTO })
   config?: object;
 }
 
 export class userUpdateQueryDTO {
   @swagger.ApiProperty({ description: 'ID пользователя' })
   userId: number;
-  @swagger.ApiProperty({ type: () => userUpdateQueryDataDTO, description: 'schema: userUpdateQueryDataDTO' })
+  @swagger.ApiProperty({ description: 'schema: userUpdateQueryDataDTO', type: userUpdateQueryDataDTO })
   userData: userUpdateQueryDataDTO;
-  @swagger.ApiPropertyOptional({ type: 'string', format: 'binary' })
+  @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
   iconFile: types['models']['file'];
 }

@@ -52,12 +52,23 @@ export class UserService {
                           SELECT    row_to_json(ROW)
                           FROM      (
                                     SELECT    "role"
-                                            , "project_id" as "projectId"
+                                            , "projectId"
                                             , "personal"
-                                            , "user_name" as "userName"
-                                    FROM      "project_to_user"
-                                    WHERE     "delete_time" IS NULL AND      
-                                              "user_id" = u.id
+                                            , "userName"
+                                            , (
+                                              SELECT    "id"
+                                              FROM      "file"
+                                              WHERE     "deleteTime" IS NULL AND      
+                                                        "parentId" = p2u.id AND      
+                                                        "parentType" = 'project_to_user' AND      
+                                                        "fileType" = 'icon'
+                                              ORDER BY  "addTime" DESC
+                                              LIMIT    
+                                                        1
+                                              ) AS "userIconFileId"
+                                    FROM      "project_to_user" AS p2u
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "userId" = u.id
                                     ) AS ROW
                           ) AS "projectList"
                         , (

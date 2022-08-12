@@ -72,24 +72,24 @@ export class TaskController {
   ) {
     if (!data.projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
-    if (!data.taskData.__tasktouser) data.taskData.__tasktouser = [];
+    if (!data.taskData.userList) data.taskData.userList = [];
     // const projectExists = await this.projectService.checkExists(projectId);
     // if (!projectExists)
     //   throw new nestjs.BadRequestException('Project does not exist');
 
-    // for (const execUser of data.task.__tasktouser || []) {
+    // for (const execUser of data.task.userList || []) {
     //   const userExists = await this.userService.checkExists(execUser.id);
     //   if (!userExists)
     //     throw new nestjs.BadRequestException('User does not exist');
     // }
     const userId = await this.sessionService.getUserId(session);
-    if (!data.taskData.__tasktouser.find((user) => user.id === userId))
-      data.taskData.__tasktouser.push({
+    if (!data.taskData.userList.find((user) => user.id === userId))
+      data.taskData.userList.push({
         id: userId,
         role: 'owner',
         status: 'wait_for_confirm',
       });
-    for (const link of data.taskData.__tasktouser) {
+    for (const link of data.taskData.userList) {
       if (!link.role) link.role = 'exec';
       if (!link.status) link.status = 'confirm';
     }

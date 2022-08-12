@@ -10,23 +10,17 @@ export interface sessionDTO {
   */
 }
 
-import { userCurrentProjectDTO } from '../user/user.dto'
+import { userCurrentProjectDTO } from '../user/user.dto';
 
 export class sessionStorageDTO {
-  @swagger.ApiProperty({ type: 'number | null', description: 'Идентификатор в БД' })
+  @swagger.ApiProperty({ description: 'Идентификатор в БД', type: 'number | null', example: 0 })
   userId?: number;
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone?: string;
-  @swagger.ApiProperty({
-    description: 'Отметке об аутентификации',
-    example: true,
-  })
+  @swagger.ApiProperty({ description: 'Отметке об аутентификации', example: true })
   login?: boolean;
   @swagger.ApiProperty({ description: 'Отметке о регистрации', example: true })
   registration?: boolean;
-  @swagger.ApiProperty({
-    description: 'Активный проект',
-    type: () => userCurrentProjectDTO,
-  })
+  @swagger.ApiProperty({ description: 'Активный проект', type: userCurrentProjectDTO })
   currentProject?: object;
 }
