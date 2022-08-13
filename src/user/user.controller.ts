@@ -29,11 +29,7 @@ import {
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('user')
-@swagger.ApiResponse({
-  status: 400,
-  description: 'Формат ответа для всех ошибок',
-  type: () => interfaces.response.exception,
-})
+@swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
 @swagger.ApiExtraModels(
   interfaces.response.empty,
   interfaces.response.success,

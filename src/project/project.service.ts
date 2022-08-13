@@ -69,10 +69,7 @@ export class ProjectService {
     });
   }
 
-  async getOne(
-    data: { id: number },
-    config: { checkExists?: boolean; include?: boolean; attributes?: string[] } = {},
-  ): Promise<any> {
+  async getOne(data: { id: number }, config: types['getOneConfig'] = {}) {
     if (config.checkExists) {
       config.include = false;
       config.attributes = ['id'];
@@ -81,109 +78,115 @@ export class ProjectService {
     const findData = await this.sequelize
       .query(
         `--sql
-        SELECT    p.title
-        , p.config
-        , array(
-          SELECT    row_to_json(ROW)
-          FROM      (
-                    SELECT    "userId"
-                            , "role"
-                            , "personal"
-                            , "userName"
-                            , (
-                              SELECT    "id"
-                              FROM      "file"
-                              WHERE     "deleteTime" IS NULL AND      
-                                        "parentId" = p2u.id AND      
-                                        "parentType" = 'project_to_user' AND      
-                                        "fileType" = 'icon'
-                              ORDER BY  "addTime" DESC
-                              LIMIT    
-                                        1
-                              ) AS "userIconFileId"
-                            , u."name" AS "baseUserName"
-                            , (
-                              SELECT    "id"
-                              FROM      "file"
-                              WHERE     "deleteTime" IS NULL AND      
-                                        "parentId" = u.id AND      
-                                        "parentType" = 'user' AND      
-                                        "fileType" = 'icon'
-                              ORDER BY  "addTime" DESC
-                              LIMIT    
-                                        1
-                              ) AS "baseUserIconFileId"
-                    FROM      "project_to_user" AS p2u
-                    LEFT JOIN "user" AS u ON u.id = p2u."userId" AND      
-                              u."deleteTime" IS NULL
-                    WHERE     p2u."deleteTime" IS NULL AND      
-                              "projectId" = p.id
-                    ) AS ROW
-          ) AS "userList"
-        , array(
-          SELECT    row_to_json(ROW)
-          FROM      (
-                    SELECT    "id"
-                            , "require"
-                            , "title"
-                            , "startTime"
-                            , "endTime"
-                            , "timeType"
-                            , "regular"
-                            , "groupId"
-                            , array(
-                              SELECT    row_to_json(ROW)
-                              FROM      (
-                                        SELECT    t2u."userId"
-                                                , t2u."role"
-                                                , p2u."userName"
-                                                , u."name" AS "baseUserName"
-                                                , (
-                                                  SELECT    "id"
-                                                  FROM      "file"
-                                                  WHERE     "deleteTime" IS NULL AND      
-                                                            "parentId" = u.id AND      
-                                                            "parentType" = 'user' AND      
-                                                            "fileType" = 'icon'
-                                                  ORDER BY  "addTime" DESC
-                                                  LIMIT    
-                                                            1
-                                                  ) AS "baseUserIconFileId"
-                                        FROM      "task_to_user" AS t2u
-                                        LEFT JOIN "user" AS u ON u.id = t2u."userId" AND      
-                                                  u."deleteTime" IS NULL
-                                        LEFT JOIN "project_to_user" AS p2u ON u.id = p2u."userId" AND      
-                                                  p.id = p2u."projectId" AND      
-                                                  u."deleteTime" IS NULL
-                                        WHERE     t2u."deleteTime" IS NULL AND      
-                                                  "taskId" = t.id
-                                        ) AS ROW
-                              ) AS "userList"
-                            , (
-                              SELECT    COUNT(id)
-                              FROM      "comment"
-                              WHERE     "taskId" = t.id
-                              ) AS "commentCount"
-                            , array(
-                              SELECT    row_to_json(ROW)
-                              FROM      (
-                                        SELECT    "id"
-                                        FROM      "file"
-                                        WHERE     "deleteTime" IS NULL AND      
-                                                  "parentId" = t.id AND      
-                                                  "parentType" = 'task'
-                                        ) AS ROW
-                              ) AS "fileList"
-                    FROM      "task" AS t
-                    WHERE     "deleteTime" IS NULL AND      
-                              "projectId" = p.id
-                    ) AS ROW
-          ) AS "taskList"
-FROM      "project" AS p
-WHERE     p.id = 36 AND      
-          p."deleteTime" IS NULL
-LIMIT    
-          1
+                SELECT    p.title
+                        , p.config
+                        , (
+                          SELECT    "id"
+                          FROM      "file"
+                          WHERE     "deleteTime" IS NULL AND      
+                                    "parentId" = p.id AND      
+                                    "parentType" = 'project' AND      
+                                    "fileType" = 'icon'
+                          ORDER BY  "addTime" DESC
+                          LIMIT    
+                                    1
+                          ) AS "iconFileId"
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    "userId"
+                                            , "role"
+                                            , "personal"
+                                            , "userName"
+                                            , (
+                                              SELECT    "id"
+                                              FROM      "file"
+                                              WHERE     "deleteTime" IS NULL AND      
+                                                        "parentId" = p2u.id AND      
+                                                        "parentType" = 'project_to_user' AND      
+                                                        "fileType" = 'icon'
+                                              ORDER BY  "addTime" DESC
+                                              LIMIT    
+                                                        1
+                                              ) AS "userIconFileId"
+                                            , u."name" AS "baseUserName"
+                                            , (
+                                              SELECT    "id"
+                                              FROM      "file"
+                                              WHERE     "deleteTime" IS NULL AND      
+                                                        "parentId" = u.id AND      
+                                                        "parentType" = 'user' AND      
+                                                        "fileType" = 'icon'
+                                              ORDER BY  "addTime" DESC
+                                              LIMIT    
+                                                        1
+                                              ) AS "baseUserIconFileId"
+                                    FROM      "project_to_user" AS p2u
+                                    LEFT JOIN "user" AS u ON u.id = p2u."userId" AND      
+                                              u."deleteTime" IS NULL
+                                    WHERE     p2u."deleteTime" IS NULL AND      
+                                              "projectId" = p.id
+                                    ) AS ROW
+                          ) AS "userList"
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    "id" AS "taskId"
+                                            , "title"
+                                            , "groupId"
+                                            , "startTime"
+                                            , "endTime"
+                                            , "timeType"
+                                            , "require"
+                                            , "regular"
+                                            , array(
+                                              SELECT    row_to_json(ROW)
+                                              FROM      (
+                                                        SELECT    t2u."userId"
+                                                                , t2u."role"
+                                                                , t2u."status"
+                                                        FROM      "task_to_user" AS t2u
+                                                        WHERE     t2u."deleteTime" IS NULL AND      
+                                                                  "taskId" = t.id
+                                                        ) AS ROW
+                                              ) AS "userList"
+                                            , array(
+                                              SELECT    row_to_json(ROW)
+                                              FROM      (
+                                                        SELECT    id
+                                                                , name
+                                                        FROM      "hashtag"
+                                                        WHERE     "deleteTime" IS NULL AND      
+                                                                  "taskId" = t.id
+                                                        ) AS ROW
+                                              ) AS "hashtagList"
+                                            , (
+                                              SELECT    COUNT(id)
+                                              FROM      "comment"
+                                              WHERE     "deleteTime" IS NULL AND
+                                                        "taskId" = t.id
+                                              ) AS "commentCount"
+                                            , array(
+                                              SELECT    row_to_json(ROW)
+                                              FROM      (
+                                                        SELECT    "id" AS "fileId"
+                                                                , "fileType"
+                                                        FROM      "file"
+                                                        WHERE     "deleteTime" IS NULL AND      
+                                                                  "parentId" = t.id AND      
+                                                                  "parentType" = 'task'
+                                                        ) AS ROW
+                                              ) AS "fileList"
+                                    FROM      "task" AS t
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "projectId" = p.id
+                                    ) AS ROW
+                          ) AS "taskList"
+                FROM      "project" AS p
+                WHERE     p.id = :id AND      
+                          p."deleteTime" IS NULL
+                LIMIT    
+                          1
         `,
         {
           type: QueryTypes.SELECT,
@@ -196,8 +199,10 @@ LIMIT
   }
 
   async checkExists(id: number) {
-    const project = await this.getOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher);
-    return project ? true : false;
+    const findData = await this.projectModel
+      .findOne({ where: { id }, attributes: ['id'] })
+      .catch(exception.dbErrorCatcher);
+    return findData ? true : false;
   }
 
   async createUserLink(
@@ -222,7 +227,7 @@ LIMIT
     await this.utils.updateDB({ table: 'project_to_user', id: linkId, data: updateData, transaction });
   }
 
-  async getUserLink(userId: number, projectId: number, config: { attributes?: string[]; checkExists?: boolean } = {}) {
+  async getUserLink(userId: number, projectId: number, config: types['getOneConfig'] = {}) {
     if (config.checkExists) {
       config.attributes = ['id'];
     }

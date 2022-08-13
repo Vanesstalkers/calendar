@@ -22,18 +22,7 @@ export class UserService {
     private utils: UtilsService,
   ) {}
 
-  async getOne(
-    data: {
-      id?: number;
-      phone?: string;
-    },
-    config: {
-      checkExists?: boolean;
-      include?: boolean;
-      attributes?: string[];
-    } = {},
-    transaction?: Transaction,
-  ) {
+  async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
     if (config.checkExists) {
       config.include = false;
       config.attributes = ['id'];
@@ -175,8 +164,10 @@ export class UserService {
   }
 
   async checkExists(id: number) {
-    const user = await this.getOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher);
-    return user ? true : false;
+    const findData = await this.userModel
+      .findOne({ where: { id }, attributes: ['id'] })
+      .catch(exception.dbErrorCatcher);
+    return findData ? true : false;
   }
 
   async addContact(data: { userId: number; contactId: number }) {
@@ -188,7 +179,7 @@ export class UserService {
     });
     return result;
   }
-  async getContact(userId: number, contactId: number, config: { attributes?: string[]; checkExists?: boolean } = {}) {
+  async getContact(userId: number, contactId: number, config: types['getOneConfig'] = {}) {
     if (config.checkExists) {
       config.attributes = ['id'];
     }

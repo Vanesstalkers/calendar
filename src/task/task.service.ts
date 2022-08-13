@@ -6,15 +6,10 @@ import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import {
-  decorators,
-  interfaces,
-  models,
-  types,
-  exception,
-} from '../globalImport';
+import { decorators, interfaces, models, types, exception } from '../globalImport';
 
-import { TickService } from '../tick/tick.service';
+import { taskFullDTO, taskUpdateDTO, taskUserLinkDTO, taskTickDTO, taskHashtagDTO } from './task.dto';
+
 import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Injectable()
@@ -25,48 +20,50 @@ export class TaskService {
     @sequelize.InjectModel(models.user) private userModel: typeof models.user,
     @sequelize.InjectModel(models.task2user)
     private taskToUserModel: typeof models.task2user,
-    private tickService: TickService,
+    @sequelize.InjectModel(models.tick) private tickModel: typeof models.tick,
+    @sequelize.InjectModel(models.hashtag) private hashtagModel: typeof models.hashtag,
     private utils: UtilsService,
   ) {}
 
-  async create(
-    projectId: number,
-    taskData: types['models']['task'],
-    transaction?: Transaction,
-  ): Promise<types['models']['task']> {
+  async create(projectId: number, taskData: taskFullDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
-    const task = await this.taskModel
-      .create({ project_id: projectId }, { transaction })
-      .catch(exception.dbErrorCatcher);
+    const task = await this.taskModel.create({ projectId }, { transaction }).catch(exception.dbErrorCatcher);
     await this.update(task.id, taskData, transaction);
 
     if (createTransaction) await transaction.commit();
     return task;
   }
 
-  async update(
-    taskId: number,
-    updateData: types['models']['task'],
-    transaction?: Transaction,
-  ): Promise<void> {
+  async update(taskId: number, updateData: taskUpdateDTO, transaction?: Transaction) {
     await this.utils.updateDB({
       table: 'task',
       id: taskId,
       data: updateData,
       handlers: {
-        __tasktouser: async (value: any) => {
-          const arr: any[] = Array.from(value);
+        userList: async (value: [taskUserLinkDTO]) => {
+          const arr: taskUserLinkDTO[] = Array.from(value);
           for (const link of arr) {
-            await this.upsertLinkToUser(taskId, link.id, link, transaction);
+            await this.upsertLinkToUser(taskId, link.userId, link, transaction);
           }
           return { preventDefault: true };
         },
-        __tick: async (value: any) => {
+        tickList: async (value: any) => {
           const arr: any[] = Array.from(value);
           for (const tick of arr) {
-            await this.tickService.create(taskId, tick, transaction);
+            if (tick.id) {
+              await this.updateTick(tick.id, tick, transaction);
+            } else {
+              await this.createTick(taskId, tick, transaction);
+            }
+          }
+          return { preventDefault: true };
+        },
+        hashtagList: async (value: any) => {
+          const arr: any[] = Array.from(value);
+          for (const hashtag of arr) {
+            await this.upsertHashtag(taskId, hashtag.name, transaction);
           }
           return { preventDefault: true };
         },
@@ -75,15 +72,7 @@ export class TaskService {
     });
   }
 
-  async getOne(
-    data: { id: number; userId: number },
-    config: {
-      checkExists?: boolean;
-      include?: boolean;
-      attributes?: string[];
-    } = {},
-    transaction?: Transaction,
-  ): Promise<any> {
+  async getOne(data: { id: number; userId: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
     if (config.checkExists) {
       config.include = false;
       config.attributes = ['id'];
@@ -94,63 +83,85 @@ export class TaskService {
         `--sql
                 SELECT    task.title
                         , task.info
+                        , task."groupId"
+                        , task."startTime"
+                        , task."endTime"
+                        , task."timeType"
+                        , task."require"
+                        , task."regular"
+                        , task."extDestination"
+                        , task."execEndTime"
+                        , task."execUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
                                     SELECT    role
-                                            , user_id
-                                            , status --, t2u.user_name
+                                            , "userId"
+                                            , status
                                     FROM      "task_to_user" AS t2u
-                                    WHERE     t2u.delete_time IS NULL AND      
-                                              task_id = task.id
+                                    WHERE     t2u."deleteTime" IS NULL AND      
+                                              "taskId" = task.id
                                     ) AS ROW
-                          ) AS userList
+                          ) AS "userList"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    id
-                                    FROM      "file" AS taskFile
-                                    WHERE     "deleteTime" IS NULL AND      
-                                              "parentId" = task.id AND      
-                                              "parentType" = 'task'
-                                    ) AS ROW
-                          ) AS fileList
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    id
+                                    SELECT    id AS "tickId"
                                             , text
                                             , status
                                     FROM      "tick"
-                                    WHERE     delete_time IS NULL AND      
-                                              task_id = task.id
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "taskId" = task.id
                                     ) AS ROW
-                          ) AS tickList
+                          ) AS "tickList"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    id
+                                    SELECT    id AS "commentId"
                                             , text
                                             , array(
                                               SELECT    row_to_json(ROW)
                                               FROM      (
-                                                        SELECT    "id"
-                                                        FROM      "file" AS commentFile
+                                                        SELECT    "id" AS "fileId"
+                                                                , "fileType"
+                                                        FROM      "file"
                                                         WHERE     "deleteTime" IS NULL AND      
                                                                   "parentId" = comment.id AND      
                                                                   "parentType" = 'comment'
                                                         ) AS ROW
-                                              ) AS fileList
+                                              ) AS "fileList"
                                     FROM      "comment" AS comment
-                                    WHERE     delete_time IS NULL AND      
-                                              task_id = task.id
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "taskId" = task.id
                                     ) AS ROW
-                          ) AS commentList
+                          ) AS "commentList"
+                          , array(
+                            SELECT    row_to_json(ROW)
+                            FROM      (
+                                      SELECT    id AS "hashtagId"
+                                              , name
+                                      FROM      "hashtag"
+                                      WHERE     "deleteTime" IS NULL AND      
+                                                "taskId" = task.id
+                                      ) AS ROW
+                            ) AS "hashtagList"
+                          , task."projectId"
+                          , array(
+                            SELECT    row_to_json(ROW)
+                            FROM      (
+                                      SELECT    id AS "fileId"
+                                              , "fileType"
+                                      FROM      "file" AS taskFile
+                                      WHERE     "deleteTime" IS NULL AND      
+                                                "parentId" = task.id AND      
+                                                "parentType" = 'task'
+                                      ) AS ROW
+                            ) AS "fileList"
                 FROM      "task" AS task
-                LEFT JOIN "task_to_user" AS t2u ON t2u.delete_time IS NULL AND      
-                          t2u.task_id = task.id AND      
-                          t2u.user_id = :userId
-                WHERE     task.delete_time IS NULL AND      
+                LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
+                          t2u."taskId" = task.id AND      
+                          t2u."userId" = :userId
+                WHERE     task."deleteTime" IS NULL AND      
                           task.id = :id AND      
                           t2u.id IS NOT NULL
                 LIMIT    
@@ -167,47 +178,66 @@ export class TaskService {
     return findData || null;
   }
 
-  async upsertLinkToUser(
-    task_id: number,
-    user_id: number,
-    linkData: types['models']['task2user'],
-    transaction?: Transaction,
-  ): Promise<types['models']['task2user']> {
+  async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
     const link = await this.taskToUserModel
-      .upsert(
-        { task_id, user_id },
-        { conflictFields: ['user_id', 'task_id'], transaction },
-      )
+      .upsert({ taskId, userId }, { conflictFields: ['taskId', 'userId'], transaction })
       .catch(exception.dbErrorCatcher);
-    await this.updateLinkToUser(link[0].id, linkData, transaction);
+    await this.updateUserLink(link[0].id, linkData, transaction);
 
     if (createTransaction) await transaction.commit();
     return link[0];
   }
-  async updateLinkToUser(
-    linkId: number,
-    updateData: types['models']['task2user'],
-    transaction?: Transaction,
-  ): Promise<void> {
-    await this.utils.updateDB({
-      table: 'task_to_user',
-      id: linkId,
-      data: updateData,
-      transaction,
-    });
+  async updateUserLink(linkId: number, updateData: taskUserLinkDTO, transaction?: Transaction) {
+    await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
   }
-  async getLinkToUser(taskId: number, userId: number): Promise<any> {
+  async getUserLink(taskId: number, userId: number) {
     const findData = await this.taskToUserModel
-      .findOne({
-        where: {
-          task_id: taskId,
-          user_id: userId,
-        },
-        attributes: ['id'],
-      })
+      .findOne({ where: { taskId, userId }, attributes: ['id'] })
+      .catch(exception.dbErrorCatcher);
+    return findData || null;
+  }
+
+  async upsertHashtag(taskId: number, name: string, transaction?: Transaction) {
+    const createTransaction = !transaction;
+    if (createTransaction) transaction = await this.sequelize.transaction();
+
+    const link = await this.hashtagModel
+      .upsert({ taskId, name, deleteTime: null }, { conflictFields: ['taskId', 'name'], transaction })
+      .catch(exception.dbErrorCatcher);
+    // await this.updateHashtag(link[0].id, hashtagData, transaction);
+
+    if (createTransaction) await transaction.commit();
+    return link[0];
+  }
+  async updateHashtag(id: number, data: taskHashtagDTO, transaction?: Transaction) {
+    await this.utils.updateDB({ table: 'hashtag', id, data, transaction });
+  }
+  async getHashtag(taskId: number, name: string) {
+    const findData = await this.hashtagModel
+      .findOne({ where: { taskId, name }, attributes: ['id'] })
+      .catch(exception.dbErrorCatcher);
+    return findData || null;
+  }
+
+  async createTick(taskId: number, tickData: taskTickDTO, transaction?: Transaction) {
+    const createTransaction = !transaction;
+    if (createTransaction) transaction = await this.sequelize.transaction();
+
+    const tick = await this.tickModel.create({ taskId }, { transaction }).catch(exception.dbErrorCatcher);
+    await this.updateTick(tick.id, tickData, transaction);
+
+    if (createTransaction) await transaction.commit();
+    return tick;
+  }
+  async updateTick(id: number, data: taskTickDTO, transaction?: Transaction) {
+    await this.utils.updateDB({ table: 'tick', id, data, transaction });
+  }
+  async getTick(taskId: number, id: number) {
+    const findData = await this.tickModel
+      .findOne({ where: { taskId, id }, attributes: ['id'] })
       .catch(exception.dbErrorCatcher);
     return findData || null;
   }

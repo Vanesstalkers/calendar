@@ -1,10 +1,4 @@
-import {
-  Module,
-  NestModule,
-  DynamicModule,
-  Global,
-  CacheModule,
-} from '@nestjs/common';
+import { Module, NestModule, DynamicModule, Global, CacheModule } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { models } from './globalImport';
 
@@ -17,7 +11,6 @@ import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
 import { TaskModule } from './task/task.module';
 import { CommentModule } from './comment/comment.module';
-import { TickModule } from './tick/tick.module';
 import { FileModule } from './file/file.module';
 import { UtilsModule } from './utils/utils.module';
 
@@ -65,7 +58,6 @@ try {
     ProjectModule,
     TaskModule,
     CommentModule,
-    TickModule,
     FileModule,
     UtilsModule,
     SequelizeModule.forFeature([

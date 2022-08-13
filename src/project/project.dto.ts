@@ -2,6 +2,9 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
+import { taskDTO } from '../task/task.dto';
+import { fileListItemDTO } from '../file/file.dto';
+
 @sequelize.Table({ tableName: 'project' })
 export class Project extends sequelize.Model {
   @sequelize.PrimaryKey
@@ -131,18 +134,18 @@ class projectGetOneAnswerUserDTO {
   baseUserIconFileId?: number;
 }
 
-class projectGetOneAnswerTaskUserDTO {
-  @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
-  userId?: number;
-}
-
-class projectGetOneAnswerTaskDTO {
+class projectGetOneAnswerTaskDTO extends taskDTO {
   @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
-  id?: number;
-  @swagger.ApiProperty({ description: 'Исполнители задачи', type: [projectGetOneAnswerTaskUserDTO] })
-  userList: projectGetOneAnswerTaskUserDTO[];
+  taskId?: number;
   @swagger.ApiProperty({ description: 'Количество комментариев', type: 'number', example: 0 })
   commentCount: number;
+  @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
+  fileList: fileListItemDTO[];
+}
+
+export class projectGetOneQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
 }
 
 export class projectGetOneAnswerDTO {
@@ -150,6 +153,8 @@ export class projectGetOneAnswerDTO {
   title: string;
   @swagger.ApiProperty({ description: 'Конфиг проекта', type: projectConfigDTO })
   config: object;
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
+  iconFileId?: number;
   @swagger.ApiProperty({ description: 'Участники проекта', type: [projectGetOneAnswerUserDTO] })
   userList: projectGetOneAnswerUserDTO[];
   @swagger.ApiProperty({ description: 'Задачи проекта', type: [projectGetOneAnswerTaskDTO] })

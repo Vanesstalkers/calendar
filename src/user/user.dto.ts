@@ -35,7 +35,7 @@ export class User extends sequelize.Model {
   @sequelize.HasMany(() => models.task, 'execUser')
   execTaskList: types['models']['task'][];
 
-  @sequelize.HasMany(() => models.task2user, 'execUser')
+  @sequelize.HasMany(() => models.task2user, 'userId')
   taskList: types['models']['task2user'][];
 
   @sequelize.HasMany(() => models.user2user, 'userId')
@@ -134,6 +134,8 @@ export class userGetOneAnswerDTO {
   phone: string;
   @swagger.ApiProperty({ description: 'Имя пользователя', type: 'string', example: 'Николай' })
   name: string;
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
+  iconFileId: number;
   @swagger.ApiPropertyOptional({ description: 'Описание контакта', type: 'string | null', example: 'CEO в Wazzup' })
   position: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
@@ -150,7 +152,11 @@ export class userSearchQueryDTO {
   userId?: number;
   @swagger.ApiProperty({ description: 'Строка запроса', example: 'Петров' })
   query: string;
-  @swagger.ApiPropertyOptional({ description: 'Поиск по всем пользователям (не только в контактах)', example: true, type: 'boolean | null' })
+  @swagger.ApiPropertyOptional({
+    description: 'Поиск по всем пользователям (не только в контактах)',
+    example: true,
+    type: 'boolean | null',
+  })
   globalSearch?: boolean;
   @swagger.ApiProperty({ description: 'Лимит', example: 10 })
   limit?: number;

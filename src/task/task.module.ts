@@ -4,7 +4,6 @@ import { models } from '../globalImport';
 
 import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
-import { TickService } from '../tick/tick.service';
 import { UserService } from '../user/user.service';
 import { UtilsService } from '../utils/utils.service';
 import { TaskController } from './task.controller';
@@ -20,16 +19,10 @@ import { TaskService } from './task.service';
       models.project2user,
       models.task2user,
       models.tick,
+      models.hashtag,
     ]),
   ],
-  providers: [
-    SessionService,
-    UtilsService,
-    TaskService,
-    UserService,
-    ProjectService,
-    TickService,
-  ],
+  providers: [SessionService, UtilsService, TaskService, UserService, ProjectService],
   controllers: [TaskController],
 })
 export class TaskModule {}

@@ -15,7 +15,6 @@ import { PostStatusInterceptor } from './common/interceptors/request.interceptor
 import * as userDTO from './user/user.dto';
 import * as projectDTO from './project/project.dto';
 import * as taskDTO from './task/task.dto';
-import * as tickDTO from './tick/tick.dto';
 import * as commentDTO from './comment/comment.dto';
 import * as fileDTO from './file/file.dto';
 
@@ -48,7 +47,7 @@ export const models = {
   hashtag: taskDTO.Hashtag,
   task2user: taskDTO.TaskToUser,
   user2user: userDTO.UserToUser,
-  tick: tickDTO.Tick,
+  tick: taskDTO.Tick,
   comment: commentDTO.Comment,
   file: fileDTO.File,
 };
@@ -70,6 +69,7 @@ export const interceptors = {
 };
 
 export type types = {
+  getOneConfig: { checkExists?: boolean; include?: boolean; attributes?: string[] };
   session: {
     storage: sessionStorageDTO;
   };
@@ -94,7 +94,7 @@ export type types = {
     hashtag: taskDTO.Hashtag;
     task2user: taskDTO.TaskToUser | { id?: number; role?: string; status?: string };
     user2user: userDTO.UserToUser;
-    tick: tickDTO.Tick;
+    tick: taskDTO.Tick;
     comment: commentDTO.Comment;
     file: fileDTO.File;
   };
