@@ -42,9 +42,27 @@ export class File extends sequelize.Model {
   deleteTime: Date;
 }
 
-export class fileUploadDTO {
-  @swagger.ApiProperty({ type: () => models.file })
-  fileData: types['models']['file'];
+export class fileDTO {
+  @swagger.ApiProperty({ description: 'Тип сущности-родителя', example: 'user', type: 'string' })
+  parentType: string;
+
+  @swagger.ApiProperty({ description: 'ID сущности-родителя', type: 'number' })
+  parentId: number;
+
+  @swagger.ApiProperty({ description: 'Тип файла', example: 'icon', type: 'string' })
+  fileType: string;
+}
+
+export class fileListItemDTO {
+  @swagger.ApiProperty({ description: 'ID файла' })
+  fileId: number;
+  @swagger.ApiProperty({ description: 'Тип файла', example: 'icon', type: 'string' })
+  fileType: string;
+}
+
+export class fileUploadQueryDTO {
+  @swagger.ApiProperty({ type: fileDTO })
+  fileData: fileDTO;
   @swagger.ApiProperty({ type: 'string', format: 'binary' })
   file: types['models']['file'];
 }

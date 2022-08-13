@@ -22,18 +22,7 @@ export class UserService {
     private utils: UtilsService,
   ) {}
 
-  async getOne(
-    data: {
-      id?: number;
-      phone?: string;
-    },
-    config: {
-      checkExists?: boolean;
-      include?: boolean;
-      attributes?: string[];
-    } = {},
-    transaction?: Transaction,
-  ) {
+  async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
     if (config.checkExists) {
       config.include = false;
       config.attributes = ['id'];
@@ -52,12 +41,23 @@ export class UserService {
                           SELECT    row_to_json(ROW)
                           FROM      (
                                     SELECT    "role"
-                                            , "project_id" as "projectId"
+                                            , "projectId"
                                             , "personal"
-                                            , "user_name" as "userName"
-                                    FROM      "project_to_user"
-                                    WHERE     "delete_time" IS NULL AND      
-                                              "user_id" = u.id
+                                            , "userName"
+                                            , (
+                                              SELECT    "id"
+                                              FROM      "file"
+                                              WHERE     "deleteTime" IS NULL AND      
+                                                        "parentId" = p2u.id AND      
+                                                        "parentType" = 'project_to_user' AND      
+                                                        "fileType" = 'icon'
+                                              ORDER BY  "addTime" DESC
+                                              LIMIT    
+                                                        1
+                                              ) AS "userIconFileId"
+                                    FROM      "project_to_user" AS p2u
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "userId" = u.id
                                     ) AS ROW
                           ) AS "projectList"
                         , (
@@ -164,8 +164,10 @@ export class UserService {
   }
 
   async checkExists(id: number) {
-    const user = await this.getOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher);
-    return user ? true : false;
+    const findData = await this.userModel
+      .findOne({ where: { id }, attributes: ['id'] })
+      .catch(exception.dbErrorCatcher);
+    return findData ? true : false;
   }
 
   async addContact(data: { userId: number; contactId: number }) {
@@ -177,7 +179,7 @@ export class UserService {
     });
     return result;
   }
-  async getContact(userId: number, contactId: number, config: { attributes?: string[]; checkExists?: boolean } = {}) {
+  async getContact(userId: number, contactId: number, config: types['getOneConfig'] = {}) {
     if (config.checkExists) {
       config.attributes = ['id'];
     }

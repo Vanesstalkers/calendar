@@ -14,12 +14,7 @@ import { PostStatusInterceptor } from './common/interceptors/request.interceptor
 
 import * as userDTO from './user/user.dto';
 import * as projectDTO from './project/project.dto';
-import { Task } from './models/task';
-import { ProjectToUser } from './models/project_to_user';
-import { TaskGroup } from './models/task_group';
-import { Hashtag } from './models/hashtag';
-import { TaskToUser } from './models/task_to_user';
-import * as tickDTO from './tick/tick.dto';
+import * as taskDTO from './task/task.dto';
 import * as commentDTO from './comment/comment.dto';
 import * as fileDTO from './file/file.dto';
 
@@ -46,13 +41,13 @@ export const interfaces = {
 export const models = {
   user: userDTO.User,
   project: projectDTO.Project,
-  task: Task,
-  project2user: ProjectToUser,
-  taskgroup: TaskGroup,
-  hashtag: Hashtag,
-  task2user: TaskToUser,
+  task: taskDTO.Task,
+  project2user: projectDTO.ProjectToUser,
+  taskgroup: taskDTO.TaskGroup,
+  hashtag: taskDTO.Hashtag,
+  task2user: taskDTO.TaskToUser,
   user2user: userDTO.UserToUser,
-  tick: tickDTO.Tick,
+  tick: taskDTO.Tick,
   comment: commentDTO.Comment,
   file: fileDTO.File,
 };
@@ -74,6 +69,7 @@ export const interceptors = {
 };
 
 export type types = {
+  getOneConfig: { checkExists?: boolean; include?: boolean; attributes?: string[] };
   session: {
     storage: sessionStorageDTO;
   };
@@ -92,13 +88,13 @@ export type types = {
   models: {
     user: userDTO.User;
     project: projectDTO.Project | { id?: number; title?: string; __projecttouser?: any[] };
-    task: Task;
-    project2user: ProjectToUser | { id?: number; personal?: boolean };
-    taskgroup: TaskGroup;
-    hashtag: Hashtag;
-    task2user: TaskToUser | { id?: number; role?: string; status?: string };
+    task: taskDTO.Task;
+    project2user: projectDTO.ProjectToUser | { id?: number; personal?: boolean };
+    taskgroup: taskDTO.TaskGroup;
+    hashtag: taskDTO.Hashtag;
+    task2user: taskDTO.TaskToUser | { id?: number; role?: string; status?: string };
     user2user: userDTO.UserToUser;
-    tick: tickDTO.Tick;
+    tick: taskDTO.Tick;
     comment: commentDTO.Comment;
     file: fileDTO.File;
   };

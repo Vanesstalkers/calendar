@@ -2,13 +2,7 @@ import * as nestjs from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import axios from 'axios';
 import config from '../config';
-import {
-  decorators,
-  interfaces,
-  models,
-  types,
-  exception,
-} from '../globalImport';
+import { decorators, interfaces, models, types, exception } from '../globalImport';
 
 @nestjs.Injectable()
 export class UtilsService {
@@ -20,8 +14,7 @@ export class UtilsService {
 
   randomCode(symbols: string = '0123456789', length: number = 4) {
     const result = [];
-    for (let i = 0; i < length; i++)
-      result.push(symbols[Math.floor(Math.random() * symbols.length)]);
+    for (let i = 0; i < length; i++) result.push(symbols[Math.floor(Math.random() * symbols.length)]);
     return result.join('');
   }
 
@@ -34,23 +27,14 @@ export class UtilsService {
       ...config.greensms.account,
     };
     const headers = { 'Content-Type': 'application/json' };
-    const result = await axios({ method: 'POST', url, params, headers }).catch(
-      (err) => {
-        // временно пишем эту ошибку, но нужно добавить проверок отдельно на доступность сервера, и отдельно на несоответствие запроса формату АПИ
-        throw new nestjs.ServiceUnavailableException();
-      },
-    );
+    const result = await axios({ method: 'POST', url, params, headers }).catch((err) => {
+      // временно пишем эту ошибку, но нужно добавить проверок отдельно на доступность сервера, и отдельно на несоответствие запроса формату АПИ
+      throw new nestjs.ServiceUnavailableException();
+    });
     return result;
   }
 
-  async updateDB({
-    table,
-    id,
-    data,
-    handlers = {},
-    jsonKeys = [],
-    transaction,
-  }) {
+  async updateDB({ table, id, data, handlers = {}, jsonKeys = [], transaction }) {
     const setList = [];
     const replacements = { id };
 
@@ -62,8 +46,7 @@ export class UtilsService {
       if (handlers[key]) {
         const handlerResult = await handlers[key](value, transaction);
         if (handlerResult.preventDefault) continue;
-        if (handlerResult.replaceValue)
-          replaceValue = handlerResult.replaceValue;
+        if (handlerResult.replaceValue) replaceValue = handlerResult.replaceValue;
         //if (handlerResult.dbHandler) dbHandler = handlerResult.dbHandler;
       }
 
@@ -71,8 +54,10 @@ export class UtilsService {
         setList.push(`"${key}" = "${key}"::jsonb || :${key}::jsonb`);
         replacements[key] = JSON.stringify(replaceValue);
       } else {
-        setList.push(`"${key}" = :${key}`);
-        replacements[key] = replaceValue;
+        if (value !== undefined) {
+          setList.push(`"${key}" = :${key}`);
+          replacements[key] = replaceValue;
+        }
       }
     }
 

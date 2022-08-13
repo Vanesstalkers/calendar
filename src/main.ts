@@ -1,8 +1,5 @@
 import { NestFactory, HttpAdapterHost } from '@nestjs/core';
-import {
-  FastifyAdapter,
-  NestFastifyApplication,
-} from '@nestjs/platform-fastify';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as stream from 'stream';
@@ -12,26 +9,21 @@ import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 async function bootstrap() {
   try {
-    const app = await NestFactory.create<NestFastifyApplication>(
-      AppModule,
-      new FastifyAdapter(),
-      {
-        abortOnError: false,
-      },
-    );
+    const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
+      abortOnError: false,
+    });
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
     });
-    app.enableCors();
+
+    app.enableCors({ origin: true, credentials: true });
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
-      cookie: { path: '/' },
+      cookie: { path: '/', sameSite: 'none', secure: true },
     });
-    app.useGlobalFilters(
-      new UniversalExceptionFilter(app.get(HttpAdapterHost)),
-    );
+    app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
 
     const swaggerConfig = new DocumentBuilder()
       .setTitle('API description')

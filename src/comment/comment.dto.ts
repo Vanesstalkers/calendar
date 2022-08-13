@@ -2,6 +2,8 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
+import { fileListItemDTO } from '../file/file.dto';
+
 @sequelize.Table({ tableName: 'comment' })
 export class Comment extends sequelize.Model {
   @sequelize.PrimaryKey
@@ -11,32 +13,51 @@ export class Comment extends sequelize.Model {
 
   @sequelize.ForeignKey(() => models.task)
   @sequelize.Column
-  task_id: number;
+  taskId: number;
   @sequelize.BelongsTo(() => models.task)
   task: types['models']['task'];
 
-  @swagger.ApiProperty({ type: 'string', description: 'Тест комментария' })
   @sequelize.Column
   text: string;
 
   @sequelize.CreatedAt
-  add_time: Date;
+  addTime: Date;
   @sequelize.UpdatedAt
-  update_time: Date;
+  updateTime: Date;
   @sequelize.DeletedAt
-  delete_time: Date;
+  deleteTime: Date;
 }
 
-export class createCommentDTO {
-  @swagger.ApiProperty({ type: () => models.comment })
-  commentData: types['models']['comment'];
-  @swagger.ApiPropertyOptional({ description: 'ID задачи' })
+export class commentDTO {
+  @swagger.ApiProperty({ description: 'Тест комментария', type: 'string' })
+  text?: string;
+  deleteTime?: Date;
+}
+
+export class commentCreateQueryDTO {
+  @swagger.ApiProperty({ type: commentDTO })
+  commentData: commentDTO;
+  @swagger.ApiProperty({ description: 'ID задачи' })
   taskId: number;
 }
 
-export class updateCommentDTO {
-  @swagger.ApiProperty({ type: () => models.comment })
-  commentData: types['models']['comment'];
-  @swagger.ApiPropertyOptional({ description: 'ID комментария' })
+export class commentUpdateQueryDTO {
+  @swagger.ApiProperty({ type: commentDTO })
+  commentData: commentDTO;
+  @swagger.ApiProperty({ description: 'ID комментария' })
   commentId: number;
+}
+
+export class commentDeleteQueryDTO {
+  @swagger.ApiProperty({ description: 'ID комментария' })
+  commentId: number;
+}
+
+export class commentListItemDTO {
+  @swagger.ApiProperty({ description: 'ID комментария' })
+  commentId: number;
+  @swagger.ApiProperty({ description: 'Тест комментария', type: 'string' })
+  text: string;
+  @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
+  fileList: fileListItemDTO[];
 }
