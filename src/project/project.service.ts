@@ -29,7 +29,7 @@ export class ProjectService {
   ) {
     let transaction = config.transaction;
     const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
+    if (createTransaction) config.transaction = transaction = await this.sequelize.transaction();
 
     const project = await this.projectModel.create({}, { transaction }).catch(exception.dbErrorCatcher);
     await this.update(project.id, projectData, config);
@@ -78,7 +78,8 @@ export class ProjectService {
     const findData = await this.sequelize
       .query(
         `--sql
-                SELECT    p.title
+                SELECT    p.id
+                        , p.title
                         , p.config
                         , (
                           SELECT    "id"
@@ -195,7 +196,7 @@ export class ProjectService {
       )
       .catch(exception.dbErrorCatcher);
 
-    return findData || null;
+    return findData[0] || null;
   }
 
   async checkExists(id: number) {
