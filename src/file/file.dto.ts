@@ -13,15 +13,15 @@ export class File extends sequelize.Model {
   @sequelize.Column
   link: string;
 
-  @swagger.ApiProperty({ description: 'Тип сущности-родителя', example: 'user', type: 'string' })
+  @swagger.ApiProperty({ description: 'Тип сущности-родителя', type: 'string', example: 'user' })
   @sequelize.Column
   parentType: string;
 
-  @swagger.ApiProperty({ type: 'number', description: 'ID сущности-родителя' })
+  @swagger.ApiProperty({ description: 'ID сущности-родителя', type: 'number' })
   @sequelize.Column
   parentId: number;
 
-  @swagger.ApiProperty({ description: 'Тип файла', example: 'icon', type: 'string' })
+  @swagger.ApiProperty({ description: 'Тип файла', type: 'string', example: 'icon' })
   @sequelize.Column
   fileType: string;
 
@@ -43,20 +43,21 @@ export class File extends sequelize.Model {
 }
 
 export class fileDTO {
-  @swagger.ApiProperty({ description: 'Тип сущности-родителя', example: 'user', type: 'string' })
-  parentType: string;
+  @swagger.ApiProperty({ description: 'Тип сущности-родителя', type: 'string', example: 'user' })
+  parentType?: string;
 
   @swagger.ApiProperty({ description: 'ID сущности-родителя', type: 'number' })
-  parentId: number;
+  parentId?: number;
 
   @swagger.ApiProperty({ description: 'Тип файла', example: 'icon', type: 'string' })
-  fileType: string;
+  fileType?: string;
+  deleteTime?: Date;
 }
 
 export class fileListItemDTO {
   @swagger.ApiProperty({ description: 'ID файла' })
   fileId: number;
-  @swagger.ApiProperty({ description: 'Тип файла', example: 'icon', type: 'string' })
+  @swagger.ApiProperty({ description: 'Тип файла', type: 'string', example: 'icon' })
   fileType: string;
 }
 
@@ -65,4 +66,9 @@ export class fileUploadQueryDTO {
   fileData: fileDTO;
   @swagger.ApiProperty({ type: 'string', format: 'binary' })
   file: types['models']['file'];
+}
+
+export class fileDeleteQueryDTO {
+  @swagger.ApiProperty({ description: 'ID файла' })
+  fileId: number;
 }

@@ -13,6 +13,8 @@ import {
   taskDeleteHashtagQueryDTO,
   taskGetOneQueryDTO,
   taskGetOneAnswerDTO,
+  taskSearchAnswerDTO,
+  taskSearchQueryDTO,
 } from './task.dto';
 
 import { TaskService } from './task.service';
@@ -26,7 +28,7 @@ import { SessionService } from '../session/session.service';
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('task')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(taskGetOneAnswerDTO)
+@swagger.ApiExtraModels(taskGetOneAnswerDTO, taskSearchAnswerDTO)
 export class TaskController {
   constructor(
     private taskService: TaskService,
@@ -74,6 +76,18 @@ export class TaskController {
 
     const userId = await this.sessionService.getUserId(session);
     const result = await this.taskService.getOne({ id: data.taskId, userId });
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('search')
+  @nestjs.Header('Content-Type', 'application/json')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
+  async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('query is empty or too short');
+    const sessionData = await this.sessionService.getState(session);
+    data.projectId = sessionData.currentProject.id;
+    const result = await this.taskService.search(data);
     return { ...httpAnswer.OK, data: result };
   }
 

@@ -14,6 +14,8 @@ import { FileService } from './file.service';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 
+import { fileDTO, fileDeleteQueryDTO } from './file.dto';
+
 @nestjs.Controller('file')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @swagger.ApiTags('file')
@@ -54,5 +56,22 @@ export class FileController {
   async uploadFile(@nestjs.Body() @decorators.Multipart() data: fileUploadQueryDTO): Promise<any> {
     const file = await this.service.create(Object.assign(data.file, data.fileData));
     return { ...httpAnswer.OK, data: { id: file.id } };
+  }
+
+  @nestjs.Delete('delete')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @nestjs.Header('Content-Type', 'application/json')
+  @swagger.ApiBody({ type: fileDeleteQueryDTO })
+  @swagger.ApiResponse(new interfaces.response.success())
+  async delete(@nestjs.Body() data: fileDeleteQueryDTO) {
+    await this.validate(data.fileId);
+    await this.service.update(data.fileId, { deleteTime: new Date() });
+    return httpAnswer.OK;
+  }
+
+  async validate(id: number) {
+    if (!id) throw new nestjs.BadRequestException('File ID is empty');
+    if (!(await this.service.checkExists(id)))
+      throw new nestjs.BadRequestException(`File (id=${id}) does not exist`);
   }
 }

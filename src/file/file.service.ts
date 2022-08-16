@@ -6,6 +6,10 @@ import { decorators, interfaces, models, types, exception } from '../globalImpor
 
 import * as fs from 'fs';
 
+import { UtilsService } from '../utils/utils.service';
+import { fileDTO, fileDeleteQueryDTO } from './file.dto';
+import { Transaction } from 'sequelize/types';
+
 @nestjs.Injectable()
 export class FileService {
   constructor(
@@ -16,6 +20,7 @@ export class FileService {
     private modelProject: typeof models.project,
     @sequelize.InjectModel(models.project2user)
     private modelProjectToUser: typeof models.project2user,
+    private utils: UtilsService,
   ) {}
 
   async getOne(id: number): Promise<types['models']['file']> {
@@ -52,5 +57,25 @@ export class FileService {
     });
 
     return file;
+  }
+
+  async update(fileId: number, updateData: fileDTO, transaction?: Transaction) {
+    await this.utils.updateDB({ table: 'file', id: fileId, data: updateData, transaction });
+  }
+
+  async getTheOne(data: { id: number }, config: types['getOneConfig'] = {}) {
+    if (config.checkExists) {
+      config.include = false;
+      config.attributes = ['id'];
+    }
+
+    const findData = await this.modelFile
+      .findOne({ where: { id: data.id }, attributes: config.attributes })
+      .catch(exception.dbErrorCatcher);
+    return findData || null;
+  }
+
+  async checkExists(id: number) {
+    return (await this.getTheOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher)) ? true : false;
   }
 }

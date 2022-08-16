@@ -369,3 +369,18 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
   @swagger.ApiProperty({ description: 'Комментарии', type: [commentListItemDTO] })
   commentList: commentListItemDTO[];
 }
+
+export class taskSearchQueryDTO {
+  projectId?: number;
+  @swagger.ApiProperty({ description: 'Строка запроса', example: 'купить | #хэштег' })
+  query: string;
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 10 })
+  limit?: number;
+}
+
+export class taskSearchAnswerDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  id: number;
+  @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
+  title: string;
+}
