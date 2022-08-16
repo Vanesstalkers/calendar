@@ -8,7 +8,7 @@ import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, models, types, exception } from '../globalImport';
 
-import { taskFullDTO, taskUpdateDTO, taskUserLinkDTO, taskTickDTO, taskHashtagDTO } from './task.dto';
+import { taskFullDTO, taskUpdateDTO, taskUserLinkDTO, taskTickDTO, taskHashtagDTO, taskSearchQueryDTO, taskSearchAnswerDTO } from './task.dto';
 
 import { UtilsService } from '../utils/utils.service';
 
@@ -240,5 +240,33 @@ export class TaskService {
       .findOne({ where: { taskId, id }, attributes: ['id'] })
       .catch(exception.dbErrorCatcher);
     return findData || null;
+  }
+
+  async search(data: taskSearchQueryDTO = { query: '', limit: 10 }) {    
+
+    const hashFlag = (/^#/).test(data.query);
+    const hashTable = hashFlag ? ', "hashtag" h ' : '';
+    const sqlWhere = hashFlag ? ' h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query) ' :
+    ' (LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query)) ';
+    if(hashFlag){
+      data.query = data.query.replace('#','');
+    }
+
+    const findData = await this.sequelize
+      .query(
+        `--sql
+                SELECT    t.id,
+                          t.title                        
+                FROM      "task" t ${hashTable}
+                
+                WHERE     t."projectId" = :projectId AND 
+                          ${sqlWhere}
+                LIMIT    
+                          :limit
+        `,
+        { replacements: { query: `%${(data.query || '').trim()}%`, projectId: data.projectId, limit: data.limit } },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0];
   }
 }
