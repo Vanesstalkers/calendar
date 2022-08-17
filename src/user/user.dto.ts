@@ -2,7 +2,7 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { interfaces, models, types } from '../globalImport';
 
-import { projectToUserDTO } from '../project/project.dto';
+import { userGetOneAnswerProjectDTO } from '../project/project.dto';
 
 @sequelize.Table({ tableName: 'user' })
 export class User extends sequelize.Model {
@@ -83,6 +83,8 @@ export class userCurrentProjectDTO {
   id: number;
   @swagger.ApiProperty({ description: 'Название', example: 'Проект №1' })
   title: string;
+  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
+  personal: boolean;
 }
 
 export class userCodeQueryDTO {
@@ -142,7 +144,7 @@ export class userGetOneAnswerDTO {
   timezone: string;
   @swagger.ApiProperty({ description: 'Конфиг пользователя', type: userConfigWithCurProjectDTO })
   config: object;
-  @swagger.ApiProperty({ description: 'Список проектов', type: [projectToUserDTO] })
+  @swagger.ApiProperty({ description: 'Список проектов', type: [userGetOneAnswerProjectDTO] })
   projectList: object;
   @swagger.ApiProperty({ description: 'Список контактов', type: [userContactListDTO] })
   contactList: object;
