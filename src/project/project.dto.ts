@@ -70,20 +70,16 @@ export class ProjectToUser extends sequelize.Model {
 
 export class projectToUserUpdateDTO {
   @swagger.ApiPropertyOptional({
-    type: 'string | null',
-    example: 'owner',
-    enum: ['owner', 'exec'],
     description: 'Роль в проекте',
+    type: 'string | null',
+    enum: ['owner', 'exec'],
+    example: 'owner',
   })
   role?: string;
   @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
   userId?: number;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName?: string;
-}
-export class projectToUserDTO extends projectToUserUpdateDTO {
-  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
-  personal?: boolean;
 }
 
 class projectConfigDTO {}
@@ -117,23 +113,6 @@ export class projectUpdateUserQueryDTO {
   iconFile: types['models']['file'];
 }
 
-class projectGetOneAnswerUserDTO {
-  @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
-  userId?: number;
-  @swagger.ApiProperty({ description: 'Роль в проекте', type: 'string', example: 'owner', enum: ['owner', 'exec'] })
-  role?: string;
-  @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
-  userName?: string;
-  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
-  personal?: boolean;
-  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки в проекте', type: 'number | null', example: 0 })
-  userIconFileId?: number;
-  @swagger.ApiProperty({ description: 'Основное имя пользователя', type: 'string', example: 'Николай' })
-  baseUserName?: string;
-  @swagger.ApiPropertyOptional({ description: 'ID основного файла-иконки', type: 'number | null', example: 0 })
-  baseUserIconFileId?: number;
-}
-
 class projectGetOneAnswerTaskDTO extends taskDTO {
   @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
   taskId?: number;
@@ -146,6 +125,35 @@ class projectGetOneAnswerTaskDTO extends taskDTO {
 export class projectGetOneQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
+}
+
+export class projectToUserDTO {
+  @swagger.ApiProperty({ description: 'Роль в проекте', type: 'string', example: 'owner', enum: ['owner', 'exec'] })
+  role?: string;
+  @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
+  userName?: string;
+  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
+  personal?: boolean;
+}
+export class userGetOneAnswerProjectDTO extends projectToUserDTO {
+  @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })
+  projectId?: number;
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки в проекте', type: 'number | null', example: 0 })
+  userIconFileId?: number;
+}
+
+export class projectToUserGetOneDTO extends projectToUserDTO {
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки в проекте', type: 'number | null', example: 0 })
+  userIconFileId?: number;
+  @swagger.ApiProperty({ description: 'Основное имя пользователя', type: 'string', example: 'Николай' })
+  baseUserName?: string;
+  @swagger.ApiPropertyOptional({ description: 'ID основного файла-иконки', type: 'number | null', example: 0 })
+  baseUserIconFileId?: number;
+}
+
+class projectGetOneAnswerUserDTO extends projectToUserGetOneDTO {
+  @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
+  userId?: number;
 }
 
 export class projectGetOneAnswerDTO {
