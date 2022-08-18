@@ -14,7 +14,9 @@ import {
   taskGetOneQueryDTO,
   taskGetOneAnswerDTO,
   taskSearchAnswerDTO,
+  taskSearchAllAnswerDTO,
   taskSearchQueryDTO,
+  taskSearchAllQueryDTO,
 } from './task.dto';
 
 import { TaskService } from './task.service';
@@ -28,7 +30,7 @@ import { SessionService } from '../session/session.service';
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('task')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(taskGetOneAnswerDTO, taskSearchAnswerDTO)
+@swagger.ApiExtraModels(taskGetOneAnswerDTO, taskSearchAnswerDTO, taskSearchAllAnswerDTO)
 export class TaskController {
   constructor(
     private taskService: TaskService,
@@ -56,8 +58,9 @@ export class TaskController {
     }
 
     const userId = await this.sessionService.getUserId(session);
-    if (!data.taskData.userList.find((user) => user.userId === userId))
-      data.taskData.userList.push({ userId, role: 'owner', status: 'wait_for_confirm' });
+    data.taskData.ownUser = userId;
+    // if (!data.taskData.userList.find((user) => user.userId === userId))
+    //   data.taskData.userList.push({ userId, role: 'owner', status: 'wait_for_confirm' });
     for (const link of data.taskData.userList) {
       if (!link.role) link.role = 'exec';
       if (!link.status) link.status = 'confirm';
@@ -79,15 +82,26 @@ export class TaskController {
     return { ...httpAnswer.OK, data: result };
   }
 
+  @nestjs.Post('searchAll')
+  @nestjs.Header('Content-Type', 'application/json')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAllAnswerDTO }))
+  async searchAll(@nestjs.Body() data: taskSearchAllQueryDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('query is empty or too short');
+    const sessionData = await this.sessionService.getState(session);
+    data.projectId = sessionData.currentProjectId;
+    const result = await this.taskService.searchAll(data);
+    return { ...httpAnswer.OK, data: result };
+  }
+
   @nestjs.Post('search')
   @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
   async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
-    if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('query is empty or too short');
     const sessionData = await this.sessionService.getState(session);
     data.projectId = sessionData.currentProjectId;
-    const result = await this.taskService.search(data);
+    const result = await this.taskService.search(data, sessionData.userId);
     return { ...httpAnswer.OK, data: result };
   }
 
