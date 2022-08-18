@@ -82,6 +82,101 @@ export class TaskService {
     });
   }
 
+  async find(replacements, transaction?) {
+    const findData = await this.sequelize
+      .query(
+        `--sql
+                SELECT    task.id
+                        , task.title
+                        , task.info
+                        , task."groupId"
+                        , task."startTime"
+                        , task."endTime"
+                        , task."timeType"
+                        , task."require"
+                        , task."regular"
+                        , task."extDestination"
+                        , task."execEndTime"
+                        , task."execUser"
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    role
+                                            , "userId"
+                                            , status
+                                    FROM      "task_to_user" AS t2u
+                                    WHERE     t2u."deleteTime" IS NULL AND      
+                                              "taskId" = task.id
+                                    ) AS ROW
+                          ) AS "userList"
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    id AS "tickId"
+                                            , text
+                                            , status
+                                    FROM      "tick"
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "taskId" = task.id
+                                    ) AS ROW
+                          ) AS "tickList"
+                        , array(
+                          SELECT    row_to_json(ROW)
+                          FROM      (
+                                    SELECT    id AS "commentId"
+                                            , text
+                                            , array(
+                                              SELECT    row_to_json(ROW)
+                                              FROM      (
+                                                        SELECT    "id" AS "fileId"
+                                                                , "fileType"
+                                                        FROM      "file"
+                                                        WHERE     "deleteTime" IS NULL AND      
+                                                                  "parentId" = comment.id AND      
+                                                                  "parentType" = 'comment'
+                                                        ) AS ROW
+                                              ) AS "fileList"
+                                    FROM      "comment" AS comment
+                                    WHERE     "deleteTime" IS NULL AND      
+                                              "taskId" = task.id
+                                    ) AS ROW
+                          ) AS "commentList"
+                          , array(
+                            SELECT    row_to_json(ROW)
+                            FROM      (
+                                      SELECT    id AS "hashtagId"
+                                              , name
+                                      FROM      "hashtag"
+                                      WHERE     "deleteTime" IS NULL AND      
+                                                "taskId" = task.id
+                                      ) AS ROW
+                            ) AS "hashtagList"
+                          , task."projectId"
+                          , array(
+                            SELECT    row_to_json(ROW)
+                            FROM      (
+                                      SELECT    id AS "fileId"
+                                              , "fileType"
+                                      FROM      "file" AS taskFile
+                                      WHERE     "deleteTime" IS NULL AND      
+                                                "parentId" = task.id AND      
+                                                "parentType" = 'task'
+                                      ) AS ROW
+                            ) AS "fileList"
+                FROM      "task" AS task
+                LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
+                          t2u."taskId" = task.id AND      
+                          t2u."userId" = :userId
+                WHERE     task."deleteTime" IS NULL AND      
+                          task.id IN (:taskIdList)
+        `,
+        { type: QueryTypes.SELECT, replacements, transaction },
+      )
+      .catch(exception.dbErrorCatcher);
+
+    return findData || null;
+  }
+
   async getOne(data: { id: number; userId: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
     if (config.checkExists) {
       config.include = false;
@@ -366,6 +461,20 @@ export class TaskService {
       replacements.laterLimit = data.later.limit || 50;
     }
 
+    if (data.executors) {
+      sqlWhere = ['t."deleteTime" IS NULL', '"projectId" = :projectId'];
+      sqlWhere.push('t."ownUser" = :myId');
+      sqlWhere.push('t2u."userId" != :myId');
+      select.executors = `--sql
+        SELECT    t.id, t.title, t2u."userId" AS "execUserId"
+        FROM      "task" AS t
+        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."role" = 'exec' AND t2u."deleteTime" IS NULL
+        WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        LIMIT     :executorsLimit
+      `;
+      replacements.executorsLimit = data.executors.limit || 50;
+    }
+
     const findData = await this.sequelize
       .query(
         'SELECT ' +
@@ -377,6 +486,7 @@ export class TaskService {
       .catch(exception.dbErrorCatcher);
 
     const result = findData[0][0];
+    let taskIdList = [];
     if (result.schedule) {
       const replaceTask = {};
       for (const task of result.schedule) {
@@ -436,6 +546,20 @@ export class TaskService {
         result.schedule = result.schedule.filter((task) => task.id !== +id).concat(cloneList);
       }
     }
+    if (result.inbox) taskIdList = taskIdList.concat(result.inbox.map((task) => task.id));
+    if (result.schedule) taskIdList = taskIdList.concat(result.schedule.map((task) => task.id || task.origTaskId));
+    if (result.overdue) taskIdList = taskIdList.concat(result.overdue.map((task) => task.id));
+    if (result.later) taskIdList = taskIdList.concat(result.later.map((task) => task.id));
+    if (result.executors) taskIdList = taskIdList.concat(result.executors.map((task) => task.id));
+
+    const taskList = await this.find({ taskIdList, userId });
+    const taskMap = taskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+
+    if (result.inbox) result.inbox = result.inbox.map((task) => taskMap[task.id]);
+    if (result.schedule) result.schedule = result.schedule.map((task) => taskMap[task.id || task.origTaskId]);
+    if (result.overdue) result.overdue = result.overdue.map((task) => taskMap[task.id]);
+    if (result.later) result.later = result.later.map((task) => taskMap[task.id]);
+    if (result.executors) result.executors = result.executors.map((task) => taskMap[task.id]);
 
     return result;
   }

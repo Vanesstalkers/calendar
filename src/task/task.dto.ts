@@ -409,6 +409,8 @@ export class taskSearchQueryDTO {
   overdue?: taskSearchQueryLimitDTO;
   @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
   later?: taskSearchQueryLimitDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
+  executors?: taskSearchQueryLimitDTO;
 }
 
 export class taskSearchAllAnswerDTO {
@@ -448,14 +450,24 @@ class taskSearchAnswerLaterDTO {
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить мангал' })
   title: string;
 }
+class taskSearchAnswerExecutorsDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  id: number;
+  @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить билет в кино' })
+  title: string;
+  @swagger.ApiProperty({ description: 'ID пользователя-исполнителя' })
+  execUserId: number;
+}
 
 export class taskSearchAnswerDTO {
-  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerInboxDTO] })
-  inbox?: taskSearchAnswerInboxDTO;
-  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerScheludeDTO] })
-  schedule?: taskSearchAnswerScheludeDTO;
-  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerOverdueDTO] })
-  overdue?: taskSearchAnswerOverdueDTO;
-  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerLaterDTO] })
-  later?: taskSearchAnswerLaterDTO;
+  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
+  inbox?: taskGetOneAnswerDTO;
+  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
+  schedule?: taskGetOneAnswerDTO;
+  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
+  overdue?: taskGetOneAnswerDTO;
+  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
+  later?: taskGetOneAnswerDTO;
+  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
+  executors?: taskGetOneAnswerDTO;
 }
