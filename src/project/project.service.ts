@@ -95,7 +95,8 @@ export class ProjectService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    "userId"
+                                    SELECT    p2u."id" AS "projectToUserLinkId"
+                                            , "userId"
                                             , "role"
                                             , "personal"
                                             , "userName"

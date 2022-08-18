@@ -25,6 +25,8 @@ import {
   userUpdateQueryDTO,
 } from './user.dto';
 
+import { userGetOneAnswerProjectDTO } from '../project/project.dto';
+
 @nestjs.Controller('user')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @nestjs.UseGuards(decorators.validateSession)
@@ -234,7 +236,7 @@ export class UserController {
 
   @nestjs.Post('changeCurrentProject')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.success())
+  @swagger.ApiResponse(new interfaces.response.success({ models: [userGetOneAnswerProjectDTO] }))
   async changeCurrentProject(
     @nestjs.Query() data: userChangeCurrentProjectQueryDTO,
     @nestjs.Session() session: FastifySession,
@@ -253,7 +255,10 @@ export class UserController {
     await this.userService.update(userId, { config: { currentProject } });
     await this.sessionService.updateStorageById(session.storageId, { currentProject });
 
-    return httpAnswer.OK;
+    const projectToUser = project.userList.find((user) => user.userId === userId);
+    projectToUser.projectId = project.id;
+    delete projectToUser.userId;
+    return { ...httpAnswer.OK, data: projectToUser };
   }
 
   @nestjs.Post('addContact')
