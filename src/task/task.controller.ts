@@ -86,7 +86,7 @@ export class TaskController {
   async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('query is empty or too short');
     const sessionData = await this.sessionService.getState(session);
-    data.projectId = sessionData.currentProject.id;
+    data.projectId = sessionData.currentProjectId;
     const result = await this.taskService.search(data);
     return { ...httpAnswer.OK, data: result };
   }

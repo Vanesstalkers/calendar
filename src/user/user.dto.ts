@@ -27,7 +27,7 @@ export class User extends sequelize.Model {
   timezone: string;
 
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
-  config: { currentProject: object; phoneCode: string };
+  config: { currentProjectId: number; phoneCode: string };
 
   @sequelize.HasMany(() => models.project2user, 'userId')
   projectList: types['models']['project2user'][];
@@ -78,15 +78,6 @@ export class UserToUser extends sequelize.Model {
   deleteTime: Date;
 }
 
-export class userCurrentProjectDTO {
-  @swagger.ApiProperty({ description: 'Идентификатор в БД' })
-  id: number;
-  @swagger.ApiProperty({ description: 'Название', example: 'Проект №1' })
-  title: string;
-  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
-  personal: boolean;
-}
-
 export class userCodeQueryDTO {
   @swagger.ApiProperty({ description: 'Проверочный код из СМС', example: '4523' })
   code: string;
@@ -100,8 +91,8 @@ class userConfigDTO {
 class userConfigWithCurProjectDTO {
   @swagger.ApiPropertyOptional({ description: 'Код страны (без префикса "+")', example: '7' })
   phoneCode: string;
-  @swagger.ApiPropertyOptional({ description: 'Текущий проект', type: userCurrentProjectDTO })
-  currentProject: object;
+  @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
+  currentProjectId?: number;
 }
 
 export class userAuthQueryDataDTO {

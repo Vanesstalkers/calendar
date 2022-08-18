@@ -132,7 +132,7 @@ export class UserController {
             userId: user.id,
             registration: true,
             login: true,
-            currentProject: user.config.currentProject,
+            currentProjectId: user.config.currentProjectId,
           });
         },
         data.preventSendSms,
@@ -247,13 +247,9 @@ export class UserController {
     const project = await this.projectService.getOne({ id: data.projectId });
     if (!project) throw new nestjs.BadRequestException('Project is not exist in user`s project list.');
 
-    const currentProject = {
-      id: project.id,
-      title: project.title,
-      personal: project.userList.find((user: { userId: number }) => user.userId === userId)?.personal,
-    };
-    await this.userService.update(userId, { config: { currentProject } });
-    await this.sessionService.updateStorageById(session.storageId, { currentProject });
+    const currentProjectId = project.id;
+    await this.userService.update(userId, { config: { currentProjectId } });
+    await this.sessionService.updateStorageById(session.storageId, { currentProjectId });
 
     const projectToUser = project.userList.find((user) => user.userId === userId);
     projectToUser.projectId = project.id;
