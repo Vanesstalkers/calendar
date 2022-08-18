@@ -40,7 +40,8 @@ export class UserService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    "role"
+                                    SELECT    "id" AS "projectToUserLinkId"
+                                            , "role"
                                             , "projectId"
                                             , "personal"
                                             , "userName"

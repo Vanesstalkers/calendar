@@ -38,6 +38,7 @@
     "cache-manager": "^4.1.0",
     "cache-manager-redis-store": "^2.0.0",
     "create-nestjs-middleware-module": "^0.2.2",
+    "cron-parser": "^4.6.0",
     "cross-env": "^7.0.3",
     "fastify-multipart": "^5.4.0",
     "fastify-secure-session": "^3.2.0",

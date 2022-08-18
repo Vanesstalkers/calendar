@@ -20,7 +20,7 @@ export class SessionService {
       userId: storage.userId ?? null,
       registration: storage.registration === true,
       login: storage.login === true,
-      currentProject: storage.currentProject ?? null,
+      currentProjectId: storage.currentProjectId ?? null,
     };
   }
 

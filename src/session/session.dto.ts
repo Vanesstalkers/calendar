@@ -10,8 +10,6 @@ export interface sessionDTO {
   */
 }
 
-import { userCurrentProjectDTO } from '../user/user.dto';
-
 export class sessionStorageDTO {
   @swagger.ApiProperty({ description: 'Идентификатор в БД', type: 'number | null', example: 0 })
   userId?: number;
@@ -21,6 +19,6 @@ export class sessionStorageDTO {
   login?: boolean;
   @swagger.ApiProperty({ description: 'Отметке о регистрации', example: true })
   registration?: boolean;
-  @swagger.ApiProperty({ description: 'Активный проект', type: userCurrentProjectDTO })
-  currentProject?: object;
+  @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
+  currentProjectId?: number;
 }

@@ -299,6 +299,7 @@ export class taskFullDTO extends taskDTO {
   execUser: number;
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskTickDTO] })
   tickList: taskTickDTO[];
+  ownUser: number;
 }
 
 export class taskUpdateDTO extends taskFullDTO {
@@ -370,17 +371,91 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
   commentList: commentListItemDTO[];
 }
 
-export class taskSearchQueryDTO {
+export class taskSearchAllQueryDTO {
   projectId?: number;
   @swagger.ApiProperty({ description: 'Строка запроса', example: 'купить | #хэштег' })
   query: string;
-  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 10 })
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;
 }
 
-export class taskSearchAnswerDTO {
+class taskSearchQueryInboxDTO {
+  @swagger.ApiProperty({
+    description: 'Тип фильтра',
+    example: 'finished',
+    enum: ['new', 'regular', 'finished', 'toexec'],
+  })
+  filter: string;
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+}
+class taskSearchQueryScheduleDTO {
+  @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2022-07-08' })
+  from: Date;
+  @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2022-07-10' })
+  to: Date;
+}
+class taskSearchQueryLimitDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+}
+export class taskSearchQueryDTO {
+  projectId?: number;
+  @swagger.ApiPropertyOptional({ type: taskSearchQueryInboxDTO })
+  inbox?: taskSearchQueryInboxDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchQueryScheduleDTO })
+  schedule?: taskSearchQueryScheduleDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
+  overdue?: taskSearchQueryLimitDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
+  later?: taskSearchQueryLimitDTO;
+}
+
+export class taskSearchAllAnswerDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
   title: string;
+}
+
+class taskSearchAnswerInboxDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  id: number;
+  @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
+  title: string;
+}
+class taskSearchAnswerScheludeDTO {
+  @swagger.ApiPropertyOptional({ description: 'ID задачи' })
+  id?: number;
+  @swagger.ApiPropertyOptional({ description: 'ID исходной задачи (для регулярных задач)' })
+  origTaskId?: number;
+  @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
+  title: string;
+  @swagger.ApiProperty({ description: 'Регулярная задача', type: 'boolean | null', example: false })
+  regular: boolean;
+  @swagger.ApiProperty({ description: 'Время начала', type: 'date | null', example: '2022-07-08T19:00:00.000Z' })
+  startTime: Date;
+}
+class taskSearchAnswerOverdueDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  id: number;
+  @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить персики' })
+  title: string;
+}
+class taskSearchAnswerLaterDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  id: number;
+  @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить мангал' })
+  title: string;
+}
+
+export class taskSearchAnswerDTO {
+  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerInboxDTO] })
+  inbox?: taskSearchAnswerInboxDTO;
+  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerScheludeDTO] })
+  schedule?: taskSearchAnswerScheludeDTO;
+  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerOverdueDTO] })
+  overdue?: taskSearchAnswerOverdueDTO;
+  @swagger.ApiPropertyOptional({ type: [taskSearchAnswerLaterDTO] })
+  later?: taskSearchAnswerLaterDTO;
 }

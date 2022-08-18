@@ -25,6 +25,8 @@ import {
   userUpdateQueryDTO,
 } from './user.dto';
 
+import { userGetOneAnswerProjectDTO } from '../project/project.dto';
+
 @nestjs.Controller('user')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @nestjs.UseGuards(decorators.validateSession)
@@ -130,7 +132,7 @@ export class UserController {
             userId: user.id,
             registration: true,
             login: true,
-            currentProject: user.config.currentProject,
+            currentProjectId: user.config.currentProjectId,
           });
         },
         data.preventSendSms,
@@ -234,7 +236,7 @@ export class UserController {
 
   @nestjs.Post('changeCurrentProject')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.success())
+  @swagger.ApiResponse(new interfaces.response.success({ models: [userGetOneAnswerProjectDTO] }))
   async changeCurrentProject(
     @nestjs.Query() data: userChangeCurrentProjectQueryDTO,
     @nestjs.Session() session: FastifySession,
@@ -245,15 +247,14 @@ export class UserController {
     const project = await this.projectService.getOne({ id: data.projectId });
     if (!project) throw new nestjs.BadRequestException('Project is not exist in user`s project list.');
 
-    const currentProject = {
-      id: project.id,
-      title: project.title,
-      personal: project.userList.find((user: { userId: number }) => user.userId === userId)?.personal,
-    };
-    await this.userService.update(userId, { config: { currentProject } });
-    await this.sessionService.updateStorageById(session.storageId, { currentProject });
+    const currentProjectId = project.id;
+    await this.userService.update(userId, { config: { currentProjectId } });
+    await this.sessionService.updateStorageById(session.storageId, { currentProjectId });
 
-    return httpAnswer.OK;
+    const projectToUser = project.userList.find((user) => user.userId === userId);
+    projectToUser.projectId = project.id;
+    delete projectToUser.userId;
+    return { ...httpAnswer.OK, data: projectToUser };
   }
 
   @nestjs.Post('addContact')
