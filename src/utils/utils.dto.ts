@@ -5,8 +5,10 @@ import { models, types } from '../globalImport';
 export class searchPhoneCodeQueryDTO {
   @swagger.ApiProperty({ type: 'string', example: 'Afg...', description: 'Строка поиска' })
   query: string;
-  @swagger.ApiPropertyOptional({ type: 'number', example: 10, description: 'Лимит на количество результатов в ответе' })
+  @swagger.ApiPropertyOptional({ type: 'number', example: 50, description: 'Лимит на количество результатов в ответе' })
   limit: string;
+  @swagger.ApiPropertyOptional({ description: 'Сдвиг для поиска', example: 0 })
+  offset: string;
 }
 
 export class searchPhoneCodeAnswerDTO {
@@ -21,8 +23,10 @@ export class searchPhoneCodeAnswerDTO {
 export class searchTimezoneCodeQueryDTO {
   @swagger.ApiProperty({ type: 'string', example: 'Eur...', description: 'Строка поиска' })
   query: string;
-  @swagger.ApiPropertyOptional({ type: 'number', example: 10, description: 'Лимит на количество результатов в ответе' })
+  @swagger.ApiPropertyOptional({ type: 'number', example: 50, description: 'Лимит на количество результатов в ответе' })
   limit: string;
+  @swagger.ApiPropertyOptional({ description: 'Сдвиг для поиска', example: 0 })
+  offset: string;
 }
 
 export class searchTimezoneCodeAnswerDTO {
