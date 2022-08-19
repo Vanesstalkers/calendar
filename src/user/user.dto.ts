@@ -151,8 +151,10 @@ export class userSearchQueryDTO {
     type: 'boolean | null',
   })
   globalSearch?: boolean;
-  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 10 })
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
 }
 
 export class userSearchAnswerDTO {

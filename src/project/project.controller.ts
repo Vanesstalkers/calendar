@@ -39,7 +39,7 @@ export class ProjectController {
     const userId = await this.sessionService.getUserId(session);
     if (!projectData.userList) projectData.userList = [];
     if (!projectData.userList.find((item) => item.userId === userId)) {
-      projectData.userList.push({ userId });
+      projectData.userList.push({ userId, role: "owner" });
     }
     const project = await this.projectService.create(projectData);
     return { ...httpAnswer.OK, data: { id: project.id } };

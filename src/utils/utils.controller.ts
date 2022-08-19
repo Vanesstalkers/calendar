@@ -37,12 +37,17 @@ export class UtilsController {
   @swagger.ApiResponse(new interfaces.response.search({ model: searchPhoneCodeAnswerDTO }))
   async searchPhoneCode(@nestjs.Query() data: searchPhoneCodeQueryDTO) {
     const query = data.query.toLocaleLowerCase();
+    const limit = parseInt(data.limit) || 50;
+    const offset = parseInt(data.offset) || 0;
     const result = Object.entries(lstPhoneCode)
       .filter(([key, value]) => value.name && value.name.toLocaleLowerCase().startsWith(query))
-      .splice(0, parseInt(data.limit) || 20)
+      .splice(offset, limit + 1)
       .map((item) => item[1]);
 
-    return { ...httpAnswer.OK, data: result };
+    let endOfList = false;
+    if (result.length < limit + 1) endOfList = true;
+    else result.pop();
+    return { ...httpAnswer.OK, data: result, endOfList };
   }
 
   @nestjs.Get('searchTimezone')
@@ -51,11 +56,16 @@ export class UtilsController {
   @swagger.ApiResponse(new interfaces.response.search({ model: searchTimezoneCodeAnswerDTO }))
   async searchTimezone(@nestjs.Query() data: searchTimezoneCodeQueryDTO) {
     const query = data.query.toLocaleLowerCase();
+    const limit = parseInt(data.limit) || 50;
+    const offset = parseInt(data.offset) || 0;
     const result = Object.entries(lstTimezone)
       .filter(([key, value]) => value.name && value.name.toLocaleLowerCase().startsWith(query))
-      .splice(0, parseInt(data.limit) || 20)
+      .splice(offset, limit + 1)
       .map((item) => item[1]);
 
-    return { ...httpAnswer.OK, data: result };
+      let endOfList = false;
+      if (result.length < limit + 1) endOfList = true;
+      else result.pop();
+      return { ...httpAnswer.OK, data: result, endOfList };
   }
 }

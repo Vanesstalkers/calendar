@@ -347,7 +347,7 @@ export class TaskService {
     return findData || null;
   }
 
-  async searchAll(data: taskSearchAllQueryDTO = { query: '', limit: 50 }) {
+  async searchAll(data: taskSearchAllQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const hashFlag = /^#/.test(data.query);
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
     const sqlWhere = hashFlag
@@ -368,11 +368,31 @@ export class TaskService {
                           ${sqlWhere}
                 LIMIT    
                           :limit
+                OFFSET    
+                          :offset
         `,
-        { replacements: { query: `%${(data.query || '').trim()}%`, projectId: data.projectId, limit: data.limit } },
+        {
+          replacements: {
+            query: `%${(data.query || '').trim()}%`,
+            projectId: data.projectId,
+            limit: data.limit + 1,
+            offset: data.offset,
+          },
+        },
       )
       .catch(exception.dbErrorCatcher);
-    return findData[0];
+
+    let endOfList = false;
+    if (!findData[0]) {
+      endOfList = true;
+    } else {
+      if (findData[0]?.length < data.limit + 1) {
+        endOfList = true;
+      } else {
+        findData[0].pop();
+      }
+    }
+    return { data: findData[0], endOfList };
   }
 
   async search(data: taskSearchQueryDTO = {}, userId: number) {
@@ -396,20 +416,23 @@ export class TaskService {
           break;
       }
       if (sqlWhere.length) {
-        sqlWhere = sqlWhere.concat(['t."deleteTime" IS NULL', '"projectId" = :projectId', '"later" != true']);
+        sqlWhere = sqlWhere.concat(['t."deleteTime" IS NULL', '"projectId" = :projectId', `"timeType" != 'later'`]);
         select.inbox = `--sql
           SELECT    t.id, t.title
           FROM      "task" AS t
           LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."role" = 'exec' AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
           LIMIT     :inboxLimit
+          OFFSET    :inboxOffset
         `;
-        replacements.inboxLimit = data.inbox.limit || 50;
+        if (!data.inbox.limit) data.inbox.limit = 50;
+        replacements.inboxLimit = data.inbox.limit + 1;
+        replacements.inboxOffset = data.inbox.offset || 0;
       }
     }
 
     if (data.schedule) {
-      sqlWhere = ['"deleteTime" IS NULL', '"projectId" = :projectId', '"later" != true'];
+      sqlWhere = ['"deleteTime" IS NULL', '"projectId" = :projectId', `"timeType" != 'later'`];
       sqlWhere.push('"startTime" >= :scheduleFrom::timestamp');
       sqlWhere.push(`"startTime" <= :scheduleTo::timestamp + '1 day'::interval`);
       select.schedule = `--sql
@@ -434,7 +457,7 @@ export class TaskService {
       sqlWhere = [
         '"deleteTime" IS NULL',
         '"projectId" = :projectId',
-        '"later" != true',
+        `"timeType" != 'later'`,
         "NOT (regular->>'enabled')::boolean OR regular->>'enabled' IS NULL",
       ];
       sqlWhere.push(
@@ -445,20 +468,28 @@ export class TaskService {
           SELECT    id, title, regular, "startTime"
           FROM      "task"
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+          LIMIT     :overdueLimit
+          OFFSET    :overdueOffset
         )
       `;
+      if (!data.overdue.limit) data.overdue.limit = 50;
+      replacements.overdueLimit = data.overdue.limit + 1;
+      replacements.overdueOffset = data.overdue.offset || 0;
     }
 
     if (data.later) {
       sqlWhere = ['"deleteTime" IS NULL', '"projectId" = :projectId'];
-      sqlWhere.push('"later" = true');
+      sqlWhere.push(`"timeType" = 'later'`);
       select.later = `--sql
         SELECT    id, title
         FROM      "task"
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT     :laterLimit
+        OFFSET    :laterOffset
       `;
-      replacements.laterLimit = data.later.limit || 50;
+      if (!data.later.limit) data.later.limit = 50;
+      replacements.laterLimit = data.later.limit + 1;
+      replacements.laterOffset = data.later.offset || 0;
     }
 
     if (data.executors) {
@@ -471,8 +502,11 @@ export class TaskService {
         LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."role" = 'exec' AND t2u."deleteTime" IS NULL
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT     :executorsLimit
+        OFFSET    :executorsOffset
       `;
-      replacements.executorsLimit = data.executors.limit || 50;
+      if (!data.executors.limit) data.executors.limit = 50;
+      replacements.executorsLimit = data.executors.limit + 1;
+      replacements.executorsOffset = data.executors.offset || 0;
     }
 
     const findData = await this.sequelize
@@ -546,20 +580,41 @@ export class TaskService {
         result.schedule = result.schedule.filter((task) => task.id !== +id).concat(cloneList);
       }
     }
-    if (result.inbox) taskIdList = taskIdList.concat(result.inbox.map((task) => task.id));
+    if (result.inbox) {
+      result.inbox = { data: result.inbox.map((task) => task.id), endOfList: false };
+      if (result.inbox.data.length < data.inbox.limit + 1) result.inbox.endOfList = true;
+      else result.inbox.data.pop();
+      taskIdList = taskIdList.concat(result.inbox.data);
+    }
     if (result.schedule) taskIdList = taskIdList.concat(result.schedule.map((task) => task.id || task.origTaskId));
-    if (result.overdue) taskIdList = taskIdList.concat(result.overdue.map((task) => task.id));
-    if (result.later) taskIdList = taskIdList.concat(result.later.map((task) => task.id));
-    if (result.executors) taskIdList = taskIdList.concat(result.executors.map((task) => task.id));
+    if (result.overdue) {
+      result.overdue = { data: result.overdue.map((task) => task.id), endOfList: false };
+      if (result.overdue.data.length < data.overdue.limit + 1) result.overdue.endOfList = true;
+      else result.overdue.data.pop();
+      taskIdList = taskIdList.concat(result.overdue.data);
+    }
+    if (result.later) {
+      result.later = { data: result.later.map((task) => task.id), endOfList: false };
+      if (result.later.data.length < data.later.limit + 1) result.later.endOfList = true;
+      else result.later.data.pop();
+      taskIdList = taskIdList.concat(result.later.data);
+    }
+    if (result.executors) {
+      result.executors = { data: result.executors.map((task) => task.id), endOfList: false };
+      if (result.executors.data.length < data.executors.limit + 1) result.executors.endOfList = true;
+      else result.executors.data.pop();
+      taskIdList = taskIdList.concat(result.executors.data);
+    }
 
     const taskList = await this.find({ taskIdList, userId });
     const taskMap = taskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
 
-    if (result.inbox) result.inbox = result.inbox.map((task) => taskMap[task.id]);
-    if (result.schedule) result.schedule = result.schedule.map((task) => taskMap[task.id || task.origTaskId]);
-    if (result.overdue) result.overdue = result.overdue.map((task) => taskMap[task.id]);
-    if (result.later) result.later = result.later.map((task) => taskMap[task.id]);
-    if (result.executors) result.executors = result.executors.map((task) => taskMap[task.id]);
+    if (result.inbox) result.inbox.data = result.inbox.data.map((taskId) => taskMap[taskId]);
+    if (result.schedule)
+      result.schedule = { endOfList: true, data: result.schedule.map((task) => taskMap[task.id || task.origTaskId]) };
+    if (result.overdue) result.overdue.data = result.overdue.data.map((taskId) => taskMap[taskId]);
+    if (result.later) result.later.data = result.later.data.map((taskId) => taskMap[taskId]);
+    if (result.executors) result.executors.data = result.executors.data.map((taskId) => taskMap[taskId]);
 
     return result;
   }

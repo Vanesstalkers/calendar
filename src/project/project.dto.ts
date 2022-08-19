@@ -72,7 +72,7 @@ export class projectToUserUpdateDTO {
   @swagger.ApiPropertyOptional({
     description: 'Роль в проекте',
     type: 'string | null',
-    enum: ['owner', 'exec'],
+    enum: ['owner', 'member'],
     example: 'owner',
   })
   role?: string;
@@ -130,7 +130,7 @@ export class projectGetOneQueryDTO {
 export class projectToUserDTO {
   @swagger.ApiProperty({ description: 'ID сущности-связи project_to_user', type: 'number', example: 0 })
   projectToUserLinkId?: number;
-  @swagger.ApiProperty({ description: 'Роль в проекте', type: 'string', example: 'owner', enum: ['owner', 'exec'] })
+  @swagger.ApiProperty({ description: 'Роль в проекте', type: 'string', example: 'owner', enum: ['owner', 'member'] })
   role?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName?: string;

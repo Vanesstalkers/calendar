@@ -91,7 +91,7 @@ export class TaskController {
     const sessionData = await this.sessionService.getState(session);
     data.projectId = sessionData.currentProjectId;
     const result = await this.taskService.searchAll(data);
-    return { ...httpAnswer.OK, data: result };
+    return { ...httpAnswer.OK, data: result.data, endOfList: result.endOfList };
   }
 
   @nestjs.Post('search')

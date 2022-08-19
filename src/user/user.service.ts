@@ -40,10 +40,11 @@ export class UserService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    "id" AS "projectToUserLinkId"
+                                    SELECT    p2u."id" AS "projectToUserLinkId"
                                             , "role"
                                             , "projectId"
                                             , "personal"
+                                            , p."title"
                                             , "userName"
                                             , (
                                               SELECT    "id"
@@ -57,7 +58,8 @@ export class UserService {
                                                         1
                                               ) AS "userIconFileId"
                                     FROM      "project_to_user" AS p2u
-                                    WHERE     "deleteTime" IS NULL AND      
+                                    LEFT JOIN "project" as p ON p.id = p2u."projectId"
+                                    WHERE     p2u."deleteTime" IS NULL AND      
                                               "userId" = u.id
                                     ) AS ROW
                           ) AS "projectList"
@@ -102,7 +104,7 @@ export class UserService {
     return findData[0] || null;
   }
 
-  async search(data: userSearchQueryDTO = { query: '', limit: 10 }) {
+  async search(data: userSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const customWhere = [''];
     if (!data.globalSearch) customWhere.push('u2u.id IS NOT NULL');
 
@@ -131,13 +133,34 @@ export class UserService {
                           u.phone LIKE :query OR       
                           LOWER(u.name) LIKE LOWER(:query)
                           ) ${customWhere.join(' AND ')}
+                ORDER BY u."id" DESC
                 LIMIT    
                           :limit
+                OFFSET    
+                          :offset
         `,
-        { replacements: { query: `%${(data.query || '').trim()}%`, userId: data.userId, limit: data.limit } },
+        {
+          replacements: {
+            query: `%${(data.query || '').trim()}%`,
+            userId: data.userId,
+            limit: data.limit + 1,
+            offset: data.offset,
+          },
+        },
       )
       .catch(exception.dbErrorCatcher);
-    return findData[0];
+
+    let endOfList = false;
+    if(!findData[0]){
+      endOfList = true;
+    }else{
+      if(findData[0]?.length < data.limit + 1){
+        endOfList = true;
+      }else{
+        findData[0].pop();
+      }
+    }
+    return { data: findData[0], endOfList };
   }
 
   async create(userData: userAuthQueryDataDTO, transaction?: Transaction) {

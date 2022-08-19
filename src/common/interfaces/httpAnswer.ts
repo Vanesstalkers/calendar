@@ -39,17 +39,9 @@ export class successAnswerI {
         type: 'object',
         required: ['status'],
         properties: {
-          status: {
-            type: 'string',
-            example: 'ok',
-          },
+          status: { type: 'string', example: 'ok' },
           data: data.models?.length
-            ? {
-                type: 'object',
-                oneOf: data.models.map((ref) => ({
-                  $ref: swagger.getSchemaPath(ref),
-                })),
-              }
+            ? { type: 'object', oneOf: data.models.map((ref) => ({ $ref: swagger.getSchemaPath(ref) })) }
             : undefined,
           ...(data.props || {}),
         },
@@ -66,20 +58,13 @@ export class searchAnswerI {
         type: 'object',
         required: ['status'],
         properties: {
-          status: {
-            type: 'string',
-            example: 'ok',
+          status: { type: 'string', example: 'ok' },
+          endOfList: {
+            description: 'Метка отсутствия слещующих элементов для поиска',
+            type: 'boolean',
+            example: false,
           },
-          data: {
-            oneOf: [
-              {
-                type: 'array',
-                items: {
-                  $ref: swagger.getSchemaPath(data.model),
-                },
-              },
-            ],
-          },
+          data: { oneOf: [{ type: 'array', items: { $ref: swagger.getSchemaPath(data.model) } }] },
           ...(data.props || {}),
         },
       },

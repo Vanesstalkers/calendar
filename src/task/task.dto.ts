@@ -264,7 +264,7 @@ export class taskDTO {
     example: '2022-07-08T20:00:00.000Z',
   })
   endTime: Date;
-  @swagger.ApiPropertyOptional({ type: 'string', description: 'Формат учета времени' })
+  @swagger.ApiPropertyOptional({ description: 'Формат учета времени', example: 'later', enum: ['', 'later'] })
   timeType: string;
   @swagger.ApiPropertyOptional({ description: 'Обязательность выполнения', type: 'boolean | null', example: false })
   require: boolean;
@@ -377,17 +377,17 @@ export class taskSearchAllQueryDTO {
   query: string;
   @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
 }
 
 class taskSearchQueryInboxDTO {
-  @swagger.ApiProperty({
-    description: 'Тип фильтра',
-    example: 'finished',
-    enum: ['new', 'regular', 'finished', 'toexec'],
-  })
+  @swagger.ApiProperty({ description: 'Тип фильтра', example: 'finished', enum: ['new', 'finished', 'toexec'] })
   filter: string;
   @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
 }
 class taskSearchQueryScheduleDTO {
   @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2022-07-08' })
@@ -398,6 +398,8 @@ class taskSearchQueryScheduleDTO {
 class taskSearchQueryLimitDTO {
   @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
 }
 export class taskSearchQueryDTO {
   projectId?: number;
@@ -459,15 +461,26 @@ class taskSearchAnswerExecutorsDTO {
   execUserId: number;
 }
 
+class taskSearchAnswerWithDataDTO {
+  @swagger.ApiProperty({ type: [taskGetOneAnswerDTO] })
+  data?: [taskGetOneAnswerDTO];
+  @swagger.ApiProperty({
+    description: 'Метка отсутствия слещующих элементов для поиска',
+    type: 'boolean',
+    example: false,
+  })
+  endOfList?: boolean;
+}
+
 export class taskSearchAnswerDTO {
-  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
-  inbox?: taskGetOneAnswerDTO;
-  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
-  schedule?: taskGetOneAnswerDTO;
-  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
-  overdue?: taskGetOneAnswerDTO;
-  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
-  later?: taskGetOneAnswerDTO;
-  @swagger.ApiPropertyOptional({ type: [taskGetOneAnswerDTO] })
-  executors?: taskGetOneAnswerDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
+  inbox?: taskSearchAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
+  schedule?: taskSearchAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
+  overdue?: taskSearchAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
+  later?: taskSearchAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
+  executors?: taskSearchAnswerWithDataDTO;
 }
