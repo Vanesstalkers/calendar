@@ -20,6 +20,12 @@ import * as fileDTO from './file/file.dto';
 
 import { sessionStorageDTO } from './session/session.dto';
 
+import * as fileSQL from './file/file.sql';
+
+export const sql = {
+  file: fileSQL.query,
+}
+
 export const httpAnswer = {
   OK: { status: 'ok' },
   ERR: { status: 'err' },

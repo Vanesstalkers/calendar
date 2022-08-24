@@ -3,7 +3,7 @@ import * as sequelize from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
-import { exception, models, types } from '../globalImport';
+import { exception, models, types, sql } from '../globalImport';
 
 import { UtilsService } from '../utils/utils.service';
 import { userAuthQueryDataDTO, userSearchQueryDTO, userUpdateQueryDataDTO } from './user.dto';
@@ -46,34 +46,14 @@ export class UserService {
                                             , "personal"
                                             , p."title"
                                             , "userName"
-                                            , (
-                                              SELECT    "id"
-                                              FROM      "file"
-                                              WHERE     "deleteTime" IS NULL AND      
-                                                        "parentId" = p2u.id AND      
-                                                        "parentType" = 'project_to_user' AND      
-                                                        "fileType" = 'icon'
-                                              ORDER BY  "addTime" DESC
-                                              LIMIT    
-                                                        1
-                                              ) AS "userIconFileId"
+                                            , ( ${sql.file.getIcon('project_to_user', 'p2u')} ) AS "userIconFileId"
                                     FROM      "project_to_user" AS p2u
                                     LEFT JOIN "project" as p ON p.id = p2u."projectId"
                                     WHERE     p2u."deleteTime" IS NULL AND      
                                               "userId" = u.id
                                     ) AS ROW
                           ) AS "projectList"
-                        , (
-                          SELECT    "id"
-                          FROM      "file"
-                          WHERE     "deleteTime" IS NULL AND      
-                                    "parentId" = u.id AND      
-                                    "parentType" = 'user' AND      
-                                    "fileType" = 'icon'
-                          ORDER BY  "addTime" DESC
-                          LIMIT    
-                                    1
-                          ) AS "iconFileId"
+                        , ( ${sql.file.getIcon('user', 'u')} ) AS "iconFileId"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -114,18 +94,8 @@ export class UserService {
                 SELECT    u.id
                         , u.phone
                         , u.name
-                        , iconFileId.id AS "iconFileId"
+                        , ( ${sql.file.getIcon('user', 'u')} ) AS "iconFileId"
                 FROM      "user" u
-                LEFT JOIN LATERAL (
-                  SELECT    id
-                  FROM      "file"
-                  WHERE     "parentType" = 'user' AND      
-                            "parentId" = u.id AND
-                            "fileType" = 'icon'
-                  ORDER BY  "addTime" DESC
-                  LIMIT    
-                            1
-                  ) AS iconFileId ON true
                 LEFT JOIN "user_to_user" u2u ON u2u."userId" = :userId AND      
                           u2u."contactId" = u.id
                 WHERE     u.id != :userId AND      
@@ -151,12 +121,12 @@ export class UserService {
       .catch(exception.dbErrorCatcher);
 
     let endOfList = false;
-    if(!findData[0]){
+    if (!findData[0]) {
       endOfList = true;
-    }else{
-      if(findData[0]?.length < data.limit + 1){
+    } else {
+      if (findData[0]?.length < data.limit + 1) {
         endOfList = true;
-      }else{
+      } else {
         findData[0].pop();
       }
     }

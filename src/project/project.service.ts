@@ -6,9 +6,9 @@ import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, exception } from '../globalImport';
+import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
 
-import { projectCreateQueryDTO, projectUpdateQueryDataDTO } from './project.dto';
+import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectToUserDTO } from './project.dto';
 
 import { UtilsService } from '../utils/utils.service';
 
@@ -81,17 +81,7 @@ export class ProjectService {
                 SELECT    p.id
                         , p.title
                         , p.config
-                        , (
-                          SELECT    "id"
-                          FROM      "file"
-                          WHERE     "deleteTime" IS NULL AND      
-                                    "parentId" = p.id AND      
-                                    "parentType" = 'project' AND      
-                                    "fileType" = 'icon'
-                          ORDER BY  "addTime" DESC
-                          LIMIT    
-                                    1
-                          ) AS "iconFileId"
+                        , ( ${sql.file.getIcon('project', 'p')} ) AS "iconFileId"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -100,29 +90,9 @@ export class ProjectService {
                                             , "role"
                                             , "personal"
                                             , "userName"
-                                            , (
-                                              SELECT    "id"
-                                              FROM      "file"
-                                              WHERE     "deleteTime" IS NULL AND      
-                                                        "parentId" = p2u.id AND      
-                                                        "parentType" = 'project_to_user' AND      
-                                                        "fileType" = 'icon'
-                                              ORDER BY  "addTime" DESC
-                                              LIMIT    
-                                                        1
-                                              ) AS "userIconFileId"
+                                            , ( ${sql.file.getIcon('project_to_user', 'p2u')} ) AS "userIconFileId"
                                             , u."name" AS "baseUserName"
-                                            , (
-                                              SELECT    "id"
-                                              FROM      "file"
-                                              WHERE     "deleteTime" IS NULL AND      
-                                                        "parentId" = u.id AND      
-                                                        "parentType" = 'user' AND      
-                                                        "fileType" = 'icon'
-                                              ORDER BY  "addTime" DESC
-                                              LIMIT    
-                                                        1
-                                              ) AS "baseUserIconFileId"
+                                            , ( ${sql.file.getIcon('user', 'u')} ) AS "baseUserIconFileId"
                                     FROM      "project_to_user" AS p2u
                                     LEFT JOIN "user" AS u ON u.id = p2u."userId" AND      
                                               u."deleteTime" IS NULL
@@ -225,18 +195,16 @@ export class ProjectService {
     return link;
   }
 
-  async updateUserLink(linkId: number, updateData: types['models']['project2user'], transaction: Transaction) {
+  async updateUserLink(linkId: number, updateData: projectToUserDTO, transaction?: Transaction) {
     await this.utils.updateDB({ table: 'project_to_user', id: linkId, data: updateData, transaction });
   }
 
   async getUserLink(userId: number, projectId: number, config: types['getOneConfig'] = {}) {
-    if (config.checkExists) {
-      config.attributes = ['id'];
-    }
+    if (!config.attributes) config.attributes = config.checkExists ? ['id'] : ['*'];
     const findData = await this.sequelize
       .query(
         `--sql
-        SELECT ${(config.attributes || ['*']).join(',')} 
+        SELECT ${config.attributes.join(',')} 
         FROM "project_to_user"
         WHERE "userId" = :userId AND "projectId" = :projectId
       `,
