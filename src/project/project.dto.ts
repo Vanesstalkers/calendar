@@ -80,6 +80,7 @@ export class projectToUserUpdateDTO {
   userId?: number;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName?: string;
+  deleteTime?: Date;
 }
 
 class projectConfigDTO {}
@@ -136,6 +137,7 @@ export class projectToUserDTO {
   userName?: string;
   @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
   personal?: boolean;
+  deleteTime?: Date;
 }
 export class userGetOneAnswerProjectDTO extends projectToUserDTO {
   @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })
@@ -169,4 +171,18 @@ export class projectGetOneAnswerDTO {
   userList: projectGetOneAnswerUserDTO[];
   @swagger.ApiProperty({ description: 'Задачи проекта', type: [projectGetOneAnswerTaskDTO] })
   taskList: projectGetOneAnswerTaskDTO[];
+}
+
+export class projectAddUserQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
+}
+
+export class projectDeleteUserQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
 }

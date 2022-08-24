@@ -4,21 +4,14 @@ import { models } from '../globalImport';
 
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
+import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
 import { UtilsService } from '../utils/utils.service';
 
 @Module({
-  imports: [
-    SequelizeModule.forFeature([
-      models.user,
-      models.project,
-      models.task,
-      models.project2user,
-      models.file,
-    ]),
-  ],
-  providers: [SessionService, UtilsService, ProjectService, FileService],
+  imports: [SequelizeModule.forFeature([models.user, models.project, models.task, models.project2user, models.user2user, models.file])],
+  providers: [ProjectService, UserService, SessionService, FileService, UtilsService],
   controllers: [ProjectController],
 })
 export class ProjectModule {}

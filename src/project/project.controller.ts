@@ -10,12 +10,15 @@ import {
   projectUpdateUserQueryDTO,
   projectGetOneQueryDTO,
   projectGetOneAnswerDTO,
+  projectAddUserQueryDTO,
+  projectDeleteUserQueryDTO,
 } from './project.dto';
 
 import { ProjectService } from './project.service';
-import { UtilsService } from '../utils/utils.service';
+import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
+import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Controller('project')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
@@ -26,10 +29,18 @@ import { FileService } from '../file/file.service';
 export class ProjectController {
   constructor(
     private projectService: ProjectService,
+    private userService: UserService,
     private sessionService: SessionService,
     private fileService: FileService,
     private utils: UtilsService,
   ) {}
+
+  async validate(id: number, data: { userId?: number; session?: FastifySession }) {
+    if (!id) throw new nestjs.BadRequestException('Project ID is empty');
+    const userId = data.userId || (await this.sessionService.getUserId(data.session));
+    const userLink = await this.projectService.getUserLink(userId, id, { checkExists: true });
+    if (!userLink) throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${id}).`);
+  }
 
   @nestjs.Post('create')
   @nestjs.UseGuards(decorators.isLoggedIn)
@@ -39,7 +50,7 @@ export class ProjectController {
     const userId = await this.sessionService.getUserId(session);
     if (!projectData.userList) projectData.userList = [];
     if (!projectData.userList.find((item) => item.userId === userId)) {
-      projectData.userList.push({ userId, role: "owner" });
+      projectData.userList.push({ userId, role: 'owner' });
     }
     const project = await this.projectService.create(projectData);
     return { ...httpAnswer.OK, data: { id: project.id } };
@@ -50,13 +61,10 @@ export class ProjectController {
   @swagger.ApiResponse(new interfaces.response.success({ models: [projectGetOneAnswerDTO] }))
   @nestjs.UseGuards(decorators.isLoggedIn)
   async getOne(@nestjs.Query() data: projectGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
-    if (!data?.projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    const projectId = data.projectId;
+    await this.validate(projectId, { session });
 
-    const userId = await this.sessionService.getUserId(session);
-    const userLink = await this.projectService.getUserLink(userId, data.projectId, { checkExists: true });
-    if (!userLink) throw new nestjs.BadRequestException('User is not exist in projects`s user list.');
-
-    const result = await this.projectService.getOne({ id: data.projectId });
+    const result = await this.projectService.getOne({ id: projectId });
     return { ...httpAnswer.OK, data: result };
   }
 
@@ -65,6 +73,8 @@ export class ProjectController {
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Body() data: projectUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
+    await this.validate(projectId, { session });
+
     await this.projectService.update(projectId, data.projectData);
     return httpAnswer.OK;
   }
@@ -73,15 +83,12 @@ export class ProjectController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
-  async updateUser(
-    @nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO,
-    @nestjs.Session() session: FastifySession,
-  ) {
+  async updateUser(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO) {
     const projectId = data.projectId;
     const userId = data.userId;
-    const userLink = await this.projectService.getUserLink(userId, projectId, { checkExists: true });
-    if (!userLink) throw new nestjs.BadRequestException('User is not exist in projects`s user list.');
+    await this.validate(projectId, { userId });
 
+    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id'] });
     await this.projectService.update(projectId, { userList: [{ userId, userName: data.userName }] });
     if (data.iconFile) {
       data.iconFile.parentType = 'project_to_user';
@@ -89,7 +96,36 @@ export class ProjectController {
       data.iconFile.fileType = 'icon';
       await this.fileService.create(data.iconFile);
     }
+    return httpAnswer.OK;
+  }
 
+  @nestjs.Post('addUser')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async addUser(@nestjs.Body() data: projectAddUserQueryDTO, @nestjs.Session() session: FastifySession) {
+    const projectId = data.projectId;
+    const userId = data.userId;
+    if (!userId) throw new nestjs.BadRequestException('User ID is empty');
+    await this.userService.checkExists(userId);
+    const userExist = await this.userService.checkExists(userId);
+    if (!userExist) throw new nestjs.BadRequestException(`User (id=${userId}) does not exist`);
+
+    await this.validate(projectId, { session });
+    await this.projectService.update(projectId, { userList: [{ role: 'member', userId, deleteTime: null }], });
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Delete('deleteUser')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async deleteUser(@nestjs.Body() data: projectDeleteUserQueryDTO) {
+    const projectId = data.projectId;
+    const userId = data.userId;
+    await this.validate(projectId, { userId });
+    
+    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id', 'role'] });
+    if(userLink.role === 'owner') throw new nestjs.BadRequestException(`Invalid action. User (id=${userId}) is project owner.`);
+    await this.projectService.updateUserLink(userLink.id, { deleteTime: new Date() });
     return httpAnswer.OK;
   }
 }
