@@ -2,6 +2,7 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
+import { projectToUserDTO, projectToUserGetOneDTO } from '../project/project.dto';
 import { fileListItemDTO } from '../file/file.dto';
 import { commentListItemDTO } from '../comment/comment.dto';
 
@@ -26,7 +27,7 @@ export class Task extends sequelize.Model {
 
   @sequelize.ForeignKey(() => models.user)
   @sequelize.Column
-  execUser: number;
+  execUserId: number;
   @sequelize.BelongsTo(() => models.user)
   user: types['models']['user'];
 
@@ -245,6 +246,23 @@ class taskGetOneQueryDataHashtagDTO extends taskHashtagDTO {
   hashtagId?: number;
 }
 
+class userRegularDTO {
+  @swagger.ApiProperty({ description: 'Признак регулярности', type: 'boolean | null', example: 'false' })
+  enabled: boolean;
+  @swagger.ApiProperty({
+    description: 'Правило повторения',
+    example: 'weekdays',
+    enum: ['day', 'week', 'month', 'weekdays'],
+  })
+  rule: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Дни недели (только для rule="weekdays")',
+    example: [1, 2],
+    type: ['number'],
+  })
+  weekdaysList: [number];
+}
+
 export class taskDTO {
   @swagger.ApiProperty({ description: 'Заголовок задачи', type: 'string' })
   title: string;
@@ -268,8 +286,10 @@ export class taskDTO {
   timeType: string;
   @swagger.ApiPropertyOptional({ description: 'Обязательность выполнения', type: 'boolean | null', example: false })
   require: boolean;
-  @swagger.ApiPropertyOptional({ description: 'Регулярная задача', type: 'boolean | null', example: false })
-  regular: boolean;
+  @swagger.ApiPropertyOptional({ description: 'Регулярная задача', type: userRegularDTO })
+  regular: userRegularDTO;
+  @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
+  ownUser: projectToUserDTO;
   @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkDTO] })
   userList: taskUserLinkDTO[];
   @swagger.ApiProperty({ description: 'Хэштеги', type: [taskHashtagDTO] })
@@ -296,10 +316,10 @@ export class taskFullDTO extends taskDTO {
   })
   execEndTime: Date;
   @swagger.ApiPropertyOptional({ description: 'фактический исполнитель', type: 'number | null', example: 0 })
-  execUser: number;
+  execUserId: number;
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskTickDTO] })
   tickList: taskTickDTO[];
-  ownUser: number;
+  ownUserId: number;
 }
 
 export class taskUpdateDTO extends taskFullDTO {
@@ -371,7 +391,7 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
   commentList: commentListItemDTO[];
 }
 
-export class taskSearchAllQueryDTO {
+export class taskSearchQueryDTO {
   projectId?: number;
   @swagger.ApiProperty({ description: 'Строка запроса', example: 'купить | #хэштег' })
   query: string;
@@ -381,7 +401,7 @@ export class taskSearchAllQueryDTO {
   offset?: number;
 }
 
-class taskSearchQueryInboxDTO {
+export class taskGetAllQueryInboxDTO {
   @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
   filter: string;
   @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
@@ -389,46 +409,88 @@ class taskSearchQueryInboxDTO {
   @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
   offset?: number;
 }
-class taskSearchQueryScheduleDTO {
-  @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2022-07-08' })
+export class taskGetAllQueryScheduleDTO {
+  @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2000-07-08' })
   from: Date;
-  @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2022-07-10' })
+  @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2032-07-10' })
   to: Date;
 }
-class taskSearchQueryLimitDTO {
+export class taskGetAllQueryOverdueDTO {
   @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;
   @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
   offset?: number;
 }
-export class taskSearchQueryDTO {
+export class taskGetAllQueryLaterDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskGetAllQueryExecutorsDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+
+class taskGetAllQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
+  filter?: string;
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+  @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2000-07-08' })
+  from: Date;
+  @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2032-07-10' })
+  to: Date;
+}
+
+export class taskGetAllQueryDTO {
   projectId?: number;
-  @swagger.ApiPropertyOptional({ type: taskSearchQueryInboxDTO })
-  inbox?: taskSearchQueryInboxDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchQueryScheduleDTO })
-  schedule?: taskSearchQueryScheduleDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
-  overdue?: taskSearchQueryLimitDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
-  later?: taskSearchQueryLimitDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchQueryLimitDTO })
-  executors?: taskSearchQueryLimitDTO;
+  queryType?: string;
+  queryData?: taskGetAllQueryDataDTO;
+}
+export class taskGetAllQuerySwaggerI {
+  constructor() {
+    return {
+      schema: {
+        type: 'object',
+        required: ['queryType'],
+        properties: {
+          projectId: { type: 'number', example: 0 },
+          queryType: { type: 'number', example: 'inbox', enum: ['inbox', 'schedule', 'overdue', 'later', 'executors'] },
+          queryData: {
+            type: 'object',
+            oneOf: [
+              { $ref: swagger.getSchemaPath(taskGetAllQueryInboxDTO) },
+              { $ref: swagger.getSchemaPath(taskGetAllQueryScheduleDTO) },
+              { $ref: swagger.getSchemaPath(taskGetAllQueryOverdueDTO) },
+              { $ref: swagger.getSchemaPath(taskGetAllQueryLaterDTO) },
+              { $ref: swagger.getSchemaPath(taskGetAllQueryExecutorsDTO) },
+            ],
+          },
+        },
+      },
+    };
+  }
 }
 
-export class taskSearchAllAnswerDTO {
+export class taskSearchAnswerDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
   title: string;
 }
 
-class taskSearchAnswerInboxDTO {
+class taskGetAllAnswerInboxDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
   title: string;
 }
-class taskSearchAnswerScheludeDTO {
+class taskGetAllAnswerScheludeDTO {
   @swagger.ApiPropertyOptional({ description: 'ID задачи' })
   id?: number;
   @swagger.ApiPropertyOptional({ description: 'ID исходной задачи (для регулярных задач)' })
@@ -440,19 +502,19 @@ class taskSearchAnswerScheludeDTO {
   @swagger.ApiProperty({ description: 'Время начала', type: 'date | null', example: '2022-07-08T19:00:00.000Z' })
   startTime: Date;
 }
-class taskSearchAnswerOverdueDTO {
+class taskGetAllAnswerOverdueDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить персики' })
   title: string;
 }
-class taskSearchAnswerLaterDTO {
+class taskGetAllAnswerLaterDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить мангал' })
   title: string;
 }
-class taskSearchAnswerExecutorsDTO {
+class taskGetAllAnswerExecutorsDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   id: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить билет в кино' })
@@ -461,26 +523,26 @@ class taskSearchAnswerExecutorsDTO {
   execUserId: number;
 }
 
-class taskSearchAnswerWithDataDTO {
+class taskGetAllAnswerWithDataDTO {
   @swagger.ApiProperty({ type: [taskGetOneAnswerDTO] })
   data?: [taskGetOneAnswerDTO];
   @swagger.ApiProperty({
-    description: 'Метка отсутствия слещующих элементов для поиска',
+    description: 'Признак отсутствия слещующих элементов для поиска',
     type: 'boolean',
     example: false,
   })
   endOfList?: boolean;
 }
 
-export class taskSearchAnswerDTO {
-  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
-  inbox?: taskSearchAnswerWithDataDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
-  schedule?: taskSearchAnswerWithDataDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
-  overdue?: taskSearchAnswerWithDataDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
-  later?: taskSearchAnswerWithDataDTO;
-  @swagger.ApiPropertyOptional({ type: taskSearchAnswerWithDataDTO })
-  executors?: taskSearchAnswerWithDataDTO;
+export class taskGetAllAnswerDTO {
+  @swagger.ApiPropertyOptional({ type: taskGetAllAnswerWithDataDTO })
+  inbox?: taskGetAllAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskGetAllAnswerWithDataDTO })
+  schedule?: taskGetAllAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskGetAllAnswerWithDataDTO })
+  overdue?: taskGetAllAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskGetAllAnswerWithDataDTO })
+  later?: taskGetAllAnswerWithDataDTO;
+  @swagger.ApiPropertyOptional({ type: taskGetAllAnswerWithDataDTO })
+  executors?: taskGetAllAnswerWithDataDTO;
 }

@@ -6,7 +6,7 @@ import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, exception } from '../globalImport';
+import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
 
 import * as parser from 'cron-parser';
 
@@ -16,8 +16,8 @@ import {
   taskUserLinkDTO,
   taskTickDTO,
   taskHashtagDTO,
+  taskGetAllQueryDTO,
   taskSearchQueryDTO,
-  taskSearchAllQueryDTO,
 } from './task.dto';
 
 import { UtilsService } from '../utils/utils.service';
@@ -98,7 +98,8 @@ export class TaskService {
                         , task."regular"
                         , task."extDestination"
                         , task."execEndTime"
-                        , task."execUser"
+                        , task."execUserId"
+                        , (${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -197,7 +198,8 @@ export class TaskService {
                         , task."regular"
                         , task."extDestination"
                         , task."execEndTime"
-                        , task."execUser"
+                        , task."execUserId"
+                        , (${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -348,7 +350,7 @@ export class TaskService {
     return findData || null;
   }
 
-  async searchAll(data: taskSearchAllQueryDTO = { query: '', limit: 50, offset: 0 }) {
+  async search(data: taskSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const hashFlag = /^#/.test(data.query);
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
     const sqlWhere = hashFlag
@@ -396,34 +398,44 @@ export class TaskService {
     return { data: findData[0], endOfList };
   }
 
-  async search(data: taskSearchQueryDTO = {}, userId: number) {
+  async getAll(data: taskGetAllQueryDTO = {}, userId: number) {
     const replacements: any = { myId: userId, projectId: data.projectId };
     let sqlWhere = [];
     const select: any = {};
 
-    if (data.inbox) {
-      switch (data.inbox.filter) {
+    if (data.queryType === 'inbox') {
+      switch (data.queryData.filter) {
         case 'new':
-          sqlWhere.push('t."endTime" IS NULL');
-          sqlWhere.push('(t."ownUser" = :myId AND t2u.id IS NULL) OR (t2u."userId" = :myId)');
+          sqlWhere = [
+            't."deleteTime" IS NULL',
+            '"projectId" = :projectId',
+            `"timeType" IS DISTINCT FROM 'later'`,
+            't."startTime" IS NULL',
+            't."endTime" IS NULL',
+            't2u."userId" = :myId',
+          ];
           break;
         case 'finished':
-          sqlWhere.push('t."execUser" = :myId');
-          sqlWhere.push('t."ownUser" = :myId OR t2u."userId" = :myId');
+          sqlWhere = [
+            't."deleteTime" IS NULL',
+            '"projectId" = :projectId',
+            `t."execEndTime" IS NOT NULL AND t."execEndTime" < date_trunc('day', NOW())`,
+            't."ownUserId" = :myId',
+          ];
           break;
         case 'toexec':
-          sqlWhere.push('t."endTime" IS NULL');
-          sqlWhere.push('t."ownUser" != :myId');
-          sqlWhere.push('t2u."userId" = :myId');
+          sqlWhere = [
+            't."deleteTime" IS NULL',
+            '"projectId" = :projectId',
+            `"timeType" IS DISTINCT FROM 'later'`,
+            't."startTime" IS NULL',
+            't."endTime" IS NULL',
+            't."ownUserId" != :myId',
+            't2u."userId" = :myId',
+          ];
           break;
       }
-      if (sqlWhere.length) {
-        sqlWhere = sqlWhere.concat([
-          't."deleteTime" IS NULL',
-          '"projectId" = :projectId',
-          `"timeType" IS DISTINCT FROM 'later'`,
-        ]);
-        select.inbox = `--sql
+      select.inbox = `--sql
           SELECT    t.id, t.title
           FROM      "task" AS t
           LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
@@ -431,105 +443,118 @@ export class TaskService {
           LIMIT     :inboxLimit
           OFFSET    :inboxOffset
         `;
-        if (!data.inbox.limit) data.inbox.limit = 50;
-        replacements.inboxLimit = data.inbox.limit + 1;
-        replacements.inboxOffset = data.inbox.offset || 0;
-      }
+      if (!data.queryData.limit) data.queryData.limit = 50;
+      replacements.inboxLimit = data.queryData.limit + 1;
+      replacements.inboxOffset = data.queryData.offset || 0;
     }
 
-    if (data.schedule) {
+    if (data.queryType === 'schedule') {
       sqlWhere = [
         't2u.id IS NOT NULL',
         't."deleteTime" IS NULL',
         't."projectId" = :projectId',
         `t."timeType" IS DISTINCT FROM 'later'`,
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`,
+        `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
+        't."endTime" >= :scheduleFrom::timestamp',
+        `t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`,
       ];
-      sqlWhere.push('t."endTime" >= :scheduleFrom::timestamp');
-      sqlWhere.push(`t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`);
       select.schedule = `--sql
         (
-          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
+          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u 
+          LEFT JOIN "task_to_user" AS t2u
           ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
       select.schedule += `--sql
         UNION ALL (
-          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
+          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u 
+          LEFT JOIN "task_to_user" AS t2u
           ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     t2u.id IS NOT NULL AND t."deleteTime" IS NULL AND (t.regular->>'enabled')::boolean = true
         )
       `;
-      replacements.scheduleFrom = data.schedule.from;
-      replacements.scheduleTo = data.schedule.to;
+      replacements.scheduleFrom = data.queryData.from;
+      replacements.scheduleTo = data.queryData.to;
     }
 
-    if (data.overdue) {
+    if (data.queryType === 'overdue') {
       sqlWhere = [
         't2u.id IS NOT NULL',
         't."deleteTime" IS NULL',
         't."projectId" = :projectId',
         `t."timeType" IS DISTINCT FROM 'later'`,
-         /* !!! IS DISTINCT FROM */ "NOT (t.regular->>'enabled')::boolean OR t.regular->>'enabled' IS NULL",
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`,
+        `t."execEndTime" IS NULL AND t."endTime" IS NOT NULL AND t."endTime" < NOW()`,
+        `t."endTime" < date_trunc('day', NOW())`,
       ];
-      // sqlWhere.push(`
-      //   "execEndTime" IS NULL AND
-      //   (("endTime" IS NOT NULL AND "endTime" < NOW()) OR
-      //   ("endTime" IS NULL AND "startTime" < NOW()))
-      // `);
-      sqlWhere.push(`t."execEndTime" IS NULL AND t."endTime" IS NOT NULL AND t."endTime" < NOW()`);
       select.overdue = `--sql
         (
           SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u 
+          LEFT JOIN "task_to_user" AS t2u
           ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
           LIMIT     :overdueLimit
           OFFSET    :overdueOffset
         )
       `;
-      if (!data.overdue.limit) data.overdue.limit = 50;
-      replacements.overdueLimit = data.overdue.limit + 1;
-      replacements.overdueOffset = data.overdue.offset || 0;
+      if (!data.queryData.limit) data.queryData.limit = 50;
+      replacements.overdueLimit = data.queryData.limit + 1;
+      replacements.overdueOffset = data.queryData.offset || 0;
     }
-
-    if (data.later) {
-      sqlWhere = ['t2u.id IS NOT NULL', 't."deleteTime" IS NULL', 't."projectId" = :projectId'];
-      sqlWhere.push(`t."timeType" = 'later'`);
+    if (data.queryType === 'later') {
+      sqlWhere = [
+        't2u.id IS NOT NULL',
+        't."deleteTime" IS NULL',
+        't."projectId" = :projectId',
+        `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
+        `t."timeType" = 'later'`,
+      ];
       select.later = `--sql
         SELECT    t.id, t.title
         FROM      "task" AS t
-        LEFT JOIN "task_to_user" AS t2u 
+        LEFT JOIN "task_to_user" AS t2u
         ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT     :laterLimit
         OFFSET    :laterOffset
       `;
-      if (!data.later.limit) data.later.limit = 50;
-      replacements.laterLimit = data.later.limit + 1;
-      replacements.laterOffset = data.later.offset || 0;
+      if (!data.queryData.limit) data.queryData.limit = 50;
+      replacements.laterLimit = data.queryData.limit + 1;
+      replacements.laterOffset = data.queryData.offset || 0;
     }
 
-    if (data.executors) {
-      sqlWhere = ['t."deleteTime" IS NULL', 't."projectId" = :projectId'];
-      sqlWhere.push('t."ownUser" = :myId');
-      sqlWhere.push('t2u."userId" != :myId');
+    if (data.queryType === 'executors') {
+      sqlWhere = [
+        't."deleteTime" IS NULL',
+        't."projectId" = :projectId',
+        't."ownUserId" = :myId',
+        't2u."userId" != :myId',
+        `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
+      ];
       select.executors = `--sql
-        SELECT    t.id, t.title, t2u."userId" AS "execUserId"
+        SELECT    t.id
+                , t.title
+                , t2u."userId" AS "consignedExecUserId"
+                , (${sql.project.getUserLink(
+                  { projectId: 't."projectId"', userId: 't2u."userId"' },
+                  { addUserData: true },
+                )}) AS "consignedExecUserData"
         FROM      "task" AS t
-        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND      
+                  t2u."deleteTime" IS NULL
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-        LIMIT     :executorsLimit
+        LIMIT    
+                  :executorsLimit
         OFFSET    :executorsOffset
       `;
-      if (!data.executors.limit) data.executors.limit = 50;
-      replacements.executorsLimit = data.executors.limit + 1;
-      replacements.executorsOffset = data.executors.offset || 0;
+      if (!data.queryData.limit) data.queryData.limit = 50;
+      replacements.executorsLimit = data.queryData.limit + 1;
+      replacements.executorsOffset = data.queryData.offset || 0;
     }
 
     const findData = await this.sequelize
@@ -542,12 +567,13 @@ export class TaskService {
       )
       .catch(exception.dbErrorCatcher);
 
-    const result = findData[0][0];
+    let baseTaskList = findData[0][0];
     let taskIdList = [];
+    let result = { resultList: [], endOfList: false };
 
-    if (result.schedule) {
+    if (data.queryType === 'schedule') {
       const replaceTask = {};
-      for (const task of result.schedule) {
+      for (const task of baseTaskList.schedule) {
         if (task.regular.enabled) {
           const hasEndTime = task.endTime ? true : false;
 
@@ -573,10 +599,15 @@ export class TaskService {
           replaceTask[task.id] = [];
           const d = new Date(hasEndTime ? task.endTime : task.startTime);
           const intervalConfig = {
-            currentDate: new Date(data.schedule.from + ' 00:00:00'),
-            endDate: new Date(data.schedule.to + ' 23:59:59'),
+            currentDate: new Date(data.queryData.from + ' 00:00:00'),
+            endDate: new Date(data.queryData.to + ' 23:59:59'),
             iterator: true,
           };
+          const taskAddTime = new Date(task.addTime);
+          if (taskAddTime > intervalConfig.currentDate) intervalConfig.currentDate = taskAddTime;
+          // !!! на самом деле фейковые задачи будут создаваться начиная с сегодняшнего дня,
+          // так как за предыдущие дни их уже должен был создать cron (начнет создавать, когда его напишем)
+
           switch (task.regular.rule) {
             case 'day':
               fillRegularTasks(parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * *`, intervalConfig));
@@ -602,51 +633,51 @@ export class TaskService {
           }
         }
       }
-
+      result.resultList = baseTaskList.schedule;
       for (const [id, cloneList] of Object.entries(replaceTask)) {
-        result.schedule = result.schedule.filter((task) => task.id !== +id).concat(cloneList);
+        result.resultList = result.resultList.filter((task) => task.id !== +id).concat(cloneList);
       }
+      taskIdList = taskIdList.concat(result.resultList.map((task) => task.id || task.origTaskId));
     }
-    if (result.inbox) {
-      result.inbox = { data: result.inbox.map((task) => task.id), endOfList: false };
-      if (result.inbox.data.length < data.inbox.limit + 1) result.inbox.endOfList = true;
-      else result.inbox.data.pop();
-      taskIdList = taskIdList.concat(result.inbox.data);
+    if (data.queryType === 'inbox') {
+      result.resultList = baseTaskList.inbox.map((task) => task.id);
+      if (result.resultList.length < data.queryData.limit + 1) result.endOfList = true;
+      else result.resultList.pop();
+      taskIdList = taskIdList.concat(result.resultList);
     }
-    if (result.schedule) taskIdList = taskIdList.concat(result.schedule.map((task) => task.id || task.origTaskId));
-    if (result.overdue) {
-      result.overdue = { data: result.overdue.map((task) => task.id), endOfList: false };
-      if (result.overdue.data.length < data.overdue.limit + 1) result.overdue.endOfList = true;
-      else result.overdue.data.pop();
-      taskIdList = taskIdList.concat(result.overdue.data);
+    if (data.queryType === 'overdue') {
+      result.resultList = baseTaskList.overdue.map((task) => task.id);
+      if (result.resultList.length < data.queryData.limit + 1) result.endOfList = true;
+      else result.resultList.pop();
+      taskIdList = taskIdList.concat(result.resultList);
     }
-    if (result.later) {
-      result.later = { data: result.later.map((task) => task.id), endOfList: false };
-      if (result.later.data.length < data.later.limit + 1) result.later.endOfList = true;
-      else result.later.data.pop();
-      taskIdList = taskIdList.concat(result.later.data);
+    if (data.queryType === 'later') {
+      result.resultList = baseTaskList.later.map((task) => task.id);
+      if (result.resultList.length < data.queryData.limit + 1) result.endOfList = true;
+      else result.resultList.pop();
+      taskIdList = taskIdList.concat(result.resultList);
     }
-    if (result.executors) {
-      result.executors = { data: result.executors.map((task) => task.id), endOfList: false };
-      if (result.executors.data.length < data.executors.limit + 1) result.executors.endOfList = true;
-      else result.executors.data.pop();
-      taskIdList = taskIdList.concat(result.executors.data);
+    if (data.queryType === 'executors') {
+      result.resultList = baseTaskList.executors;
+      if (result.resultList.length < data.queryData.limit + 1) result.endOfList = true;
+      else result.resultList.pop();
+      taskIdList = taskIdList.concat(result.resultList.map((task) => task.id));
     }
 
-    const taskList = await this.find({ taskIdList, userId });
-    const taskMap = taskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+    const fillDataTaskList = await this.find({ taskIdList, userId });
+    const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
 
-    if (result.inbox) result.inbox.data = result.inbox.data.map((taskId) => taskMap[taskId]);
-    if (result.schedule)
-      result.schedule = {
-        endOfList: true,
-        data: result.schedule.map((task) => {
-          return { ...taskMap[task.id || task.origTaskId], id: undefined, origTaskId: task.origTaskId };
-        }),
-      };
-    if (result.overdue) result.overdue.data = result.overdue.data.map((taskId) => taskMap[taskId]);
-    if (result.later) result.later.data = result.later.data.map((taskId) => taskMap[taskId]);
-    if (result.executors) result.executors.data = result.executors.data.map((taskId) => taskMap[taskId]);
+    if (data.queryType === 'inbox') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
+    if (data.queryType === 'schedule') {
+      result.endOfList = true;
+      result.resultList = result.resultList.map((task) => {
+        return { ...taskMap[task.id || task.origTaskId], ...task };
+      });
+    }
+    if (data.queryType === 'overdue') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
+    if (data.queryType === 'later') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
+    if (data.queryType === 'executors')
+      result.resultList = result.resultList.map((task) => ({ ...taskMap[task.id], ...task }));
 
     return result;
   }

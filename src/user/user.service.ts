@@ -37,22 +37,10 @@ export class UserService {
                         , u.position
                         , u.timezone
                         , u.config
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    p2u."id" AS "projectToUserLinkId"
-                                            , "role"
-                                            , "projectId"
-                                            , "personal"
-                                            , p."title"
-                                            , "userName"
-                                            , ( ${sql.file.getIcon('project_to_user', 'p2u')} ) AS "userIconFileId"
-                                    FROM      "project_to_user" AS p2u
-                                    LEFT JOIN "project" as p ON p.id = p2u."projectId"
-                                    WHERE     p2u."deleteTime" IS NULL AND      
-                                              "userId" = u.id
-                                    ) AS ROW
-                          ) AS "projectList"
+                        , array( ${sql.project.getUserLink(
+                          { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
+                          { addProjectData: true },
+                        )} ) AS "projectList"
                         , ( ${sql.file.getIcon('user', 'u')} ) AS "iconFileId"
                         , array(
                           SELECT    row_to_json(ROW)

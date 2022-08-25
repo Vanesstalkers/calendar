@@ -56,16 +56,24 @@ export class searchAnswerI {
       status: data.code || 200,
       schema: {
         type: 'object',
-        required: ['status'],
+        required: ['status', 'data'],
         properties: {
           status: { type: 'string', example: 'ok' },
-          endOfList: {
-            description: 'Метка отсутствия слещующих элементов для поиска',
-            type: 'boolean',
-            example: false,
+          data: {
+            type: 'object',
+            required: ['endOfList', 'resultList'],
+            properties: {
+              endOfList: {
+                description: 'Признак отсутствия слещующих элементов для поиска',
+                type: 'boolean',
+                example: false,
+              },
+              resultList: {
+                oneOf: [{ type: 'array', items: { $ref: swagger.getSchemaPath(data.model) } }],
+              },
+              ...(data.props || {}),
+            },
           },
-          data: { oneOf: [{ type: 'array', items: { $ref: swagger.getSchemaPath(data.model) } }] },
-          ...(data.props || {}),
         },
       },
     };

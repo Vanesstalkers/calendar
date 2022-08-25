@@ -135,7 +135,7 @@ export class projectToUserDTO {
   role?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName?: string;
-  @swagger.ApiPropertyOptional({ description: 'Отметка личного проекта', type: 'boolean | null', example: true })
+  @swagger.ApiPropertyOptional({ description: 'Признак личного проекта', type: 'boolean | null', example: true })
   personal?: boolean;
   deleteTime?: Date;
 }

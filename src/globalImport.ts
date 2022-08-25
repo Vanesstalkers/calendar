@@ -20,9 +20,11 @@ import * as fileDTO from './file/file.dto';
 
 import { sessionStorageDTO } from './session/session.dto';
 
+import * as projectSQL from './project/project.sql';
 import * as fileSQL from './file/file.sql';
 
 export const sql = {
+  project: projectSQL.query,
   file: fileSQL.query,
 }
 

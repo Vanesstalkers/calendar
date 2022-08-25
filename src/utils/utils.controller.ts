@@ -46,7 +46,7 @@ export class UtilsController {
     let endOfList = false;
     if (result.length < limit + 1) endOfList = true;
     else result.pop();
-    return { ...httpAnswer.OK, data: result, endOfList };
+    return { ...httpAnswer.OK, data: { resultList: result, endOfList: endOfList } };
   }
 
   @nestjs.Get('searchTimezone')
@@ -64,6 +64,6 @@ export class UtilsController {
       let endOfList = false;
       if (result.length < limit + 1) endOfList = true;
       else result.pop();
-      return { ...httpAnswer.OK, data: result, endOfList };
+      return { ...httpAnswer.OK, data: { resultList: result, endOfList: endOfList } };
   }
 }

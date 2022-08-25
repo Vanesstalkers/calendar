@@ -32,7 +32,7 @@ export class User extends sequelize.Model {
   @sequelize.HasMany(() => models.project2user, 'userId')
   projectList: types['models']['project2user'][];
 
-  @sequelize.HasMany(() => models.task, 'execUser')
+  @sequelize.HasMany(() => models.task, 'execUserId')
   execTaskList: types['models']['task'][];
 
   @sequelize.HasMany(() => models.task2user, 'userId')
@@ -116,7 +116,7 @@ export class userGetOneQueryDTO {
 class userContactListDTO {
   @swagger.ApiProperty({ description: 'ID пользователя-контакта' })
   contactId: number;
-  @swagger.ApiPropertyOptional({ description: 'Отметка избранного контакта', type: 'number | null', example: false })
+  @swagger.ApiPropertyOptional({ description: 'Признак избранного контакта', type: 'number | null', example: false })
   priority: number;
 }
 
