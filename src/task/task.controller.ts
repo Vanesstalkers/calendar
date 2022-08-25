@@ -16,6 +16,12 @@ import {
   taskSearchAnswerDTO,
   taskSearchAllAnswerDTO,
   taskSearchQueryDTO,
+  taskSearchQueryInboxDTO,
+  taskSearchQueryScheduleDTO,
+  taskSearchQueryOverdueDTO,
+  taskSearchQueryLaterDTO,
+  taskSearchQueryExecutorsDTO,
+  taskSearchQuerySwaggerI,
   taskSearchAllQueryDTO,
 } from './task.dto';
 
@@ -30,7 +36,16 @@ import { SessionService } from '../session/session.service';
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('task')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(taskGetOneAnswerDTO, taskSearchAnswerDTO, taskSearchAllAnswerDTO)
+@swagger.ApiExtraModels(
+  taskGetOneAnswerDTO,
+  taskSearchAnswerDTO,
+  taskSearchAllAnswerDTO,
+  taskSearchQueryInboxDTO,
+  taskSearchQueryScheduleDTO,
+  taskSearchQueryOverdueDTO,
+  taskSearchQueryLaterDTO,
+  taskSearchQueryExecutorsDTO,
+)
 export class TaskController {
   constructor(
     private taskService: TaskService,
@@ -98,6 +113,7 @@ export class TaskController {
 
   @nestjs.Post('search')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiBody(new taskSearchQuerySwaggerI())
   @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
   async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);

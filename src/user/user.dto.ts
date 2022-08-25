@@ -32,7 +32,7 @@ export class User extends sequelize.Model {
   @sequelize.HasMany(() => models.project2user, 'userId')
   projectList: types['models']['project2user'][];
 
-  @sequelize.HasMany(() => models.task, 'execUser')
+  @sequelize.HasMany(() => models.task, 'execUserId')
   execTaskList: types['models']['task'][];
 
   @sequelize.HasMany(() => models.task2user, 'userId')

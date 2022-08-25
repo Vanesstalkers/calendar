@@ -26,7 +26,7 @@ export class Task extends sequelize.Model {
 
   @sequelize.ForeignKey(() => models.user)
   @sequelize.Column
-  execUser: number;
+  execUserId: number;
   @sequelize.BelongsTo(() => models.user)
   user: types['models']['user'];
 
@@ -296,7 +296,7 @@ export class taskFullDTO extends taskDTO {
   })
   execEndTime: Date;
   @swagger.ApiPropertyOptional({ description: 'фактический исполнитель', type: 'number | null', example: 0 })
-  execUser: number;
+  execUserId: number;
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskTickDTO] })
   tickList: taskTickDTO[];
   ownUser: number;
