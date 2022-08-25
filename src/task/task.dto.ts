@@ -288,8 +288,6 @@ export class taskDTO {
   require: boolean;
   @swagger.ApiPropertyOptional({ description: 'Регулярная задача', type: userRegularDTO })
   regular: userRegularDTO;
-  @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
-  ownUser: projectToUserDTO;
   @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkDTO] })
   userList: taskUserLinkDTO[];
   @swagger.ApiProperty({ description: 'Хэштеги', type: [taskHashtagDTO] })
@@ -381,6 +379,8 @@ export class taskGetOneQueryDTO {
 export class taskGetOneAnswerDTO extends taskFullDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
+  @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
+  ownUser: projectToUserDTO;
   @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
   fileList: fileListItemDTO[];
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskGetOneQueryDataTickDTO] })
