@@ -186,3 +186,8 @@ export class projectDeleteUserQueryDTO {
   @swagger.ApiProperty({ description: 'ID пользователя' })
   userId: number;
 }
+
+export class projectDeleteUserAnswerDTO {
+  @swagger.ApiPropertyOptional({ description: 'ID сменного проекта (когда был удален текущий проект)' })
+  redirectProjectId: number;
+}

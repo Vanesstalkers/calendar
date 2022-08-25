@@ -24,7 +24,6 @@ export class CommentController {
 
   @nestjs.Post('create')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: commentCreateQueryDTO })
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() data: commentCreateQueryDTO) {
     if (!data.taskId) throw new nestjs.BadRequestException('Task ID is empty');
@@ -34,8 +33,6 @@ export class CommentController {
 
   @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
-  @swagger.ApiBody({ type: commentUpdateQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Body() data: commentUpdateQueryDTO) {
     await this.validate(data?.commentId);
@@ -45,8 +42,6 @@ export class CommentController {
 
   @nestjs.Delete('delete')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
-  @swagger.ApiBody({ type: commentDeleteQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async delete(@nestjs.Body() data: commentDeleteQueryDTO) {
     await this.validate(data.commentId);

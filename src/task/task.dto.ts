@@ -382,7 +382,7 @@ export class taskSearchAllQueryDTO {
 }
 
 class taskSearchQueryInboxDTO {
-  @swagger.ApiProperty({ description: 'Тип фильтра', example: 'finished', enum: ['new', 'finished', 'toexec'] })
+  @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
   filter: string;
   @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
   limit?: number;

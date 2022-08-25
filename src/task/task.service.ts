@@ -83,6 +83,7 @@ export class TaskService {
   }
 
   async find(replacements, transaction?) {
+    if (replacements.taskIdList.length === 0) return [];
     const findData = await this.sequelize
       .query(
         `--sql
@@ -403,24 +404,29 @@ export class TaskService {
     if (data.inbox) {
       switch (data.inbox.filter) {
         case 'new':
-          sqlWhere.push('t."startTime" IS NULL');
-          sqlWhere.push('(t."ownUser" = :myId AND t2u.id IS NULL) OR (t."ownUser" != :myId AND t2u."userId" = :myId)');
+          sqlWhere.push('t."endTime" IS NULL');
+          sqlWhere.push('(t."ownUser" = :myId AND t2u.id IS NULL) OR (t2u."userId" = :myId)');
           break;
         case 'finished':
           sqlWhere.push('t."execUser" = :myId');
+          sqlWhere.push('t."ownUser" = :myId OR t2u."userId" = :myId');
           break;
         case 'toexec':
-          sqlWhere.push('t."startTime" IS NULL');
+          sqlWhere.push('t."endTime" IS NULL');
           sqlWhere.push('t."ownUser" != :myId');
           sqlWhere.push('t2u."userId" = :myId');
           break;
       }
       if (sqlWhere.length) {
-        sqlWhere = sqlWhere.concat(['t."deleteTime" IS NULL', '"projectId" = :projectId', `"timeType" != 'later'`]);
+        sqlWhere = sqlWhere.concat([
+          't."deleteTime" IS NULL',
+          '"projectId" = :projectId',
+          `"timeType" IS DISTINCT FROM 'later'`,
+        ]);
         select.inbox = `--sql
           SELECT    t.id, t.title
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."role" = 'exec' AND t2u."deleteTime" IS NULL
+          LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
           LIMIT     :inboxLimit
           OFFSET    :inboxOffset
@@ -432,21 +438,30 @@ export class TaskService {
     }
 
     if (data.schedule) {
-      sqlWhere = ['"deleteTime" IS NULL', '"projectId" = :projectId', `"timeType" != 'later'`];
-      sqlWhere.push('"startTime" >= :scheduleFrom::timestamp');
-      sqlWhere.push(`"startTime" <= :scheduleTo::timestamp + '1 day'::interval`);
+      sqlWhere = [
+        't2u.id IS NOT NULL',
+        't."deleteTime" IS NULL',
+        't."projectId" = :projectId',
+        `t."timeType" IS DISTINCT FROM 'later'`,
+      ];
+      sqlWhere.push('t."endTime" >= :scheduleFrom::timestamp');
+      sqlWhere.push(`t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`);
       select.schedule = `--sql
         (
-          SELECT    id, title, regular, "startTime"
-          FROM      "task"
+          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
+          FROM      "task" AS t
+          LEFT JOIN "task_to_user" AS t2u 
+          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
       select.schedule += `--sql
         UNION ALL (
-          SELECT    id, title, regular, "startTime"
-          FROM      "task"
-          WHERE     "deleteTime" IS NULL AND (regular->>'enabled')::boolean = true
+          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
+          FROM      "task" AS t
+          LEFT JOIN "task_to_user" AS t2u 
+          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+          WHERE     t2u.id IS NOT NULL AND t."deleteTime" IS NULL AND (t.regular->>'enabled')::boolean = true
         )
       `;
       replacements.scheduleFrom = data.schedule.from;
@@ -455,18 +470,24 @@ export class TaskService {
 
     if (data.overdue) {
       sqlWhere = [
-        '"deleteTime" IS NULL',
-        '"projectId" = :projectId',
-        `"timeType" != 'later'`,
-        "NOT (regular->>'enabled')::boolean OR regular->>'enabled' IS NULL",
+        't2u.id IS NOT NULL',
+        't."deleteTime" IS NULL',
+        't."projectId" = :projectId',
+        `t."timeType" IS DISTINCT FROM 'later'`,
+         /* !!! IS DISTINCT FROM */ "NOT (t.regular->>'enabled')::boolean OR t.regular->>'enabled' IS NULL",
       ];
-      sqlWhere.push(
-        `"execEndTime" IS NULL AND (("endTime" IS NOT NULL AND "endTime" < NOW()) OR ("endTime" IS NULL AND "startTime" < NOW()))`,
-      );
+      // sqlWhere.push(`
+      //   "execEndTime" IS NULL AND
+      //   (("endTime" IS NOT NULL AND "endTime" < NOW()) OR
+      //   ("endTime" IS NULL AND "startTime" < NOW()))
+      // `);
+      sqlWhere.push(`t."execEndTime" IS NULL AND t."endTime" IS NOT NULL AND t."endTime" < NOW()`);
       select.overdue = `--sql
         (
-          SELECT    id, title, regular, "startTime"
-          FROM      "task"
+          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
+          FROM      "task" AS t
+          LEFT JOIN "task_to_user" AS t2u 
+          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
           LIMIT     :overdueLimit
           OFFSET    :overdueOffset
@@ -478,11 +499,13 @@ export class TaskService {
     }
 
     if (data.later) {
-      sqlWhere = ['"deleteTime" IS NULL', '"projectId" = :projectId'];
-      sqlWhere.push(`"timeType" = 'later'`);
+      sqlWhere = ['t2u.id IS NOT NULL', 't."deleteTime" IS NULL', 't."projectId" = :projectId'];
+      sqlWhere.push(`t."timeType" = 'later'`);
       select.later = `--sql
-        SELECT    id, title
-        FROM      "task"
+        SELECT    t.id, t.title
+        FROM      "task" AS t
+        LEFT JOIN "task_to_user" AS t2u 
+        ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT     :laterLimit
         OFFSET    :laterOffset
@@ -493,13 +516,13 @@ export class TaskService {
     }
 
     if (data.executors) {
-      sqlWhere = ['t."deleteTime" IS NULL', '"projectId" = :projectId'];
+      sqlWhere = ['t."deleteTime" IS NULL', 't."projectId" = :projectId'];
       sqlWhere.push('t."ownUser" = :myId');
       sqlWhere.push('t2u."userId" != :myId');
       select.executors = `--sql
         SELECT    t.id, t.title, t2u."userId" AS "execUserId"
         FROM      "task" AS t
-        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."role" = 'exec' AND t2u."deleteTime" IS NULL
+        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT     :executorsLimit
         OFFSET    :executorsOffset
@@ -521,21 +544,25 @@ export class TaskService {
 
     const result = findData[0][0];
     let taskIdList = [];
+
     if (result.schedule) {
       const replaceTask = {};
       for (const task of result.schedule) {
         if (task.regular.enabled) {
+          const hasEndTime = task.endTime ? true : false;
+
           function fillRegularTasks(interval) {
+            let i = 0;
             while (true) {
               try {
+                if (i++ > 10) throw new Error('Too wide range'); // библиотека очень медленная
                 const newDate = interval.next();
-                const cloneTask = {
-                  ...task,
-                  startTime: newDate.value.toISOString(),
-                  id: undefined,
-                  origTaskId: task.id,
-                  regular: true,
-                };
+                const cloneTask = { ...task, id: undefined, origTaskId: task.id, regular: true };
+                if (hasEndTime) {
+                  cloneTask.endTime = newDate.value.toISOString();
+                } else {
+                  cloneTask.startTime = newDate.value.toISOString();
+                }
                 replaceTask[task.id].push(cloneTask);
               } catch (e) {
                 break;
@@ -544,7 +571,7 @@ export class TaskService {
           }
 
           replaceTask[task.id] = [];
-          const d = new Date(task.startTime);
+          const d = new Date(hasEndTime ? task.endTime : task.startTime);
           const intervalConfig = {
             currentDate: new Date(data.schedule.from + ' 00:00:00'),
             endDate: new Date(data.schedule.to + ' 23:59:59'),
@@ -611,7 +638,12 @@ export class TaskService {
 
     if (result.inbox) result.inbox.data = result.inbox.data.map((taskId) => taskMap[taskId]);
     if (result.schedule)
-      result.schedule = { endOfList: true, data: result.schedule.map((task) => taskMap[task.id || task.origTaskId]) };
+      result.schedule = {
+        endOfList: true,
+        data: result.schedule.map((task) => {
+          return { ...taskMap[task.id || task.origTaskId], id: undefined, origTaskId: task.origTaskId };
+        }),
+      };
     if (result.overdue) result.overdue.data = result.overdue.data.map((taskId) => taskMap[taskId]);
     if (result.later) result.later.data = result.later.data.map((taskId) => taskMap[taskId]);
     if (result.executors) result.executors.data = result.executors.data.map((taskId) => taskMap[taskId]);

@@ -47,10 +47,8 @@ export class FileController {
     // }
   }
 
-  @nestjs.Post('/upload')
-  @nestjs.Header('Content-Type', 'application/json')
+  @nestjs.Post('upload')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.created())
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.created())
   async uploadFile(@nestjs.Body() @decorators.Multipart() data: fileUploadQueryDTO): Promise<any> {
@@ -60,8 +58,6 @@ export class FileController {
 
   @nestjs.Delete('delete')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
-  @swagger.ApiBody({ type: fileDeleteQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async delete(@nestjs.Body() data: fileDeleteQueryDTO) {
     await this.validate(data.fileId);
