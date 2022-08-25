@@ -12,6 +12,7 @@ import {
   projectGetOneAnswerDTO,
   projectAddUserQueryDTO,
   projectDeleteUserQueryDTO,
+  projectDeleteUserAnswerDTO,
 } from './project.dto';
 
 import { ProjectService } from './project.service';
@@ -25,7 +26,7 @@ import { UtilsService } from '../utils/utils.service';
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('project')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(models.project2user, models.user, projectGetOneAnswerDTO)
+@swagger.ApiExtraModels(models.project2user, models.user, projectGetOneAnswerDTO, projectDeleteUserAnswerDTO)
 export class ProjectController {
   constructor(
     private projectService: ProjectService,
@@ -35,16 +36,16 @@ export class ProjectController {
     private utils: UtilsService,
   ) {}
 
-  async validate(id: number, data: { userId?: number; session?: FastifySession }) {
+  async validateUserLinkAndReturn(id: number, data: { userId?: number; session?: FastifySession }) {
     if (!id) throw new nestjs.BadRequestException('Project ID is empty');
     const userId = data.userId || (await this.sessionService.getUserId(data.session));
-    const userLink = await this.projectService.getUserLink(userId, id, { checkExists: true });
+    const userLink = await this.projectService.getUserLink(userId, id, { attributes: ['id', 'role'] });
     if (!userLink) throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${id}).`);
+    return userLink;
   }
 
   @nestjs.Post('create')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: projectCreateQueryDTO })
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() projectData: projectCreateQueryDTO, @nestjs.Session() session: FastifySession) {
     const userId = await this.sessionService.getUserId(session);
@@ -57,12 +58,11 @@ export class ProjectController {
   }
 
   @nestjs.Get('getOne')
-  @nestjs.Header('Content-Type', 'application/json')
-  @swagger.ApiResponse(new interfaces.response.success({ models: [projectGetOneAnswerDTO] }))
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success({ models: [projectGetOneAnswerDTO] }))
   async getOne(@nestjs.Query() data: projectGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
-    await this.validate(projectId, { session });
+    await this.validateUserLinkAndReturn(projectId, { session });
 
     const result = await this.projectService.getOne({ id: projectId });
     return { ...httpAnswer.OK, data: result };
@@ -73,7 +73,7 @@ export class ProjectController {
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Body() data: projectUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
-    await this.validate(projectId, { session });
+    await this.validateUserLinkAndReturn(projectId, { session });
 
     await this.projectService.update(projectId, data.projectData);
     return httpAnswer.OK;
@@ -86,9 +86,8 @@ export class ProjectController {
   async updateUser(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO) {
     const projectId = data.projectId;
     const userId = data.userId;
-    await this.validate(projectId, { userId });
+    const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
 
-    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id'] });
     await this.projectService.update(projectId, { userList: [{ userId, userName: data.userName }] });
     if (data.iconFile) {
       data.iconFile.parentType = 'project_to_user';
@@ -109,23 +108,31 @@ export class ProjectController {
     await this.userService.checkExists(userId);
     const userExist = await this.userService.checkExists(userId);
     if (!userExist) throw new nestjs.BadRequestException(`User (id=${userId}) does not exist`);
+    await this.validateUserLinkAndReturn(projectId, { session });
 
-    await this.validate(projectId, { session });
-    await this.projectService.update(projectId, { userList: [{ role: 'member', userId, deleteTime: null }], });
+    await this.projectService.update(projectId, { userList: [{ role: 'member', userId, deleteTime: null }] });
     return httpAnswer.OK;
   }
 
   @nestjs.Delete('deleteUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.success())
-  async deleteUser(@nestjs.Body() data: projectDeleteUserQueryDTO) {
+  @swagger.ApiResponse(new interfaces.response.success({models: [projectDeleteUserAnswerDTO]}))
+  async deleteUser(@nestjs.Body() data: projectDeleteUserQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
     const userId = data.userId;
-    await this.validate(projectId, { userId });
-    
-    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id', 'role'] });
-    if(userLink.role === 'owner') throw new nestjs.BadRequestException(`Invalid action. User (id=${userId}) is project owner.`);
+    const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
+
+    if (userLink.role === 'owner')
+      throw new nestjs.BadRequestException(`Invalid action. User (id=${userId}) is project owner.`);
     await this.projectService.updateUserLink(userLink.id, { deleteTime: new Date() });
-    return httpAnswer.OK;
+
+    const sessionState = await this.sessionService.getState(session);
+    if (projectId !== sessionState.currentProjectId) {
+      return httpAnswer.OK;
+    } else {
+      const user = await this.userService.getOne({ id: userId });
+      const personalProject = user.projectList.find((project) => project.personal);
+      return { ...httpAnswer.OK, data: { redirectProjectId: personalProject.projectId } };
+    }
   }
 }

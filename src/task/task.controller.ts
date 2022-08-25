@@ -40,11 +40,15 @@ export class TaskController {
     private utils: UtilsService,
   ) {}
 
+  async validateUserLinkAndReturn(taskId: number, userId: number) {
+    const userLink = await this.taskService.getUserLink(taskId, userId);
+    if (!userLink) throw new nestjs.BadRequestException(`Task (id=${taskId}) not found for user (id=${userId})`);
+    return userLink;
+  }
+
   @nestjs.Post('create')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.created())
-  @swagger.ApiBody({ type: taskCreateQueryDTO })
   async create(@nestjs.Body() data: taskCreateQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
@@ -72,7 +76,6 @@ export class TaskController {
 
   @nestjs.Get('getOne')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.success({ models: [taskGetOneAnswerDTO] }))
   async getOne(@nestjs.Query() data: taskGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data?.taskId) throw new nestjs.BadRequestException('Task ID is empty');
@@ -83,7 +86,6 @@ export class TaskController {
   }
 
   @nestjs.Post('searchAll')
-  @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAllAnswerDTO }))
   async searchAll(@nestjs.Body() data: taskSearchAllQueryDTO, @nestjs.Session() session: FastifySession) {
@@ -95,7 +97,6 @@ export class TaskController {
   }
 
   @nestjs.Post('search')
-  @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
   async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
@@ -107,42 +108,35 @@ export class TaskController {
 
   @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: taskUpdateQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskUpdateQueryDTO) {
+    const userId = await this.sessionService.getUserId(session);
+    await this.validateUserLinkAndReturn(data.taskId, userId);
+
     await this.taskService.update(data.taskId, data.taskData);
     return httpAnswer.OK;
   }
 
-  async getUserLink(taskId: number, userId: number) {
-    const link = await this.taskService.getUserLink(taskId, userId);
-    if (!link) throw new nestjs.BadRequestException(`Task (id=${taskId}) not found for user (id=${userId})`);
-    return link;
-  }
-
   @nestjs.Post('updateUserStatus')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: taskUpdateUserStatusQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async updateUserStatus(@nestjs.Body() data: taskUpdateUserStatusQueryDTO) {
-    const link = await this.getUserLink(data.taskId, data.userId);
-    await this.taskService.updateUserLink(link.id, { userId: data.userId, status: data.status });
+    const userLink = await this.validateUserLinkAndReturn(data.taskId, data.userId);
+    await this.taskService.updateUserLink(userLink.id, { userId: data.userId, status: data.status });
     return httpAnswer.OK;
   }
 
   @nestjs.Delete('deleteUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: taskDeleteUserQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteUser(@nestjs.Body() data: taskDeleteUserQueryDTO) {
-    const link = await this.getUserLink(data.taskId, data.userId);
-    await this.taskService.updateUserLink(link.id, { userId: data.userId, deleteTime: new Date() });
+    const userLink = await this.validateUserLinkAndReturn(data.taskId, data.userId);
+    await this.taskService.updateUserLink(userLink.id, { userId: data.userId, deleteTime: new Date() });
     return httpAnswer.OK;
   }
 
   @nestjs.Delete('deleteTick')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: taskDeleteTickQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteTick(@nestjs.Body() data: taskDeleteTickQueryDTO) {
     const hashtag = await this.taskService.getTick(data.taskId, data.tickId);
@@ -154,7 +148,6 @@ export class TaskController {
 
   @nestjs.Delete('deleteHashtag')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody({ type: taskDeleteHashtagQueryDTO })
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteHashtag(@nestjs.Body() data: taskDeleteHashtagQueryDTO) {
     const hashtag = await this.taskService.getHashtag(data.taskId, data.name);

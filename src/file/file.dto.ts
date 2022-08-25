@@ -43,7 +43,12 @@ export class File extends sequelize.Model {
 }
 
 export class fileDTO {
-  @swagger.ApiProperty({ description: 'Тип сущности-родителя', type: 'string', example: 'user' })
+  @swagger.ApiProperty({
+    description: 'Тип сущности-родителя',
+    type: 'string',
+    enum: ['user', 'project', 'project_to_user', 'task', 'comment'],
+    example: 'user',
+  })
   parentType?: string;
 
   @swagger.ApiProperty({ description: 'ID сущности-родителя', type: 'number' })

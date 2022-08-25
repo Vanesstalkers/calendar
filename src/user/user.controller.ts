@@ -51,7 +51,6 @@ export class UserController {
   ) {}
 
   @nestjs.Get('session')
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.success({ models: [interfaces.session.storage] }))
   async session(@nestjs.Session() session: FastifySession): Promise<object> {
     const result = await this.sessionService.getState(session);
@@ -65,7 +64,6 @@ export class UserController {
   }
 
   //@nestjs.Post('registration')
-  @nestjs.Header('Content-Type', 'application/json')
   async registration(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
@@ -99,6 +97,7 @@ export class UserController {
           await this.sessionService.updateStorageById(sessionStorageId, {
             registration: true,
             login: true,
+            currentProjectId: personalProject.id,
           });
         },
         data.preventSendSms,
@@ -111,7 +110,6 @@ export class UserController {
   }
 
   //@nestjs.Post('login')
-  @nestjs.Header('Content-Type', 'application/json')
   async login(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
@@ -145,7 +143,6 @@ export class UserController {
   }
 
   @nestjs.Post('auth')
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(
     new interfaces.response.success({
       props: {
@@ -181,7 +178,6 @@ export class UserController {
   }
 
   @nestjs.Post('code')
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.success())
   @swagger.ApiResponse({
     status: 201,
@@ -215,7 +211,6 @@ export class UserController {
   }
 
   @nestjs.Get('getOne')
-  @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success({ models: [userGetOneAnswerDTO] }))
   async getOne(@nestjs.Query() data: userGetOneQueryDTO) {
@@ -225,7 +220,6 @@ export class UserController {
   }
 
   @nestjs.Post('search')
-  @nestjs.Header('Content-Type', 'application/json')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: userSearchAnswerDTO }))
   async search(@nestjs.Body() data: userSearchQueryDTO, @nestjs.Session() session: FastifySession) {
@@ -241,12 +235,14 @@ export class UserController {
     @nestjs.Query() data: userChangeCurrentProjectQueryDTO,
     @nestjs.Session() session: FastifySession,
   ) {
-    if (!data?.projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    const projectId = data.projectId;
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
     const userId = await this.sessionService.getUserId(session);
-    const project = await this.projectService.getOne({ id: data.projectId });
-    if (!project) throw new nestjs.BadRequestException('Project is not exist in user`s project list.');
+    const userLink = await this.projectService.getUserLink(userId, projectId, { checkExists: true });
+    if (!userLink) throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
 
+    const project = await this.projectService.getOne({ id: projectId });
     const currentProjectId = project.id;
     await this.userService.update(userId, { config: { currentProjectId } });
     await this.sessionService.updateStorageById(session.storageId, { currentProjectId });

@@ -206,7 +206,7 @@ export class ProjectService {
         `--sql
         SELECT ${config.attributes.join(',')} 
         FROM "project_to_user"
-        WHERE "userId" = :userId AND "projectId" = :projectId
+        WHERE "userId" = :userId AND "projectId" = :projectId AND "deleteTime" IS NULL
       `,
         { replacements: { userId, projectId }, type: QueryTypes.SELECT },
       )

@@ -33,7 +33,6 @@ export class UtilsController {
 
   @nestjs.Get('searchPhoneCode')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.search({ model: searchPhoneCodeAnswerDTO }))
   async searchPhoneCode(@nestjs.Query() data: searchPhoneCodeQueryDTO) {
     const query = data.query.toLocaleLowerCase();
@@ -52,7 +51,6 @@ export class UtilsController {
 
   @nestjs.Get('searchTimezone')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @nestjs.Header('Content-Type', 'application/json')
   @swagger.ApiResponse(new interfaces.response.search({ model: searchTimezoneCodeAnswerDTO }))
   async searchTimezone(@nestjs.Query() data: searchTimezoneCodeQueryDTO) {
     const query = data.query.toLocaleLowerCase();
