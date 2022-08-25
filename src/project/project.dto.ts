@@ -114,15 +114,6 @@ export class projectUpdateUserQueryDTO {
   iconFile: types['models']['file'];
 }
 
-class projectGetOneAnswerTaskDTO extends taskDTO {
-  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
-  taskId?: number;
-  @swagger.ApiProperty({ description: 'Количество комментариев', type: 'number', example: 0 })
-  commentCount: number;
-  @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
-  fileList: fileListItemDTO[];
-}
-
 export class projectGetOneQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
@@ -160,19 +151,6 @@ class projectGetOneAnswerUserDTO extends projectToUserGetOneDTO {
   userId?: number;
 }
 
-export class projectGetOneAnswerDTO {
-  @swagger.ApiProperty({ description: 'Название проекта', type: 'string', example: 'Проект №1' })
-  title: string;
-  @swagger.ApiProperty({ description: 'Конфиг проекта', type: projectConfigDTO })
-  config: object;
-  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
-  iconFileId?: number;
-  @swagger.ApiProperty({ description: 'Участники проекта', type: [projectGetOneAnswerUserDTO] })
-  userList: projectGetOneAnswerUserDTO[];
-  @swagger.ApiProperty({ description: 'Задачи проекта', type: [projectGetOneAnswerTaskDTO] })
-  taskList: projectGetOneAnswerTaskDTO[];
-}
-
 export class projectAddUserQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
@@ -190,4 +168,28 @@ export class projectDeleteUserQueryDTO {
 export class projectDeleteUserAnswerDTO {
   @swagger.ApiPropertyOptional({ description: 'ID сменного проекта (когда был удален текущий проект)' })
   redirectProjectId: number;
+}
+
+class projectGetOneAnswerTaskDTO extends taskDTO {
+  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
+  taskId?: number;
+  @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
+  ownUser: projectToUserDTO;
+  @swagger.ApiProperty({ description: 'Количество комментариев', type: 'number', example: 0 })
+  commentCount: number;
+  @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
+  fileList: fileListItemDTO[];
+}
+
+export class projectGetOneAnswerDTO {
+  @swagger.ApiProperty({ description: 'Название проекта', type: 'string', example: 'Проект №1' })
+  title: string;
+  @swagger.ApiProperty({ description: 'Конфиг проекта', type: projectConfigDTO })
+  config: object;
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
+  iconFileId?: number;
+  @swagger.ApiProperty({ description: 'Участники проекта', type: [projectGetOneAnswerUserDTO] })
+  userList: projectGetOneAnswerUserDTO[];
+  @swagger.ApiProperty({ description: 'Задачи проекта', type: [projectGetOneAnswerTaskDTO] })
+  taskList: projectGetOneAnswerTaskDTO[];
 }
