@@ -84,11 +84,11 @@ export class UserController {
           await this.sessionService.updateStorage(session, { userId: user.id });
 
           const personalProject = await this.projectService.create(
-            { title: `${user.id}th user's personal project`, userList: [{ userId: user.id, role: "owner" }] },
+            { title: `${user.id}th user's personal project`, userList: [{ userId: user.id, role: 'owner' }] },
             { transaction, personalProject: true },
           );
           const workProject = await this.projectService.create(
-            { title: `${user.id}th user's work project`, userList: [{ userId: user.id, role: "owner" }] },
+            { title: `${user.id}th user's work project`, userList: [{ userId: user.id, role: 'owner' }] },
             { transaction },
           );
           await transaction.commit();
@@ -225,7 +225,7 @@ export class UserController {
   async search(@nestjs.Body() data: userSearchQueryDTO, @nestjs.Session() session: FastifySession) {
     data.userId = await this.sessionService.getUserId(session);
     const result = await this.userService.search(data);
-    return { ...httpAnswer.OK, data: result.data, endOfList: result.endOfList };
+    return { ...httpAnswer.OK, data: { resultList: result.data, endOfList: result.endOfList } };
   }
 
   @nestjs.Post('changeCurrentProject')
@@ -240,7 +240,8 @@ export class UserController {
 
     const userId = await this.sessionService.getUserId(session);
     const userLink = await this.projectService.getUserLink(userId, projectId, { checkExists: true });
-    if (!userLink) throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
+    if (!userLink)
+      throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
 
     const project = await this.projectService.getOne({ id: projectId });
     const currentProjectId = project.id;

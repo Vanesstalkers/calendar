@@ -16,8 +16,8 @@ import {
   taskUserLinkDTO,
   taskTickDTO,
   taskHashtagDTO,
+  taskGetAllQueryDTO,
   taskSearchQueryDTO,
-  taskSearchAllQueryDTO,
 } from './task.dto';
 
 import { UtilsService } from '../utils/utils.service';
@@ -99,6 +99,7 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
+                        , (${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -198,6 +199,7 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
+                        , (${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -348,7 +350,7 @@ export class TaskService {
     return findData || null;
   }
 
-  async searchAll(data: taskSearchAllQueryDTO = { query: '', limit: 50, offset: 0 }) {
+  async search(data: taskSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const hashFlag = /^#/.test(data.query);
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
     const sqlWhere = hashFlag
@@ -396,7 +398,7 @@ export class TaskService {
     return { data: findData[0], endOfList };
   }
 
-  async search(data: taskSearchQueryDTO = {}, userId: number) {
+  async getAll(data: taskGetAllQueryDTO = {}, userId: number) {
     const replacements: any = { myId: userId, projectId: data.projectId };
     let sqlWhere = [];
     const select: any = {};
@@ -418,7 +420,7 @@ export class TaskService {
             't."deleteTime" IS NULL',
             '"projectId" = :projectId',
             `t."execEndTime" IS NOT NULL AND t."execEndTime" < date_trunc('day', NOW())`,
-            't."ownUser" = :myId',
+            't."ownUserId" = :myId',
           ];
           break;
         case 'toexec':
@@ -428,7 +430,7 @@ export class TaskService {
             `"timeType" IS DISTINCT FROM 'later'`,
             't."startTime" IS NULL',
             't."endTime" IS NULL',
-            't."ownUser" != :myId',
+            't."ownUserId" != :myId',
             't2u."userId" = :myId',
           ];
           break;
@@ -530,7 +532,7 @@ export class TaskService {
       sqlWhere = [
         't."deleteTime" IS NULL',
         't."projectId" = :projectId',
-        't."ownUser" = :myId',
+        't."ownUserId" = :myId',
         't2u."userId" != :myId',
         `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
       ];
@@ -538,25 +540,10 @@ export class TaskService {
         SELECT    t.id
                 , t.title
                 , t2u."userId" AS "consignedExecUserId"
-                , (
-                  SELECT    row_to_json(ROW)
-                  FROM      (
-                            SELECT    p2u."id" AS "projectToUserLinkId"
-                                    , "userId"
-                                    , "role"
-                                    , "personal"
-                                    , "userName"
-                                    , (${sql.file.getIcon('project_to_user', 'p2u')}) AS "userIconFileId"
-                                    , u."name" AS "baseUserName"
-                                    , (${sql.file.getIcon('user', 'u')}) AS "baseUserIconFileId"
-                            FROM      "project_to_user" AS p2u
-                            LEFT JOIN "user" AS u ON u.id = p2u."userId" AND      
-                                      u."deleteTime" IS NULL
-                            WHERE     p2u."deleteTime" IS NULL AND      
-                                      "projectId" = t."projectId" AND      
-                                      "userId" = t2u."userId"
-                            ) AS ROW
-                  ) AS "consignedExecUserData"
+                , (${sql.project.getUserLink(
+                  { projectId: 't."projectId"', userId: 't2u."userId"' },
+                  { addUserData: true },
+                )}) AS "consignedExecUserData"
         FROM      "task" AS t
         LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND      
                   t2u."deleteTime" IS NULL

@@ -82,24 +82,7 @@ export class ProjectService {
                         , p.title
                         , p.config
                         , ( ${sql.file.getIcon('project', 'p')} ) AS "iconFileId"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    p2u."id" AS "projectToUserLinkId"
-                                            , "userId"
-                                            , "role"
-                                            , "personal"
-                                            , "userName"
-                                            , ( ${sql.file.getIcon('project_to_user', 'p2u')} ) AS "userIconFileId"
-                                            , u."name" AS "baseUserName"
-                                            , ( ${sql.file.getIcon('user', 'u')} ) AS "baseUserIconFileId"
-                                    FROM      "project_to_user" AS p2u
-                                    LEFT JOIN "user" AS u ON u.id = p2u."userId" AND      
-                                              u."deleteTime" IS NULL
-                                    WHERE     p2u."deleteTime" IS NULL AND      
-                                              "projectId" = p.id
-                                    ) AS ROW
-                          ) AS "userList"
+                        , array(${sql.project.getUserLink({ projectId: ':id' }, { addUserData: true })}) AS "userList"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -111,6 +94,7 @@ export class ProjectService {
                                             , "timeType"
                                             , "require"
                                             , "regular"
+                                            , (${sql.project.getUserLink({ projectId: ':id', userId: '"ownUserId"' }, { addUserData: true })}) AS "ownUser"
                                             , array(
                                               SELECT    row_to_json(ROW)
                                               FROM      (

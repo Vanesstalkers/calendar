@@ -13,16 +13,16 @@ import {
   taskDeleteHashtagQueryDTO,
   taskGetOneQueryDTO,
   taskGetOneAnswerDTO,
+  taskGetAllAnswerDTO,
   taskSearchAnswerDTO,
-  taskSearchAllAnswerDTO,
+  taskGetAllQueryDTO,
+  taskGetAllQueryInboxDTO,
+  taskGetAllQueryScheduleDTO,
+  taskGetAllQueryOverdueDTO,
+  taskGetAllQueryLaterDTO,
+  taskGetAllQueryExecutorsDTO,
+  taskGetAllQuerySwaggerI,
   taskSearchQueryDTO,
-  taskSearchQueryInboxDTO,
-  taskSearchQueryScheduleDTO,
-  taskSearchQueryOverdueDTO,
-  taskSearchQueryLaterDTO,
-  taskSearchQueryExecutorsDTO,
-  taskSearchQuerySwaggerI,
-  taskSearchAllQueryDTO,
 } from './task.dto';
 
 import { TaskService } from './task.service';
@@ -38,13 +38,13 @@ import { SessionService } from '../session/session.service';
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
 @swagger.ApiExtraModels(
   taskGetOneAnswerDTO,
+  taskGetAllAnswerDTO,
   taskSearchAnswerDTO,
-  taskSearchAllAnswerDTO,
-  taskSearchQueryInboxDTO,
-  taskSearchQueryScheduleDTO,
-  taskSearchQueryOverdueDTO,
-  taskSearchQueryLaterDTO,
-  taskSearchQueryExecutorsDTO,
+  taskGetAllQueryInboxDTO,
+  taskGetAllQueryScheduleDTO,
+  taskGetAllQueryOverdueDTO,
+  taskGetAllQueryLaterDTO,
+  taskGetAllQueryExecutorsDTO,
 )
 export class TaskController {
   constructor(
@@ -66,18 +66,16 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() data: taskCreateQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.projectId) throw new nestjs.BadRequestException('Project ID is empty');
-
-    if (!data.taskData.userList) data.taskData.userList = [];
+    if (!data.taskData.userList?.length) throw new nestjs.BadRequestException('User list is empty');
     const projectExists = await this.projectService.checkExists(data.projectId);
     if (!projectExists) throw new nestjs.BadRequestException('Project does not exist');
-
     for (const execUser of data.taskData.userList || []) {
       const userExists = await this.userService.checkExists(execUser.userId);
       if (!userExists) throw new nestjs.BadRequestException('User does not exist');
     }
 
     const userId = await this.sessionService.getUserId(session);
-    data.taskData.ownUser = userId;
+    data.taskData.ownUserId = userId;
     // if (!data.taskData.userList.find((user) => user.userId === userId))
     //   data.taskData.userList.push({ userId, role: 'owner', status: 'wait_for_confirm' });
     for (const link of data.taskData.userList) {
@@ -100,25 +98,25 @@ export class TaskController {
     return { ...httpAnswer.OK, data: result };
   }
 
-  @nestjs.Post('searchAll')
+  @nestjs.Post('search')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAllAnswerDTO }))
-  async searchAll(@nestjs.Body() data: taskSearchAllQueryDTO, @nestjs.Session() session: FastifySession) {
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
+  async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('query is empty or too short');
     const sessionData = await this.sessionService.getState(session);
     data.projectId = sessionData.currentProjectId;
-    const result = await this.taskService.searchAll(data);
-    return { ...httpAnswer.OK, data: result.data, endOfList: result.endOfList };
+    const result = await this.taskService.search(data);
+    return { ...httpAnswer.OK, data: { resultList: result.data, endOfList: result.endOfList } };
   }
 
-  @nestjs.Post('search')
+  @nestjs.Post('getAll')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiBody(new taskSearchQuerySwaggerI())
-  @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
-  async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
+  @swagger.ApiBody(new taskGetAllQuerySwaggerI())
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetAllAnswerDTO }))
+  async getAll(@nestjs.Body() data: taskGetAllQueryDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);
     data.projectId = sessionData.currentProjectId;
-    const result = await this.taskService.search(data, sessionData.userId);
+    const result = await this.taskService.getAll(data, sessionData.userId);
     return { ...httpAnswer.OK, data: result };
   }
 

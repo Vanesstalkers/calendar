@@ -116,7 +116,7 @@ export class userGetOneQueryDTO {
 class userContactListDTO {
   @swagger.ApiProperty({ description: 'ID пользователя-контакта' })
   contactId: number;
-  @swagger.ApiPropertyOptional({ description: 'Отметка избранного контакта', type: 'number | null', example: false })
+  @swagger.ApiPropertyOptional({ description: 'Признак избранного контакта', type: 'number | null', example: false })
   priority: number;
 }
 
