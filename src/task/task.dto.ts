@@ -347,7 +347,12 @@ export class taskUpdateUserStatusQueryDTO {
   taskId: number;
   @swagger.ApiProperty({ description: 'ID пользователя' })
   userId: number;
-  @swagger.ApiProperty({ description: 'Статус задачи (для пользователя)', example: 'inwork' })
+  @swagger.ApiProperty({
+    description: 'Статус задачи (для пользователя)',
+    type: 'string',
+    example: 'confirm',
+    enum: ['wait_for_confirm', 'confirm'],
+  })
   status: string;
 }
 
@@ -385,7 +390,7 @@ export class taskGetOneQueryDTO {
 export class taskGetOneAnswerDTO extends taskFullDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
-  @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
+  @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })
   ownUser: projectToUserDTO;
   @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
   fileList: fileListItemDTO[];
