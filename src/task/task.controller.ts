@@ -8,6 +8,7 @@ import {
   taskCreateQueryDTO,
   taskUpdateQueryDTO,
   taskUpdateUserStatusQueryDTO,
+  taskDeleteQueryDTO,
   taskDeleteUserQueryDTO,
   taskDeleteTickQueryDTO,
   taskDeleteHashtagQueryDTO,
@@ -76,13 +77,10 @@ export class TaskController {
 
     const userId = await this.sessionService.getUserId(session);
     data.taskData.ownUserId = userId;
-    // if (!data.taskData.userList.find((user) => user.userId === userId))
-    //   data.taskData.userList.push({ userId, role: 'owner', status: 'wait_for_confirm' });
     for (const link of data.taskData.userList) {
       if (!link.role) link.role = 'exec';
-      if (!link.status) link.status = 'confirm';
+      if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
     }
-
     const task = await this.taskService.create(data.projectId, data.taskData).catch(exception.dbErrorCatcher);
     return { ...httpAnswer.OK, data: { id: task.id } };
   }
@@ -112,7 +110,7 @@ export class TaskController {
   @nestjs.Post('getAll')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiBody(new taskGetAllQuerySwaggerI())
-  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetAllAnswerDTO }))
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
   async getAll(@nestjs.Body() data: taskGetAllQueryDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);
     data.projectId = sessionData.currentProjectId;
@@ -137,6 +135,15 @@ export class TaskController {
   async updateUserStatus(@nestjs.Body() data: taskUpdateUserStatusQueryDTO) {
     const userLink = await this.validateUserLinkAndReturn(data.taskId, data.userId);
     await this.taskService.updateUserLink(userLink.id, { userId: data.userId, status: data.status });
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Delete('delete')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async delete(@nestjs.Body() data: taskDeleteQueryDTO) {
+    if (!data.taskId) throw new nestjs.BadRequestException('Task ID is empty');
+    await this.taskService.update(data.taskId, { deleteTime: new Date() });
     return httpAnswer.OK;
   }
 
