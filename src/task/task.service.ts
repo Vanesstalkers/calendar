@@ -407,31 +407,32 @@ export class TaskService {
       switch (data.queryData.filter) {
         case 'new':
           sqlWhere = [
-            't."deleteTime" IS NULL',
-            '"projectId" = :projectId',
-            `"timeType" IS DISTINCT FROM 'later'`,
-            't."startTime" IS NULL',
-            't."endTime" IS NULL',
-            't2u."userId" = :myId',
+            't."deleteTime" IS NULL', // НЕ удалена
+            '"projectId" = :projectId', // принадлежит проекту
+            `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+            't."startTime" IS NULL', // НЕ указано время начала
+            't."endTime" IS NULL', // НЕ указано время окончания
+            't2u."userId" = :myId', // пользователь назначен исполнителем
           ];
           break;
         case 'finished':
           sqlWhere = [
-            't."deleteTime" IS NULL',
-            '"projectId" = :projectId',
-            `t."execEndTime" IS NOT NULL AND t."execEndTime" < date_trunc('day', NOW())`,
-            't."ownUserId" = :myId',
+            't."deleteTime" IS NULL', // НЕ удалена
+            '"projectId" = :projectId', // принадлежит проекту
+            't."ownUserId" = :myId', // пользователь является создателем
+            `t."execEndTime" IS NOT NULL`, // указано время фактического исполнения
+            //`t."execEndTime" IS NOT NULL AND t."execEndTime" < date_trunc('day', NOW())`,
           ];
           break;
         case 'toexec':
           sqlWhere = [
-            't."deleteTime" IS NULL',
-            '"projectId" = :projectId',
-            `"timeType" IS DISTINCT FROM 'later'`,
-            't."startTime" IS NULL',
-            't."endTime" IS NULL',
-            't."ownUserId" != :myId',
-            't2u."userId" = :myId',
+            't."deleteTime" IS NULL', // НЕ удалена
+            '"projectId" = :projectId', // принадлежит проекту
+            `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+            't."startTime" IS NULL', // НЕ указано время начала
+            't."endTime" IS NULL', // НЕ указано время окончания
+            't."ownUserId" != :myId', // пользователь НЕ является создателем
+            't2u."userId" = :myId', // пользователь назначен исполнителем
           ];
           break;
       }
@@ -450,14 +451,15 @@ export class TaskService {
 
     if (data.queryType === 'schedule') {
       sqlWhere = [
-        't2u.id IS NOT NULL',
-        't."deleteTime" IS NULL',
-        't."projectId" = :projectId',
-        `t."timeType" IS DISTINCT FROM 'later'`,
-        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`,
-        `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
-        't."endTime" >= :scheduleFrom::timestamp',
-        `t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`,
+        't2u.id IS NOT NULL', // пользователь назначен исполнителем
+        't."deleteTime" IS NULL', // НЕ удалена
+        't."projectId" = :projectId', // принадлежит проекту
+        `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
+        `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+        't."endTime" >= NOW()', // задача НЕ просрочена
+        't."endTime" >= :scheduleFrom::timestamp', // удовлетворяет запросу
+        `t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`, // удовлетворяет запросу
       ];
       select.schedule = `--sql
         (
@@ -468,13 +470,18 @@ export class TaskService {
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
+      sqlWhere = [
+        't2u.id IS NOT NULL', // пользователь назначен исполнителем
+        't."deleteTime" IS NULL', // НЕ удалена
+        `(t.regular->>'enabled')::boolean = true`, // регулярная задача
+      ];
       select.schedule += `--sql
         UNION ALL (
           SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
           FROM      "task" AS t
           LEFT JOIN "task_to_user" AS t2u
           ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-          WHERE     t2u.id IS NOT NULL AND t."deleteTime" IS NULL AND (t.regular->>'enabled')::boolean = true
+          WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
       replacements.scheduleFrom = data.queryData.from;
@@ -483,13 +490,13 @@ export class TaskService {
 
     if (data.queryType === 'overdue') {
       sqlWhere = [
-        't2u.id IS NOT NULL',
-        't."deleteTime" IS NULL',
-        't."projectId" = :projectId',
-        `t."timeType" IS DISTINCT FROM 'later'`,
-        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`,
-        `t."execEndTime" IS NULL AND t."endTime" IS NOT NULL AND t."endTime" < NOW()`,
-        `t."endTime" < date_trunc('day', NOW())`,
+        't2u.id IS NOT NULL', // пользователь назначен исполнителем
+        't."deleteTime" IS NULL', // НЕ удалена
+        't."projectId" = :projectId', // принадлежит проекту
+        `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
+        `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+        't."endTime" < NOW()', // задача просрочена
       ];
       select.overdue = `--sql
         (
@@ -508,11 +515,11 @@ export class TaskService {
     }
     if (data.queryType === 'later') {
       sqlWhere = [
-        't2u.id IS NOT NULL',
-        't."deleteTime" IS NULL',
-        't."projectId" = :projectId',
-        `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
-        `t."timeType" = 'later'`,
+        't2u.id IS NOT NULL', // пользователь назначен исполнителем
+        't."deleteTime" IS NULL', // НЕ удалена
+        't."projectId" = :projectId', // принадлежит проекту
+        `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+        `t."timeType" = 'later'`, // относится к задачам "сделать потом"
       ];
       select.later = `--sql
         SELECT    t.id, t.title
@@ -530,11 +537,12 @@ export class TaskService {
 
     if (data.queryType === 'executors') {
       sqlWhere = [
-        't."deleteTime" IS NULL',
-        't."projectId" = :projectId',
-        't."ownUserId" = :myId',
-        't2u."userId" != :myId',
-        `t."execEndTime" IS NULL OR t."execEndTime" >= date_trunc('day', NOW())`,
+        't."deleteTime" IS NULL', // НЕ удалена
+        't."projectId" = :projectId', // принадлежит проекту
+        't."ownUserId" = :myId', // пользователь является создателем
+        't2u."userId" IS NOT NULL', // исполнитель назначен
+        't2u."userId" != :myId', // пользователь НЕ назначен исполнителем
+        `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
       ];
       select.executors = `--sql
         SELECT    t.id

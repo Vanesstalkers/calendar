@@ -264,34 +264,34 @@ class userRegularDTO {
 }
 
 export class taskDTO {
-  @swagger.ApiProperty({ description: 'Заголовок задачи', type: 'string' })
-  title: string;
-  @swagger.ApiProperty({ description: 'Описание задачи', type: 'string' })
-  info: string;
+  @swagger.ApiPropertyOptional({ description: 'Заголовок задачи', type: 'string' })
+  title?: string;
+  @swagger.ApiPropertyOptional({ description: 'Описание задачи', type: 'string' })
+  info?: string;
   @swagger.ApiPropertyOptional({ description: 'Группа задачи', type: 'number | null', example: 0 })
-  groupId: number;
+  groupId?: number;
   @swagger.ApiPropertyOptional({
     description: 'Время начала',
     type: 'date | null',
     example: '2022-07-08T19:00:00.000Z',
   })
-  startTime: Date;
+  startTime?: Date;
   @swagger.ApiPropertyOptional({
     description: 'Время окончания',
     type: 'date | null',
     example: '2022-07-08T20:00:00.000Z',
   })
-  endTime: Date;
+  endTime?: Date;
   @swagger.ApiPropertyOptional({ description: 'Формат учета времени', example: 'later', enum: ['', 'later'] })
-  timeType: string;
+  timeType?: string;
   @swagger.ApiPropertyOptional({ description: 'Обязательность выполнения', type: 'boolean | null', example: false })
-  require: boolean;
+  require?: boolean;
   @swagger.ApiPropertyOptional({ description: 'Регулярная задача', type: userRegularDTO })
-  regular: userRegularDTO;
+  regular?: userRegularDTO;
   @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkDTO] })
-  userList: taskUserLinkDTO[];
-  @swagger.ApiProperty({ description: 'Хэштеги', type: [taskHashtagDTO] })
-  hashtagList: taskHashtagDTO[];
+  userList?: taskUserLinkDTO[];
+  @swagger.ApiPropertyOptional({ description: 'Хэштеги', type: [taskHashtagDTO] })
+  hashtagList?: taskHashtagDTO[];
 }
 
 export class taskFullDTO extends taskDTO {
@@ -300,31 +300,32 @@ export class taskFullDTO extends taskDTO {
     type: 'string | null',
     example: 'Google Calendar',
   })
-  extSource: string;
+  extSource?: string;
   @swagger.ApiPropertyOptional({
     description: 'Внешний получатель задачи',
     type: 'string | null',
     example: 'Telegram: 9266541231',
   })
-  extDestination: string;
+  extDestination?: string;
   @swagger.ApiPropertyOptional({
     description: 'Когда фактически выполнена',
     type: 'date | null',
     example: '2022-07-08T20:00:00.000Z',
   })
-  execEndTime: Date;
+  execEndTime?: Date;
   @swagger.ApiPropertyOptional({ description: 'фактический исполнитель', type: 'number | null', example: 0 })
-  execUserId: number;
-  @swagger.ApiProperty({ description: 'Чек-лист', type: [taskTickDTO] })
-  tickList: taskTickDTO[];
-  ownUserId: number;
+  execUserId?: number;
+  @swagger.ApiPropertyOptional({ description: 'Чек-лист', type: [taskTickDTO] })
+  tickList?: taskTickDTO[];
+  ownUserId?: number;
 }
 
 export class taskUpdateDTO extends taskFullDTO {
-  @swagger.ApiProperty({ description: 'Чек-лист', type: [taskUpdateQueryDataTickDTO] })
-  tickList: taskUpdateQueryDataTickDTO[];
-  @swagger.ApiProperty({ description: 'Хэштеги', type: [taskUpdateQueryDataHashtagDTO] })
-  hashtagList: taskUpdateQueryDataHashtagDTO[];
+  @swagger.ApiPropertyOptional({ description: 'Чек-лист', type: [taskUpdateQueryDataTickDTO] })
+  tickList?: taskUpdateQueryDataTickDTO[];
+  @swagger.ApiPropertyOptional({ description: 'Хэштеги', type: [taskUpdateQueryDataHashtagDTO] })
+  hashtagList?: taskUpdateQueryDataHashtagDTO[];
+  deleteTime?: Date;
 }
 
 export class taskCreateQueryDTO {
@@ -348,6 +349,11 @@ export class taskUpdateUserStatusQueryDTO {
   userId: number;
   @swagger.ApiProperty({ description: 'Статус задачи (для пользователя)', example: 'inwork' })
   status: string;
+}
+
+export class taskDeleteQueryDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  taskId: number;
 }
 
 export class taskDeleteUserQueryDTO {
@@ -497,8 +503,8 @@ class taskGetAllAnswerScheludeDTO {
   origTaskId?: number;
   @swagger.ApiProperty({ description: 'Название задачи', example: 'Купить помидоры' })
   title: string;
-  @swagger.ApiProperty({ description: 'Регулярная задача', type: 'boolean | null', example: false })
-  regular: boolean;
+  @swagger.ApiPropertyOptional({ description: 'Регулярная задача', type: userRegularDTO })
+  regular: userRegularDTO;
   @swagger.ApiProperty({ description: 'Время начала', type: 'date | null', example: '2022-07-08T19:00:00.000Z' })
   startTime: Date;
 }
