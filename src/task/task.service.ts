@@ -99,7 +99,10 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
-                        , (${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}) AS "ownUser"
+                        , (${sql.project.getUserLink(
+                          { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
+                          { addUserData: true },
+                        )}) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -179,15 +182,25 @@ export class TaskService {
     return findData || null;
   }
 
-  async getOne(data: { id: number; userId: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
-    if (config.checkExists) {
-      config.include = false;
-      config.attributes = ['id'];
-    }
+  async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
+    const simpleSQL = config.attributes?.length
+      ? `--sql
+      SELECT ${config.attributes.join(',')} 
+      FROM      "task" AS task
+      LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
+                t2u."taskId" = task.id AND      
+                t2u."userId" = :userId
+      WHERE     task."deleteTime" IS NULL AND      
+                task.id = :id
+      LIMIT    
+                1
+    `
+      : '';
 
     const findData = await this.sequelize
       .query(
-        `--sql
+        simpleSQL ||
+          `--sql
                 SELECT    task.title
                         , task.info
                         , task."groupId"
@@ -199,7 +212,10 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
-                        , (${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}) AS "ownUser"
+                        , (${sql.project.getUserLink(
+                          { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
+                          { addUserData: true },
+                        )}) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -270,8 +286,7 @@ export class TaskService {
                           t2u."taskId" = task.id AND      
                           t2u."userId" = :userId
                 WHERE     task."deleteTime" IS NULL AND      
-                          task.id = :id AND      
-                          t2u.id IS NOT NULL
+                          task.id = :id
                 LIMIT    
                           1
         `,
@@ -283,7 +298,7 @@ export class TaskService {
       )
       .catch(exception.dbErrorCatcher);
 
-    return findData || null;
+    return findData[0] || null;
   }
 
   async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkDTO, transaction?: Transaction) {
@@ -541,8 +556,8 @@ export class TaskService {
         't."projectId" = :projectId', // принадлежит проекту
         't."ownUserId" = :myId', // пользователь является создателем
         't2u."userId" IS NOT NULL', // исполнитель назначен
-        't2u."userId" != :myId', // пользователь НЕ назначен исполнителем
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+        `_t2u.id IS NULL`, // назначен всего один исполнитель
       ];
       select.executors = `--sql
         SELECT    t.id
@@ -553,13 +568,14 @@ export class TaskService {
                   { addUserData: true },
                 )}) AS "consignedExecUserData"
         FROM      "task" AS t
-        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND      
-                  t2u."deleteTime" IS NULL
+        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL AND (t2u."userId" != t."ownUserId")
+        LEFT JOIN "task_to_user" AS _t2u ON _t2u."taskId" = t.id AND _t2u."deleteTime" IS NULL AND (_t2u."userId" != t2u."userId")
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT    
                   :executorsLimit
         OFFSET    :executorsOffset
       `;
+
       if (!data.queryData.limit) data.queryData.limit = 50;
       replacements.executorsLimit = data.queryData.limit + 1;
       replacements.executorsOffset = data.queryData.offset || 0;

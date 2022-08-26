@@ -56,10 +56,13 @@ export class TaskController {
     private utils: UtilsService,
   ) {}
 
-  async validateUserLinkAndReturn(taskId: number, userId: number) {
+  async validateAndReturnTask(taskId: number, userId: number) {
+    const task = await this.taskService.getOne({ id: taskId }, { attributes: ['task."id"', 'task."ownUserId"'] });
+    if (!task) throw new nestjs.BadRequestException(`Task (id=${taskId}) not exist`);
     const userLink = await this.taskService.getUserLink(taskId, userId);
-    if (!userLink) throw new nestjs.BadRequestException(`Task (id=${taskId}) not found for user (id=${userId})`);
-    return userLink;
+    if (!userLink && task.ownUserId !== userId)
+      throw new nestjs.BadRequestException(`Task (id=${taskId}) not found for user (id=${userId})`);
+    return { ...task, userLink };
   }
 
   @nestjs.Post('create')
@@ -90,8 +93,9 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success({ models: [taskGetOneAnswerDTO] }))
   async getOne(@nestjs.Query() data: taskGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data?.taskId) throw new nestjs.BadRequestException('Task ID is empty');
-
     const userId = await this.sessionService.getUserId(session);
+    await this.validateAndReturnTask(data.taskId, userId);
+
     const result = await this.taskService.getOne({ id: data.taskId, userId });
     return { ...httpAnswer.OK, data: result };
   }
@@ -123,8 +127,13 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskUpdateQueryDTO) {
     const userId = await this.sessionService.getUserId(session);
-    await this.validateUserLinkAndReturn(data.taskId, userId);
+    await this.validateAndReturnTask(data.taskId, userId);
 
+    for (const link of data.taskData.userList) {
+      if (!link.role) link.role = 'exec';
+      if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
+      link.deleteTime = null;
+    }
     await this.taskService.update(data.taskId, data.taskData);
     return httpAnswer.OK;
   }
@@ -133,7 +142,7 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
   async updateUserStatus(@nestjs.Body() data: taskUpdateUserStatusQueryDTO) {
-    const userLink = await this.validateUserLinkAndReturn(data.taskId, data.userId);
+    const { userLink } = await this.validateAndReturnTask(data.taskId, data.userId);
     await this.taskService.updateUserLink(userLink.id, { userId: data.userId, status: data.status });
     return httpAnswer.OK;
   }
@@ -151,7 +160,7 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteUser(@nestjs.Body() data: taskDeleteUserQueryDTO) {
-    const userLink = await this.validateUserLinkAndReturn(data.taskId, data.userId);
+    const { userLink } = await this.validateAndReturnTask(data.taskId, data.userId);
     await this.taskService.updateUserLink(userLink.id, { userId: data.userId, deleteTime: new Date() });
     return httpAnswer.OK;
   }
