@@ -38,9 +38,6 @@ export class TaskService {
   async create(projectId: number, taskData: taskFullDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
-
-    const task = await this.taskModel.create({ projectId }, { transaction }).catch(exception.dbErrorCatcher);
-
     const createData = await this.sequelize
       .query(
         `
@@ -49,7 +46,8 @@ export class TaskService {
         { type: QueryTypes.INSERT, replacements: { projectId }, transaction },
       )
       .catch(exception.dbErrorCatcher);
-    await this.update(createData[0][0].id, taskData, transaction);
+    const task = createData[0][0];
+    await this.update(task.id, taskData, transaction);
 
     if (createTransaction) await transaction.commit();
     return task;
