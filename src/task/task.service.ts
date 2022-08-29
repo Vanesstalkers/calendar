@@ -40,7 +40,16 @@ export class TaskService {
     if (createTransaction) transaction = await this.sequelize.transaction();
 
     const task = await this.taskModel.create({ projectId }, { transaction }).catch(exception.dbErrorCatcher);
-    await this.update(task.id, taskData, transaction);
+
+    const createData = await this.sequelize
+      .query(
+        `
+        INSERT INTO task ("projectId", "addTime", "updateTime") VALUES (:projectId, NOW(), NOW()) RETURNING id;
+      `,
+        { type: QueryTypes.INSERT, replacements: { projectId }, transaction },
+      )
+      .catch(exception.dbErrorCatcher);
+    await this.update(createData[0][0].id, taskData, transaction);
 
     if (createTransaction) await transaction.commit();
     return task;
@@ -51,6 +60,7 @@ export class TaskService {
       table: 'task',
       id: taskId,
       data: updateData,
+      jsonKeys: ['regular'],
       handlers: {
         userList: async (value: [taskUserLinkDTO]) => {
           const arr: taskUserLinkDTO[] = Array.from(value);
