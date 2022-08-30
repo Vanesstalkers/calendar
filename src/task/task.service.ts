@@ -377,9 +377,12 @@ export class TaskService {
   async search(data: taskSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const hashFlag = /^#/.test(data.query);
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
-    const sqlWhere = hashFlag
-      ? ' h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query) '
-      : ' (LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query)) ';
+    const sqlWhere = [`t2u."userId" = :userId OR t."ownUserId" = :userId`];
+    if (hashFlag) {
+      sqlWhere.push('h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)');
+    } else {
+      sqlWhere.push('(LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query))');
+    }
     if (hashFlag) {
       data.query = data.query.replace('#', '');
     }
@@ -390,9 +393,9 @@ export class TaskService {
                 SELECT    t.id,
                           t.title                        
                 FROM      "task" t ${hashTable}
-                
+                LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
                 WHERE     t."projectId" = :projectId AND 
-                          ${sqlWhere}
+                          ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
                 LIMIT    
                           :limit
                 OFFSET    
@@ -401,6 +404,7 @@ export class TaskService {
         {
           replacements: {
             query: `%${(data.query || '').trim()}%`,
+            userId: data.userId,
             projectId: data.projectId,
             limit: data.limit + 1,
             offset: data.offset,
@@ -738,5 +742,4 @@ export class TaskService {
       )
       .catch(exception.dbErrorCatcher);
   }
-
 }

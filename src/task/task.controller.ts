@@ -110,8 +110,11 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
   async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
-    if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('query is empty or too short');
+    if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('Query is empty or too short');
+    if (data.limit === undefined || data.offset === undefined)
+      throw new nestjs.BadRequestException('Limit and offset must be defined');
     const sessionData = await this.sessionService.getState(session);
+    data.userId = sessionData.userId;
     data.projectId = sessionData.currentProjectId;
     const result = await this.taskService.search(data);
     return { ...httpAnswer.OK, data: { resultList: result.data, endOfList: result.endOfList } };
@@ -147,10 +150,10 @@ export class TaskController {
         data.taskData.userList.push({ userId: link.userId, status: 'wait_for_confirm' });
       }
     }
-    if(data.taskData.execEndTime){
+    if (data.taskData.execEndTime) {
       const { userList = [] } = await this.taskService.getOne({ id: data.taskId });
-      if(userList.length === 1 && !userList.find(link => link.userId === task.ownUserId)){
-        await this.taskService.upsertLinkToUser(data.taskId, task.ownUserId, {role: 'control'});
+      if (userList.length === 1 && !userList.find((link) => link.userId === task.ownUserId)) {
+        await this.taskService.upsertLinkToUser(data.taskId, task.ownUserId, { role: 'control' });
       }
     }
 

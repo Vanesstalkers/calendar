@@ -427,6 +427,7 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
 }
 
 export class taskSearchQueryDTO {
+  userId?: number;
   projectId?: number;
   @swagger.ApiProperty({ description: 'Строка запроса', example: 'купить | #хэштег' })
   query: string;

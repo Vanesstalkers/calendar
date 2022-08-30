@@ -63,8 +63,9 @@ export class ProjectController {
   async getOne(@nestjs.Query() data: projectGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
     await this.validateUserLinkAndReturn(projectId, { session });
-
-    const result = await this.projectService.getOne({ id: projectId });
+    
+    const userId = await this.sessionService.getUserId(session);
+    const result = await this.projectService.getOne({ id: projectId, userId });
     return { ...httpAnswer.OK, data: result };
   }
 

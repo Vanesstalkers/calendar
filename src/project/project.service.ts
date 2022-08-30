@@ -69,30 +69,34 @@ export class ProjectService {
     });
   }
 
-  async getOne(data: { id: number }, config: types['getOneConfig'] = {}) {
+  async getOne(data: { id: number; userId: number }, config: types['getOneConfig'] = {}) {
     const findData = await this.sequelize
       .query(
         `--sql
                 SELECT    p.id
                         , p.title
                         , p.config
-                        , ( ${sql.file.getIcon('project', 'p')} ) AS "iconFileId"
-                        , array(${sql.project.getUserLink({ projectId: ':id' }, { addUserData: true })}) AS "userList"
+                        , (${sql.file.getIcon('project', 'p')}) AS "iconFileId"
+                        , array(
+                          ${sql.project.getUserLink({ projectId: ':id' }, { addUserData: true })}
+                          ) AS "userList"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    "id" AS "taskId"
-                                            , "title"
-                                            , "groupId"
-                                            , "startTime"
-                                            , "endTime"
-                                            , "timeType"
-                                            , "require"
-                                            , "regular"
-                                            , (${sql.project.getUserLink(
-                                              { projectId: ':id', userId: '"ownUserId"' },
-                                              { addUserData: true },
-                                            )}) AS "ownUser"
+                                    SELECT    t."id" AS "taskId"
+                                            , t."title"
+                                            , t."groupId"
+                                            , t."startTime"
+                                            , t."endTime"
+                                            , t."timeType"
+                                            , t."require"
+                                            , t."regular"
+                                            , (
+                                              ${sql.project.getUserLink(
+                                                { projectId: ':id', userId: '"ownUserId"' },
+                                                { addUserData: true },
+                                              )}
+                                              ) AS "ownUser"
                                             , array(
                                               SELECT    row_to_json(ROW)
                                               FROM      (
@@ -117,7 +121,7 @@ export class ProjectService {
                                             , (
                                               SELECT    COUNT(id)
                                               FROM      "comment"
-                                              WHERE     "deleteTime" IS NULL AND
+                                              WHERE     "deleteTime" IS NULL AND      
                                                         "taskId" = t.id
                                               ) AS "commentCount"
                                             , array(
@@ -132,8 +136,15 @@ export class ProjectService {
                                                         ) AS ROW
                                               ) AS "fileList"
                                     FROM      "task" AS t
-                                    WHERE     "deleteTime" IS NULL AND      
-                                              "projectId" = p.id
+                                    LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND      
+                                              t2u."userId" = :userId AND      
+                                              t2u."deleteTime" IS NULL
+                                    WHERE     t."deleteTime" IS NULL AND      
+                                              t."projectId" = p.id AND      
+                                              (
+                                              t2u."id" IS NOT NULL OR       
+                                              t."ownUserId" = :userId
+                                              )
                                     ) AS ROW
                           ) AS "taskList"
                 FROM      "project" AS p
@@ -144,7 +155,7 @@ export class ProjectService {
         `,
         {
           type: QueryTypes.SELECT,
-          replacements: { id: data.id || null },
+          replacements: { id: data.id || null, userId: data.userId },
         },
       )
       .catch(exception.dbErrorCatcher);

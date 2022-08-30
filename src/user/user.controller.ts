@@ -243,7 +243,7 @@ export class UserController {
     if (!userLink)
       throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
 
-    const project = await this.projectService.getOne({ id: projectId });
+    const project = await this.projectService.getOne({ id: projectId, userId });
     const currentProjectId = project.id;
     await this.userService.update(userId, { config: { currentProjectId } });
     await this.sessionService.updateStorageById(session.storageId, { currentProjectId });
