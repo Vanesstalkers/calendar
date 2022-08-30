@@ -3,9 +3,7 @@ import * as sequelize from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
-import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
-import { Session as FastifySession } from '@fastify/secure-session';
+import { Cron } from '@nestjs/schedule';
 import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
 
 import * as parser from 'cron-parser';
@@ -191,6 +189,9 @@ export class TaskService {
   }
 
   async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
+    const where = [`task.id = :id`];
+    if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
+
     const simpleSQL = config.attributes?.length
       ? `--sql
       SELECT ${config.attributes.join(',')} 
@@ -198,8 +199,7 @@ export class TaskService {
       LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
                 t2u."taskId" = task.id AND      
                 t2u."userId" = :userId
-      WHERE     task."deleteTime" IS NULL AND      
-                task.id = :id
+      WHERE     ${where.join(' AND ')}
       LIMIT    
                 1
     `
@@ -227,7 +227,8 @@ export class TaskService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    role
+                                    SELECT    id
+                                            , role
                                             , "userId"
                                             , status
                                     FROM      "task_to_user" AS t2u
@@ -433,8 +434,13 @@ export class TaskService {
             't."deleteTime" IS NULL', // НЕ удалена
             '"projectId" = :projectId', // принадлежит проекту
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
-            't."startTime" IS NULL', // НЕ указано время начала
-            't."endTime" IS NULL', // НЕ указано время окончания
+            [
+              't."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
+              `t2u."role" = 'exec' AND t2u."status" != 'confirm'`, // задача не принята в работу
+              `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'ready'`, // нужен контроль исполнения назначенной исполнителю задачи
+            ]
+              .map((item) => `(${item})`)
+              .join(' OR '),
             't2u."userId" = :myId', // пользователь назначен исполнителем
           ];
           break;
@@ -480,6 +486,7 @@ export class TaskService {
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
         `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+        `t2u."status" = 'confirm'`, // задача принята в работу
         't."endTime" >= NOW()', // задача НЕ просрочена
         't."endTime" >= :scheduleFrom::timestamp', // удовлетворяет запросу
         `t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`, // удовлетворяет запросу
@@ -713,4 +720,23 @@ export class TaskService {
 
     return result;
   }
+
+  @Cron('0 * * * * *')
+  async checkForDeleteFinished() {
+    console.log('checkForDeleteFinished', new Date().toISOString());
+    await this.sequelize
+      .query(
+        `--sql
+        UPDATE task SET "deleteTime" = NOW() WHERE id IN (
+          SELECT t.id FROM "task" AS t, "user" AS u
+          WHERE u.id = t."ownUserId"
+            AND u.config ->> 'autoDeleteFinished' IS NOT NULL
+            AND t."execEndTime" + CONCAT(CAST(u.config ->> 'autoDeleteFinished' AS INTEGER), 'seconds')::interval < NOW()
+            AND t."deleteTime" IS NULL
+        )
+        `,
+      )
+      .catch(exception.dbErrorCatcher);
+  }
+
 }

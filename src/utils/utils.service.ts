@@ -44,7 +44,7 @@ export class UtilsService {
       let replaceValue = value,
         dbHandler = false;
       if (handlers[key]) {
-        const handlerResult = await handlers[key](value, transaction);
+        const handlerResult = await handlers[key](value, transaction) || {};
         if (handlerResult.preventDefault) continue;
         if (handlerResult.replaceValue) replaceValue = handlerResult.replaceValue;
         //if (handlerResult.dbHandler) dbHandler = handlerResult.dbHandler;

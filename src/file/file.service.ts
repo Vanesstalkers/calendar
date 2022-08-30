@@ -64,11 +64,6 @@ export class FileService {
   }
 
   async getTheOne(data: { id: number }, config: types['getOneConfig'] = {}) {
-    if (config.checkExists) {
-      config.include = false;
-      config.attributes = ['id'];
-    }
-
     const findData = await this.modelFile
       .findOne({ where: { id: data.id }, attributes: config.attributes })
       .catch(exception.dbErrorCatcher);
@@ -76,6 +71,6 @@ export class FileService {
   }
 
   async checkExists(id: number) {
-    return (await this.getTheOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher)) ? true : false;
+    return (await this.getTheOne({ id }, { attributes: ['id'] }).catch(exception.dbErrorCatcher)) ? true : false;
   }
 }

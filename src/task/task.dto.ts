@@ -197,8 +197,10 @@ export class Hashtag extends sequelize.Model {
 }
 
 export class taskUserLinkDTO {
+  @swagger.ApiProperty({ description: 'ID связи' })
+  id?: number;
   @swagger.ApiProperty({ description: 'ID пользователя' })
-  userId: number;
+  userId?: number;
   @swagger.ApiPropertyOptional({ description: 'Роль в задаче', type: 'string', example: '', enum: ['', 'exec'] })
   role?: string;
   @swagger.ApiPropertyOptional({
@@ -342,6 +344,11 @@ export class taskUpdateQueryDTO {
   taskData: taskUpdateDTO;
 }
 
+export class taskExecuteQueryDTO {
+  @swagger.ApiProperty({ description: 'ID Задачи', example: 0 })
+  taskId: number;
+}
+
 export class taskUpdateUserStatusQueryDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   taskId: number;
@@ -359,6 +366,23 @@ export class taskUpdateUserStatusQueryDTO {
 export class taskDeleteQueryDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   taskId: number;
+}
+
+export class taskRestoreQueryDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  taskId: number;
+}
+
+export class taskResetUsersDataDTO {
+  @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkDTO] })
+  userList?: taskUserLinkDTO[];
+}
+
+export class taskResetUsersQueryDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  taskId: number;
+  @swagger.ApiProperty({ type: taskResetUsersDataDTO })
+  taskData: taskResetUsersDataDTO;
 }
 
 export class taskDeleteUserQueryDTO {

@@ -55,7 +55,7 @@ export class ProjectService {
           for (const link of arr) {
             if (link.personal) delete link.personal;
             if (config.personalProject) link.personal = true;
-            const userLink = await this.getUserLink(link.userId, projectId, { checkExists: true });
+            const userLink = await this.getUserLink(link.userId, projectId, { attributes: ['id'] });
             if (!userLink) {
               await this.createUserLink(projectId, link.userId, link, transaction);
             } else {
@@ -70,11 +70,6 @@ export class ProjectService {
   }
 
   async getOne(data: { id: number }, config: types['getOneConfig'] = {}) {
-    if (config.checkExists) {
-      config.include = false;
-      config.attributes = ['id'];
-    }
-
     const findData = await this.sequelize
       .query(
         `--sql
@@ -94,7 +89,10 @@ export class ProjectService {
                                             , "timeType"
                                             , "require"
                                             , "regular"
-                                            , (${sql.project.getUserLink({ projectId: ':id', userId: '"ownUserId"' }, { addUserData: true })}) AS "ownUser"
+                                            , (${sql.project.getUserLink(
+                                              { projectId: ':id', userId: '"ownUserId"' },
+                                              { addUserData: true },
+                                            )}) AS "ownUser"
                                             , array(
                                               SELECT    row_to_json(ROW)
                                               FROM      (
@@ -184,7 +182,7 @@ export class ProjectService {
   }
 
   async getUserLink(userId: number, projectId: number, config: types['getOneConfig'] = {}) {
-    if (!config.attributes) config.attributes = config.checkExists ? ['id'] : ['*'];
+    if (!config.attributes) config.attributes = ['*'];
     const findData = await this.sequelize
       .query(
         `--sql
@@ -199,7 +197,7 @@ export class ProjectService {
   }
 
   async checkUserLinkExists(userId: number, projectId: number) {
-    const link = await this.getUserLink(userId, projectId, { checkExists: true }).catch(exception.dbErrorCatcher);
+    const link = await this.getUserLink(userId, projectId, { attributes: ['id'] }).catch(exception.dbErrorCatcher);
     return link ? true : false;
   }
 }

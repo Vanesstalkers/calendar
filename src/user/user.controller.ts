@@ -239,7 +239,7 @@ export class UserController {
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
     const userId = await this.sessionService.getUserId(session);
-    const userLink = await this.projectService.getUserLink(userId, projectId, { checkExists: true });
+    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id'] });
     if (!userLink)
       throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
 

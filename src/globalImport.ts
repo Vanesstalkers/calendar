@@ -77,7 +77,7 @@ export const interceptors = {
 };
 
 export type types = {
-  getOneConfig: { checkExists?: boolean; include?: boolean; attributes?: string[] };
+  getOneConfig: { canBeDeleted?: boolean; include?: boolean; attributes?: string[] };
   session: {
     storage: sessionStorageDTO;
   };

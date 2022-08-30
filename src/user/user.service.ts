@@ -23,11 +23,6 @@ export class UserService {
   ) {}
 
   async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
-    if (config.checkExists) {
-      config.include = false;
-      config.attributes = ['id'];
-    }
-
     const findData = await this.sequelize
       .query(
         `--sql
@@ -162,9 +157,6 @@ export class UserService {
     return result;
   }
   async getContact(userId: number, contactId: number, config: types['getOneConfig'] = {}) {
-    if (config.checkExists) {
-      config.attributes = ['id'];
-    }
     const findData = await this.sequelize
       .query(
         `--sql
@@ -178,7 +170,7 @@ export class UserService {
     return findData[0] || null;
   }
   async checkContactExists(userId: number, contactId: number) {
-    const contact = await this.getContact(userId, contactId, { checkExists: true }).catch(exception.dbErrorCatcher);
+    const contact = await this.getContact(userId, contactId, { attributes: ['id'] }).catch(exception.dbErrorCatcher);
     return contact ? true : false;
   }
 }

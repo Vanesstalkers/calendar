@@ -1,5 +1,6 @@
 import { Module, NestModule, DynamicModule, Global, CacheModule } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
+import { ScheduleModule } from '@nestjs/schedule';
 import { models } from './globalImport';
 
 import config from './config';
@@ -60,6 +61,7 @@ try {
     CommentModule,
     FileModule,
     UtilsModule,
+    ScheduleModule.forRoot(),
     SequelizeModule.forFeature([
       models.user,
       models.project,
