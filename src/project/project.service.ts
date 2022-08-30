@@ -8,7 +8,7 @@ import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
 
-import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectToUserDTO } from './project.dto';
+import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectUserLinkDTO } from './project.dto';
 
 import { UtilsService } from '../utils/utils.service';
 
@@ -57,7 +57,7 @@ export class ProjectService {
             if (config.personalProject) link.personal = true;
             const userLink = await this.getUserLink(link.userId, projectId, { attributes: ['id'] });
             if (!userLink) {
-              await this.createUserLink(projectId, link.userId, link, transaction);
+              await this.upsertLinkToUser(projectId, link.userId, link, transaction);
             } else {
               await this.updateUserLink(userLink.id, link, transaction);
             }
@@ -170,25 +170,20 @@ export class ProjectService {
     return findData ? true : false;
   }
 
-  async createUserLink(
-    projectId: number,
-    userId: number,
-    linkData: types['models']['project2user'],
-    transaction?: Transaction,
-  ) {
+  async upsertLinkToUser(projectId: number, userId: number, linkData: projectUserLinkDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
     const link = await this.projectToUserModel
-      .create({ projectId, userId }, { transaction })
+      .upsert({ projectId, userId }, { conflictFields: ['projectId', 'userId'], transaction })
       .catch(exception.dbErrorCatcher);
-    await this.updateUserLink(link.id, linkData, transaction);
+    await this.updateUserLink(link[0].id, linkData, transaction);
 
     if (createTransaction) await transaction.commit();
-    return link;
+    return link[0];
   }
 
-  async updateUserLink(linkId: number, updateData: projectToUserDTO, transaction?: Transaction) {
+  async updateUserLink(linkId: number, updateData: projectUserLinkDTO, transaction?: Transaction) {
     await this.utils.updateDB({ table: 'project_to_user', id: linkId, data: updateData, transaction });
   }
 

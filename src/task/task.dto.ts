@@ -2,7 +2,7 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
-import { projectToUserDTO, projectToUserGetOneDTO } from '../project/project.dto';
+import { projectUserLinkDTO, projectToUserGetOneDTO } from '../project/project.dto';
 import { fileListItemDTO } from '../file/file.dto';
 import { commentListItemDTO } from '../comment/comment.dto';
 
@@ -415,7 +415,7 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
   @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })
-  ownUser: projectToUserDTO;
+  ownUser: projectUserLinkDTO;
   @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
   fileList: fileListItemDTO[];
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskGetOneQueryDataTickDTO] })

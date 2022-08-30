@@ -62,7 +62,7 @@ export class TaskController {
   async validateAndReturnTask(taskId: number, userId: number, config: { canBeDeleted?: boolean } = {}) {
     const task = await this.taskService.getOne(
       { id: taskId },
-      { attributes: ['task."id"', 'task."ownUserId"'], canBeDeleted: config.canBeDeleted },
+      { attributes: ['task."id"', 'task."projectId"', 'task."ownUserId"'], canBeDeleted: config.canBeDeleted },
     );
     if (!task) throw new nestjs.BadRequestException(`Task (id=${taskId}) not exist`);
     const userLink = await this.taskService.getUserLink(taskId, userId);
@@ -87,6 +87,12 @@ export class TaskController {
     const userId = await this.sessionService.getUserId(session);
     data.taskData.ownUserId = userId;
     for (const link of data.taskData.userList) {
+      const userLink = await this.projectService.getUserLink(link.userId, data.projectId, { attributes: ['id'] });
+      if (!userLink)
+        throw new nestjs.BadRequestException(
+          `User (id=${link.userId}) is not a member of project (id=${data.projectId}).`,
+        );
+
       if (!link.role) link.role = 'exec';
       if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
     }
@@ -140,6 +146,12 @@ export class TaskController {
 
     if (!data.taskData.userList) data.taskData.userList = [];
     for (const link of data.taskData.userList) {
+      const userLink = await this.projectService.getUserLink(link.userId, task.projectId, { attributes: ['id'] });
+      if (!userLink)
+        throw new nestjs.BadRequestException(
+          `User (id=${link.userId}) is not a member of project (id=${task.projectId}).`,
+        );
+
       if (!link.role) link.role = 'exec';
       if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
       link.deleteTime = null;

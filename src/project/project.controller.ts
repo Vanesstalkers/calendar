@@ -39,7 +39,9 @@ export class ProjectController {
   async validateUserLinkAndReturn(id: number, data: { userId?: number; session?: FastifySession }) {
     if (!id) throw new nestjs.BadRequestException('Project ID is empty');
     const userId = data.userId || (await this.sessionService.getUserId(data.session));
-    const userLink = await this.projectService.getUserLink(userId, id, { attributes: ['id', 'role'] });
+    const userLink = await this.projectService.getUserLink(userId, id, {
+      attributes: ['id', 'role', '"userId"', 'personal'],
+    });
     if (!userLink) throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${id}).`);
     return userLink;
   }
@@ -63,7 +65,7 @@ export class ProjectController {
   async getOne(@nestjs.Query() data: projectGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
     await this.validateUserLinkAndReturn(projectId, { session });
-    
+
     const userId = await this.sessionService.getUserId(session);
     const result = await this.projectService.getOne({ id: projectId, userId });
     return { ...httpAnswer.OK, data: result };
@@ -117,7 +119,7 @@ export class ProjectController {
 
   @nestjs.Delete('deleteUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.success({models: [projectDeleteUserAnswerDTO]}))
+  @swagger.ApiResponse(new interfaces.response.success({ models: [projectDeleteUserAnswerDTO] }))
   async deleteUser(@nestjs.Body() data: projectDeleteUserQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
     const userId = data.userId;

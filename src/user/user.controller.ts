@@ -142,6 +142,13 @@ export class UserController {
     return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } };
   }
 
+  @nestjs.Post('logout')
+  async logout(@nestjs.Session() session: FastifySession) {
+    const storageId = session.storageId;
+    await this.sessionService.updateStorageById(storageId, { login: false });
+    return httpAnswer.OK;
+  }
+
   @nestjs.Post('auth')
   @swagger.ApiResponse(
     new interfaces.response.success({
