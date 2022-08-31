@@ -197,20 +197,27 @@ export class Hashtag extends sequelize.Model {
 }
 
 export class taskUserLinkDTO {
-  @swagger.ApiProperty({ description: 'ID связи' })
-  id?: number;
   @swagger.ApiProperty({ description: 'ID пользователя' })
   userId?: number;
-  @swagger.ApiPropertyOptional({ description: 'Роль в задаче', type: 'string', example: '', enum: ['', 'exec'] })
+  @swagger.ApiPropertyOptional({
+    description: 'Роль в задаче',
+    type: 'string',
+    example: '',
+    enum: ['', 'exec', 'control'],
+  })
   role?: string;
   @swagger.ApiPropertyOptional({
     description: 'Статус задачи (для пользователя)',
     type: 'string',
     example: '',
-    enum: ['wait_for_confirm', 'confirm'],
+    enum: [null, 'exec_ready', 'control_ready'],
   })
   status?: string;
   deleteTime?: Date;
+}
+export class taskUserLinkFullDTO extends taskUserLinkDTO {
+  @swagger.ApiProperty({ description: 'ID связи' })
+  id?: number;
 }
 
 export class taskTickDTO {
@@ -352,13 +359,13 @@ export class taskExecuteQueryDTO {
 export class taskUpdateUserStatusQueryDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   taskId: number;
-  @swagger.ApiProperty({ description: 'ID пользователя' })
+  @swagger.ApiPropertyOptional({ description: 'ID пользователя' })
   userId: number;
   @swagger.ApiProperty({
     description: 'Статус задачи (для пользователя)',
     type: 'string',
-    example: 'confirm',
-    enum: ['wait_for_confirm', 'confirm'],
+    example: 'exec_ready',
+    enum: [null, 'exec_ready', 'control_ready'],
   })
   status: string;
 }
@@ -416,6 +423,8 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
   projectId: number;
   @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })
   ownUser: projectUserLinkDTO;
+  @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkFullDTO] })
+  userList?: taskUserLinkFullDTO[];
   @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
   fileList: fileListItemDTO[];
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskGetOneQueryDataTickDTO] })

@@ -27,6 +27,7 @@ import {
   taskGetAllQueryExecutorsDTO,
   taskGetAllQuerySwaggerI,
   taskSearchQueryDTO,
+  taskUserLinkFullDTO,
 } from './task.dto';
 
 import { TaskService } from './task.service';
@@ -94,7 +95,7 @@ export class TaskController {
         );
 
       if (!link.role) link.role = 'exec';
-      if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
+      if (!link.status && link.userId === userId) link.status = 'exec_ready';
     }
     const task = await this.taskService.create(data.projectId, data.taskData).catch(exception.dbErrorCatcher);
     return { ...httpAnswer.OK, data: { id: task.id } };
@@ -141,10 +142,12 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskUpdateQueryDTO) {
+    if (!data.taskData) data.taskData = {};
+    if (!data.taskData.userList) data.taskData.userList = [];
     const userId = await this.sessionService.getUserId(session);
     const task = await this.validateAndReturnTask(data.taskId, userId);
 
-    if (!data.taskData.userList) data.taskData.userList = [];
+    // проверка обновления связей задача-пользователь
     for (const link of data.taskData.userList) {
       const userLink = await this.projectService.getUserLink(link.userId, task.projectId, { attributes: ['id'] });
       if (!userLink)
@@ -152,19 +155,28 @@ export class TaskController {
           `User (id=${link.userId}) is not a member of project (id=${task.projectId}).`,
         );
 
+      // дефолтные значения для связи
       if (!link.role) link.role = 'exec';
-      if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
-      link.deleteTime = null;
+      if (!link.status && link.userId === userId) link.status = 'exec_ready';
     }
+
+    // изменение startTime/endTime создателем задачи (от всех исполнителей требуется подтверждение приема задачи в работу)
     if (userId === task.ownUserId && (data.taskData.startTime !== undefined || data.taskData.endTime !== undefined)) {
       const { userList = [] } = await this.taskService.getOne({ id: data.taskId });
       for (const link of userList) {
-        data.taskData.userList.push({ userId: link.userId, status: 'wait_for_confirm' });
+        if (link.userId !== userId) {
+          // для создателя задачи повторное подтверждение не требуется
+          data.taskData.userList.push({ userId: link.userId, status: null });
+        }
       }
     }
+    // при завершении задачи исполнителем назначаем создателя контролером
     if (data.taskData.execEndTime) {
       const { userList = [] } = await this.taskService.getOne({ id: data.taskId });
-      if (userList.length === 1 && !userList.find((link) => link.userId === task.ownUserId)) {
+      if (
+        userList.filter((link: taskUserLinkFullDTO) => link.role === 'exec').length === 1 &&
+        !userList.find((link: taskUserLinkFullDTO) => link.userId === task.ownUserId)
+      ) {
         await this.taskService.upsertLinkToUser(data.taskId, task.ownUserId, { role: 'control' });
       }
     }
@@ -187,7 +199,8 @@ export class TaskController {
   @nestjs.Post('updateUserStatus')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
-  async updateUserStatus(@nestjs.Body() data: taskUpdateUserStatusQueryDTO) {
+  async updateUserStatus(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskUpdateUserStatusQueryDTO) {
+    if (!data.userId) data.userId = await this.sessionService.getUserId(session);
     const { userLink } = await this.validateAndReturnTask(data.taskId, data.userId);
     await this.taskService.updateUserLink(userLink.id, { userId: data.userId, status: data.status });
     return httpAnswer.OK;
@@ -221,20 +234,28 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
   async resetUserList(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskResetUsersQueryDTO) {
+    if (!data.taskData) data.taskData = {};
+    if (!data.taskData.userList) data.taskData.userList = [];
+
     if (!data.taskId) throw new nestjs.BadRequestException('Task ID is empty');
-    if (!data.taskData?.userList?.length) throw new nestjs.BadRequestException('User list is empty');
+    if (!data.taskData.userList.length) throw new nestjs.BadRequestException('User list is empty');
     const userId = await this.sessionService.getUserId(session);
-    const { ownUserId } = await this.validateAndReturnTask(data.taskId, userId);
+    const { projectId, ownUserId } = await this.validateAndReturnTask(data.taskId, userId);
     if (ownUserId !== userId) throw new nestjs.BadRequestException(`User (id=${userId}) is not task owner`);
 
     const { userList = [] } = await this.taskService.getOne({ id: data.taskId });
+    // удаляем текущих пользователей из задачи
     for (const link of userList) {
       await this.taskService.updateUserLink(link.id, { deleteTime: new Date() });
     }
+    // добавляем новыех пользователей к задаче
     for (const link of data.taskData.userList) {
+      const userLink = await this.projectService.getUserLink(link.userId, projectId, { attributes: ['id'] });
+      if (!userLink)
+        throw new nestjs.BadRequestException(`User (id=${link.userId}) is not a member of project (id=${projectId}).`);
+
       if (!link.role) link.role = 'exec';
-      if (!link.status) link.status = link.userId === userId ? 'confirm' : 'wait_for_confirm';
-      link.deleteTime = null;
+      if (!link.status && link.userId === userId) link.status = 'exec_ready';
       await this.taskService.upsertLinkToUser(data.taskId, link.userId, link);
     }
     return httpAnswer.OK;

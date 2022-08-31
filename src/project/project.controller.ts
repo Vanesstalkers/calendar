@@ -8,6 +8,7 @@ import {
   projectCreateQueryDTO,
   projectUpdateQueryDTO,
   projectUpdateUserQueryDTO,
+  projectTransferQueryDTO,
   projectGetOneQueryDTO,
   projectGetOneAnswerDTO,
   projectAddUserQueryDTO,
@@ -16,6 +17,7 @@ import {
 } from './project.dto';
 
 import { ProjectService } from './project.service';
+import { ProjectTransferService } from './transfer.service';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
@@ -30,6 +32,7 @@ import { UtilsService } from '../utils/utils.service';
 export class ProjectController {
   constructor(
     private projectService: ProjectService,
+    private transferService: ProjectTransferService,
     private userService: UserService,
     private sessionService: SessionService,
     private fileService: FileService,
@@ -82,6 +85,38 @@ export class ProjectController {
     return httpAnswer.OK;
   }
 
+  @nestjs.Post('transfer')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async transfer(@nestjs.Body() data: projectTransferQueryDTO, @nestjs.Session() session: FastifySession) {
+    const projectId = data.projectId;
+    const toUserId = data.userId;
+
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    if (!toUserId) throw new nestjs.BadRequestException('User ID is empty');
+
+    const toUserLink = await this.validateUserLinkAndReturn(projectId, { userId: toUserId });
+    const fromUserLink = await this.validateUserLinkAndReturn(projectId, { session });
+    if (!fromUserLink)
+      throw new nestjs.BadRequestException(
+        `User (id=${fromUserLink.userId}) is not a member of project (id=${projectId}).`,
+      );
+    if (fromUserLink.personal) throw new nestjs.BadRequestException('Access denied to delete personal project');
+    if (fromUserLink.role != 'owner')
+      throw new nestjs.BadRequestException(`User (id=${fromUserLink.userId}) is not project owner.`);
+
+    await this.transferService.execute({ projectId, toUserLink, fromUserLink });
+
+    const sessionState = await this.sessionService.getState(session);
+    if (projectId !== sessionState.currentProjectId) {
+      return httpAnswer.OK;
+    } else {
+      const user = await this.userService.getOne({ id: fromUserLink.userId });
+      const personalProject = user.projectList.find((project) => project.personal);
+      return { ...httpAnswer.OK, data: { redirectProjectId: personalProject.projectId } };
+    }
+  }
+
   @nestjs.Post('updateUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
@@ -113,7 +148,7 @@ export class ProjectController {
     if (!userExist) throw new nestjs.BadRequestException(`User (id=${userId}) does not exist`);
     await this.validateUserLinkAndReturn(projectId, { session });
 
-    await this.projectService.update(projectId, { userList: [{ role: 'member', userId, deleteTime: null }] });
+    await this.projectService.update(projectId, { userList: [{ role: 'member', userId }] });
     return httpAnswer.OK;
   }
 
@@ -125,8 +160,11 @@ export class ProjectController {
     const userId = data.userId;
     const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
 
+    if (userLink.personal) throw new nestjs.BadRequestException('Access denied to delete personal project');
     if (userLink.role === 'owner')
-      throw new nestjs.BadRequestException(`Invalid action. User (id=${userId}) is project owner.`);
+      throw new nestjs.BadRequestException(
+        `Invalid action. User (id=${userId}) is project owner (transfer project first).`,
+      );
     await this.projectService.updateUserLink(userLink.id, { deleteTime: new Date() });
 
     const sessionState = await this.sessionService.getState(session);

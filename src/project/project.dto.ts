@@ -114,6 +114,13 @@ export class projectUpdateUserQueryDTO {
   iconFile: types['models']['file'];
 }
 
+export class projectTransferQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
+}
+
 export class projectGetOneQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;

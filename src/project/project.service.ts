@@ -184,6 +184,7 @@ export class ProjectService {
   }
 
   async updateUserLink(linkId: number, updateData: projectUserLinkDTO, transaction?: Transaction) {
+    if(!updateData.deleteTime) updateData.deleteTime = null;
     await this.utils.updateDB({ table: 'project_to_user', id: linkId, data: updateData, transaction });
   }
 

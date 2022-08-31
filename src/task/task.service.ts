@@ -11,7 +11,7 @@ import * as parser from 'cron-parser';
 import {
   taskFullDTO,
   taskUpdateDTO,
-  taskUserLinkDTO,
+  taskUserLinkFullDTO,
   taskTickDTO,
   taskHashtagDTO,
   taskGetAllQueryDTO,
@@ -58,8 +58,8 @@ export class TaskService {
       data: updateData,
       jsonKeys: ['regular'],
       handlers: {
-        userList: async (value: [taskUserLinkDTO]) => {
-          const arr: taskUserLinkDTO[] = Array.from(value);
+        userList: async (value: [taskUserLinkFullDTO]) => {
+          const arr: taskUserLinkFullDTO[] = Array.from(value);
           for (const link of arr) {
             await this.upsertLinkToUser(taskId, link.userId, link, transaction);
           }
@@ -310,7 +310,7 @@ export class TaskService {
     return findData[0] || null;
   }
 
-  async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkDTO, transaction?: Transaction) {
+  async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkFullDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
@@ -322,7 +322,8 @@ export class TaskService {
     if (createTransaction) await transaction.commit();
     return link[0];
   }
-  async updateUserLink(linkId: number, updateData: taskUserLinkDTO, transaction?: Transaction) {
+  async updateUserLink(linkId: number, updateData: taskUserLinkFullDTO, transaction?: Transaction) {
+    if(!updateData.deleteTime) updateData.deleteTime = null;
     await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
   }
   async getUserLink(taskId: number, userId: number) {
@@ -440,7 +441,7 @@ export class TaskService {
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
             [
               't."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
-              `t2u."role" = 'exec' AND t2u."status" != 'confirm'`, // задача не принята в работу
+              `t2u."role" = 'exec' AND t2u."status" != 'exec_ready'`, // задача не принята в работу
               `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'ready'`, // нужен контроль исполнения назначенной исполнителю задачи
             ]
               .map((item) => `(${item})`)
@@ -490,7 +491,7 @@ export class TaskService {
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
         `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
-        `t2u."status" = 'confirm'`, // задача принята в работу
+        `t2u."status" = 'exec_ready'`, // задача принята в работу
         't."endTime" >= NOW()', // задача НЕ просрочена
         't."endTime" >= :scheduleFrom::timestamp', // удовлетворяет запросу
         `t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`, // удовлетворяет запросу
