@@ -3,9 +3,7 @@ import * as sequelize from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
-import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
-import { Session as FastifySession } from '@fastify/secure-session';
+import { Cron } from '@nestjs/schedule';
 import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
 
 import * as parser from 'cron-parser';
@@ -13,7 +11,7 @@ import * as parser from 'cron-parser';
 import {
   taskFullDTO,
   taskUpdateDTO,
-  taskUserLinkDTO,
+  taskUserLinkFullDTO,
   taskTickDTO,
   taskHashtagDTO,
   taskGetAllQueryDTO,
@@ -38,8 +36,15 @@ export class TaskService {
   async create(projectId: number, taskData: taskFullDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
-
-    const task = await this.taskModel.create({ projectId }, { transaction }).catch(exception.dbErrorCatcher);
+    const createData = await this.sequelize
+      .query(
+        `
+        INSERT INTO task ("projectId", "addTime", "updateTime") VALUES (:projectId, NOW(), NOW()) RETURNING id;
+      `,
+        { type: QueryTypes.INSERT, replacements: { projectId }, transaction },
+      )
+      .catch(exception.dbErrorCatcher);
+    const task = createData[0][0];
     await this.update(task.id, taskData, transaction);
 
     if (createTransaction) await transaction.commit();
@@ -51,9 +56,10 @@ export class TaskService {
       table: 'task',
       id: taskId,
       data: updateData,
+      jsonKeys: ['regular'],
       handlers: {
-        userList: async (value: [taskUserLinkDTO]) => {
-          const arr: taskUserLinkDTO[] = Array.from(value);
+        userList: async (value: [taskUserLinkFullDTO]) => {
+          const arr: taskUserLinkFullDTO[] = Array.from(value);
           for (const link of arr) {
             await this.upsertLinkToUser(taskId, link.userId, link, transaction);
           }
@@ -183,6 +189,9 @@ export class TaskService {
   }
 
   async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
+    const where = [`task.id = :id`];
+    if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
+
     const simpleSQL = config.attributes?.length
       ? `--sql
       SELECT ${config.attributes.join(',')} 
@@ -190,8 +199,7 @@ export class TaskService {
       LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
                 t2u."taskId" = task.id AND      
                 t2u."userId" = :userId
-      WHERE     task."deleteTime" IS NULL AND      
-                task.id = :id
+      WHERE     ${where.join(' AND ')}
       LIMIT    
                 1
     `
@@ -219,7 +227,8 @@ export class TaskService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    role
+                                    SELECT    id
+                                            , role
                                             , "userId"
                                             , status
                                     FROM      "task_to_user" AS t2u
@@ -301,7 +310,7 @@ export class TaskService {
     return findData[0] || null;
   }
 
-  async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkDTO, transaction?: Transaction) {
+  async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkFullDTO, transaction?: Transaction) {
     const createTransaction = !transaction;
     if (createTransaction) transaction = await this.sequelize.transaction();
 
@@ -313,7 +322,8 @@ export class TaskService {
     if (createTransaction) await transaction.commit();
     return link[0];
   }
-  async updateUserLink(linkId: number, updateData: taskUserLinkDTO, transaction?: Transaction) {
+  async updateUserLink(linkId: number, updateData: taskUserLinkFullDTO, transaction?: Transaction) {
+    if(!updateData.deleteTime) updateData.deleteTime = null;
     await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
   }
   async getUserLink(taskId: number, userId: number) {
@@ -368,9 +378,12 @@ export class TaskService {
   async search(data: taskSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const hashFlag = /^#/.test(data.query);
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
-    const sqlWhere = hashFlag
-      ? ' h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query) '
-      : ' (LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query)) ';
+    const sqlWhere = [`t2u."userId" = :userId OR t."ownUserId" = :userId`];
+    if (hashFlag) {
+      sqlWhere.push('h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)');
+    } else {
+      sqlWhere.push('(LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query))');
+    }
     if (hashFlag) {
       data.query = data.query.replace('#', '');
     }
@@ -381,9 +394,9 @@ export class TaskService {
                 SELECT    t.id,
                           t.title                        
                 FROM      "task" t ${hashTable}
-                
+                LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
                 WHERE     t."projectId" = :projectId AND 
-                          ${sqlWhere}
+                          ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
                 LIMIT    
                           :limit
                 OFFSET    
@@ -392,6 +405,7 @@ export class TaskService {
         {
           replacements: {
             query: `%${(data.query || '').trim()}%`,
+            userId: data.userId,
             projectId: data.projectId,
             limit: data.limit + 1,
             offset: data.offset,
@@ -425,8 +439,13 @@ export class TaskService {
             't."deleteTime" IS NULL', // НЕ удалена
             '"projectId" = :projectId', // принадлежит проекту
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
-            't."startTime" IS NULL', // НЕ указано время начала
-            't."endTime" IS NULL', // НЕ указано время окончания
+            [
+              't."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
+              `t2u."role" = 'exec' AND t2u."status" != 'exec_ready'`, // задача не принята в работу
+              `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'ready'`, // нужен контроль исполнения назначенной исполнителю задачи
+            ]
+              .map((item) => `(${item})`)
+              .join(' OR '),
             't2u."userId" = :myId', // пользователь назначен исполнителем
           ];
           break;
@@ -472,6 +491,7 @@ export class TaskService {
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
         `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+        `t2u."status" = 'exec_ready'`, // задача принята в работу
         't."endTime" >= NOW()', // задача НЕ просрочена
         't."endTime" >= :scheduleFrom::timestamp', // удовлетворяет запросу
         `t."endTime" <= :scheduleTo::timestamp + '1 day'::interval`, // удовлетворяет запросу
@@ -704,5 +724,23 @@ export class TaskService {
       result.resultList = result.resultList.map((task) => ({ ...taskMap[task.id], ...task }));
 
     return result;
+  }
+
+  //@Cron('0 * * * * *')
+  async checkForDeleteFinished() {
+    console.log('checkForDeleteFinished', new Date().toISOString());
+    await this.sequelize
+      .query(
+        `--sql
+        UPDATE task SET "deleteTime" = NOW() WHERE id IN (
+          SELECT t.id FROM "task" AS t, "user" AS u
+          WHERE u.id = t."ownUserId"
+            AND u.config ->> 'autoDeleteFinished' IS NOT NULL
+            AND t."execEndTime" + CONCAT(CAST(u.config ->> 'autoDeleteFinished' AS INTEGER), 'seconds')::interval < NOW()
+            AND t."deleteTime" IS NULL
+        )
+        `,
+      )
+      .catch(exception.dbErrorCatcher);
   }
 }

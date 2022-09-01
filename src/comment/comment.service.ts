@@ -36,11 +36,6 @@ export class CommentService {
   }
 
   async getOne(data: { id: number }, config: types['getOneConfig'] = {}) {
-    if (config.checkExists) {
-      config.include = false;
-      config.attributes = ['id'];
-    }
-
     const findData = await this.commentModel
       .findOne({ where: { id: data.id }, attributes: config.attributes })
       .catch(exception.dbErrorCatcher);
@@ -48,6 +43,6 @@ export class CommentService {
   }
 
   async checkExists(id: number) {
-    return (await this.getOne({ id }, { checkExists: true }).catch(exception.dbErrorCatcher)) ? true : false;
+    return (await this.getOne({ id }, { attributes: ['id'] }).catch(exception.dbErrorCatcher)) ? true : false;
   }
 }

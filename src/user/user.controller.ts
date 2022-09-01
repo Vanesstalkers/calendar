@@ -142,6 +142,13 @@ export class UserController {
     return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } };
   }
 
+  @nestjs.Post('logout')
+  async logout(@nestjs.Session() session: FastifySession) {
+    const storageId = session.storageId;
+    await this.sessionService.updateStorageById(storageId, { login: false });
+    return httpAnswer.OK;
+  }
+
   @nestjs.Post('auth')
   @swagger.ApiResponse(
     new interfaces.response.success({
@@ -239,11 +246,11 @@ export class UserController {
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
 
     const userId = await this.sessionService.getUserId(session);
-    const userLink = await this.projectService.getUserLink(userId, projectId, { checkExists: true });
+    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id'] });
     if (!userLink)
       throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
 
-    const project = await this.projectService.getOne({ id: projectId });
+    const project = await this.projectService.getOne({ id: projectId, userId });
     const currentProjectId = project.id;
     await this.userService.update(userId, { config: { currentProjectId } });
     await this.sessionService.updateStorageById(session.storageId, { currentProjectId });

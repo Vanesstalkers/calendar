@@ -114,12 +114,19 @@ export class projectUpdateUserQueryDTO {
   iconFile: types['models']['file'];
 }
 
+export class projectTransferQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
+}
+
 export class projectGetOneQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
 }
 
-export class projectToUserDTO {
+export class projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID сущности-связи project_to_user', type: 'number', example: 0 })
   projectToUserLinkId?: number;
   @swagger.ApiProperty({ description: 'Роль в проекте', type: 'string', example: 'owner', enum: ['owner', 'member'] })
@@ -130,14 +137,14 @@ export class projectToUserDTO {
   personal?: boolean;
   deleteTime?: Date;
 }
-export class userGetOneAnswerProjectDTO extends projectToUserDTO {
+export class userGetOneAnswerProjectDTO extends projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })
   projectId?: number;
   @swagger.ApiPropertyOptional({ description: 'ID файла-иконки в проекте', type: 'number | null', example: 0 })
   userIconFileId?: number;
 }
 
-export class projectToUserGetOneDTO extends projectToUserDTO {
+export class projectToUserGetOneDTO extends projectUserLinkDTO {
   @swagger.ApiPropertyOptional({ description: 'ID файла-иконки в проекте', type: 'number | null', example: 0 })
   userIconFileId?: number;
   @swagger.ApiProperty({ description: 'Основное имя пользователя', type: 'string', example: 'Николай' })
@@ -174,7 +181,7 @@ class projectGetOneAnswerTaskDTO extends taskDTO {
   @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
   taskId?: number;
   @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
-  ownUser: projectToUserDTO;
+  ownUser: projectUserLinkDTO;
   @swagger.ApiProperty({ description: 'Количество комментариев', type: 'number', example: 0 })
   commentCount: number;
   @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })

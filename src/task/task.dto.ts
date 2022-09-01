@@ -2,7 +2,7 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
-import { projectToUserDTO, projectToUserGetOneDTO } from '../project/project.dto';
+import { projectUserLinkDTO, projectToUserGetOneDTO } from '../project/project.dto';
 import { fileListItemDTO } from '../file/file.dto';
 import { commentListItemDTO } from '../comment/comment.dto';
 
@@ -198,17 +198,26 @@ export class Hashtag extends sequelize.Model {
 
 export class taskUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID пользователя' })
-  userId: number;
-  @swagger.ApiPropertyOptional({ description: 'Роль в задаче', type: 'string', example: '', enum: ['', 'exec'] })
+  userId?: number;
+  @swagger.ApiPropertyOptional({
+    description: 'Роль в задаче',
+    type: 'string',
+    example: '',
+    enum: ['', 'exec', 'control'],
+  })
   role?: string;
   @swagger.ApiPropertyOptional({
     description: 'Статус задачи (для пользователя)',
     type: 'string',
     example: '',
-    enum: ['wait_for_confirm', 'confirm'],
+    enum: [null, 'exec_ready', 'control_ready'],
   })
   status?: string;
   deleteTime?: Date;
+}
+export class taskUserLinkFullDTO extends taskUserLinkDTO {
+  @swagger.ApiProperty({ description: 'ID связи' })
+  id?: number;
 }
 
 export class taskTickDTO {
@@ -342,16 +351,21 @@ export class taskUpdateQueryDTO {
   taskData: taskUpdateDTO;
 }
 
+export class taskExecuteQueryDTO {
+  @swagger.ApiProperty({ description: 'ID Задачи', example: 0 })
+  taskId: number;
+}
+
 export class taskUpdateUserStatusQueryDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   taskId: number;
-  @swagger.ApiProperty({ description: 'ID пользователя' })
+  @swagger.ApiPropertyOptional({ description: 'ID пользователя' })
   userId: number;
   @swagger.ApiProperty({
     description: 'Статус задачи (для пользователя)',
     type: 'string',
-    example: 'confirm',
-    enum: ['wait_for_confirm', 'confirm'],
+    example: 'exec_ready',
+    enum: [null, 'exec_ready', 'control_ready'],
   })
   status: string;
 }
@@ -359,6 +373,23 @@ export class taskUpdateUserStatusQueryDTO {
 export class taskDeleteQueryDTO {
   @swagger.ApiProperty({ description: 'ID задачи' })
   taskId: number;
+}
+
+export class taskRestoreQueryDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  taskId: number;
+}
+
+export class taskResetUsersDataDTO {
+  @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkDTO] })
+  userList?: taskUserLinkDTO[];
+}
+
+export class taskResetUsersQueryDTO {
+  @swagger.ApiProperty({ description: 'ID задачи' })
+  taskId: number;
+  @swagger.ApiProperty({ type: taskResetUsersDataDTO })
+  taskData: taskResetUsersDataDTO;
 }
 
 export class taskDeleteUserQueryDTO {
@@ -391,7 +422,9 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
   @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })
-  ownUser: projectToUserDTO;
+  ownUser: projectUserLinkDTO;
+  @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkFullDTO] })
+  userList?: taskUserLinkFullDTO[];
   @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
   fileList: fileListItemDTO[];
   @swagger.ApiProperty({ description: 'Чек-лист', type: [taskGetOneQueryDataTickDTO] })
@@ -403,6 +436,7 @@ export class taskGetOneAnswerDTO extends taskFullDTO {
 }
 
 export class taskSearchQueryDTO {
+  userId?: number;
   projectId?: number;
   @swagger.ApiProperty({ description: 'Строка запроса', example: 'купить | #хэштег' })
   query: string;
