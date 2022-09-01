@@ -726,7 +726,7 @@ export class TaskService {
     return result;
   }
 
-  @Cron('0 * * * * *')
+  //@Cron('0 * * * * *')
   async checkForDeleteFinished() {
     console.log('checkForDeleteFinished', new Date().toISOString());
     await this.sequelize
