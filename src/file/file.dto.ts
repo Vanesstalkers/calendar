@@ -7,39 +7,35 @@ export class File extends sequelize.Model {
   @sequelize.PrimaryKey
   @sequelize.AutoIncrement
   @sequelize.Column
-  id: number;
-
-  @sequelize.Comment('ссылка на вложенный контент')
-  @sequelize.Column
-  link: string;
-
-  @swagger.ApiProperty({ description: 'Тип сущности-родителя', type: 'string', example: 'user' })
-  @sequelize.Column
-  parentType: string;
-
-  @swagger.ApiProperty({ description: 'ID сущности-родителя', type: 'number' })
-  @sequelize.Column
-  parentId: number;
-
-  @swagger.ApiProperty({ description: 'Тип файла', type: 'string', example: 'icon' })
-  @sequelize.Column
-  fileType: string;
+  id?: number;
 
   @sequelize.Column
-  fileName: string;
+  link?: string;
 
   @sequelize.Column
-  fileExtension: string;
+  parentType?: string;
 
   @sequelize.Column
-  fileMimetype: string;
+  parentId?: number;
+
+  @sequelize.Column
+  fileType?: string;
+
+  @sequelize.Column
+  fileName?: string;
+
+  @sequelize.Column
+  fileExtension?: string;
+
+  @sequelize.Column
+  fileMimetype?: string;
 
   @sequelize.CreatedAt
-  addTime: Date;
+  addTime?: Date;
   @sequelize.UpdatedAt
-  updateTime: Date;
+  updateTime?: Date;
   @sequelize.DeletedAt
-  deleteTime: Date;
+  deleteTime?: Date;
 }
 
 export class fileDTO {
@@ -50,13 +46,23 @@ export class fileDTO {
     example: 'user',
   })
   parentType?: string;
-
   @swagger.ApiProperty({ description: 'ID сущности-родителя', type: 'number' })
   parentId?: number;
-
   @swagger.ApiProperty({ description: 'Тип файла', example: 'icon', type: 'string' })
   fileType?: string;
   deleteTime?: Date;
+}
+
+export class fileCreateDTO extends fileDTO {
+  @swagger.ApiProperty({ description: 'Содержимое файла в base64', example: 'iVBORw0KGgoAAAANSUh...' })
+  fileContent?: string;
+  @swagger.ApiProperty({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
+  fileMimetype?: string;
+  @swagger.ApiPropertyOptional({ description: 'Имя файла', type: 'string', example: 'picture.jpg' })
+  fileName?: string;
+  @swagger.ApiPropertyOptional({ description: 'Расширение файла', type: 'string', example: 'jpg' })
+  fileExtension?: string;
+  link?: string;
 }
 
 export class fileListItemDTO {
@@ -66,11 +72,29 @@ export class fileListItemDTO {
   fileType: string;
 }
 
+class fileUploadQueryFileDTO {
+  @swagger.ApiProperty({ description: 'Содержимое файла в base64', example: 'iVBORw0KGgoAAAANSUh...' })
+  fileContent?: string;
+  @swagger.ApiProperty({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
+  fileMimetype?: string;
+  @swagger.ApiPropertyOptional({ description: 'Имя файла', type: 'string', example: 'picture.jpg' })
+  fileName?: string;
+  @swagger.ApiPropertyOptional({ description: 'Расширение файла', type: 'string', example: 'jpg' })
+  fileExtension?: string;
+  link?: string;
+}
+
 export class fileUploadQueryDTO {
   @swagger.ApiProperty({ type: fileDTO })
   fileData: fileDTO;
+  @swagger.ApiProperty({ type: fileUploadQueryFileDTO })
+  file: fileUploadQueryFileDTO;
+}
+export class fileUploadWithFormdataQueryDTO {
+  @swagger.ApiProperty({ type: fileDTO })
+  fileData: fileDTO;
   @swagger.ApiProperty({ type: 'string', format: 'binary' })
-  file: types['models']['file'];
+  file: fileCreateDTO;
 }
 
 export class fileDeleteQueryDTO {

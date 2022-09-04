@@ -8,7 +8,7 @@ import { decorators, interfaces, models, types, httpAnswer, interceptors } from 
 import * as fs from 'node:fs';
 import { join } from 'path';
 
-import { fileUploadQueryDTO } from './file.dto';
+import { fileUploadQueryDTO, fileUploadWithFormdataQueryDTO } from './file.dto';
 
 import { FileService } from './file.service';
 import { UtilsService } from '../utils/utils.service';
@@ -33,25 +33,44 @@ export class FileController {
     if (!id) throw new nestjs.BadRequestException('File ID is empty');
 
     const file = await this.service.getOne(parseInt(id));
-    res.headers({
-      'Content-Type': file.fileMimetype,
-      'Content-Disposition': `filename="${file.fileName}"`,
-    });
 
-    // if (!fs.existsSync('./uploads/' + file.link)) {
-    //   !!! это не работает как надо
-    //   throw new nestjs.InternalServerErrorException({msg: 'File not found on disk'});
-    // } else {
-    const fileStream = fs.createReadStream('./uploads/' + file.link);
-    return new nestjs.StreamableFile(fileStream);
-    // }
+    if (!file || !file.id) throw new nestjs.BadRequestException({ msg: 'File not found' });
+    if (!fs.existsSync('./uploads/' + file.link)) {
+      // !!! неправильный тип ошибки - нужно заменить
+      throw new nestjs.BadRequestException({ msg: 'File not found on disk' });
+    } else {
+      const fileStream = fs.createReadStream('./uploads/' + file.link);
+      res.headers({
+        'Content-Type': file.fileMimetype,
+        'Content-Disposition': `filename="${file.fileName}"`,
+      });
+      return new nestjs.StreamableFile(fileStream);
+    }
   }
 
   @nestjs.Post('upload')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.created())
+  async uploadFile(@nestjs.Body() data: fileUploadQueryDTO) {
+    if (!data.file?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
+    if (!data.file.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
+
+    //if (!data.file.fileMimetype) data.file.fileMimetype = 'image/jpeg';
+    if (!data.file.fileExtension) data.file.fileExtension = (data.file.fileName || '').split('.').pop();
+    if (!data.file.fileName)
+      data.file.fileName = ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.file.fileExtension;
+    data.file.link = './uploads/' + data.file.fileName;
+    fs.writeFileSync(data.file.link, Buffer.from(data.file.fileContent, 'base64'));
+
+    const file = await this.service.create(Object.assign(data.file, data.fileData));
+    return { ...httpAnswer.OK, data: { id: file.id } };
+  }
+
+  @nestjs.Post('uploadWithFormdata')
+  @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.created())
-  async uploadFile(@nestjs.Body() @decorators.Multipart() data: fileUploadQueryDTO): Promise<any> {
+  async uploadWithFormdata(@nestjs.Body() @decorators.Multipart() data: fileUploadWithFormdataQueryDTO) {
     const file = await this.service.create(Object.assign(data.file, data.fileData));
     return { ...httpAnswer.OK, data: { id: file.id } };
   }
@@ -67,7 +86,6 @@ export class FileController {
 
   async validate(id: number) {
     if (!id) throw new nestjs.BadRequestException('File ID is empty');
-    if (!(await this.service.checkExists(id)))
-      throw new nestjs.BadRequestException(`File (id=${id}) does not exist`);
+    if (!(await this.service.checkExists(id))) throw new nestjs.BadRequestException(`File (id=${id}) does not exist`);
   }
 }

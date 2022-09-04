@@ -76,11 +76,14 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() data: taskCreateQueryDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.taskData) data.taskData = {};
+    if (!data.taskData.userList) data.taskData.userList = [];
+
     if (!data.projectId) throw new nestjs.BadRequestException('Project ID is empty');
-    if (!data.taskData.userList?.length) throw new nestjs.BadRequestException('User list is empty');
+    if (!data.taskData.userList.length) throw new nestjs.BadRequestException('User list is empty');
     const projectExists = await this.projectService.checkExists(data.projectId);
     if (!projectExists) throw new nestjs.BadRequestException('Project does not exist');
-    for (const execUser of data.taskData.userList || []) {
+    for (const execUser of data.taskData.userList) {
       const userExists = await this.userService.checkExists(execUser.userId);
       if (!userExists) throw new nestjs.BadRequestException('User does not exist');
     }

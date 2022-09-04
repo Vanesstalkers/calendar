@@ -1,5 +1,6 @@
 import * as nestjs from '@nestjs/common';
 import * as sequelize from '@nestjs/sequelize';
+import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import fastify = require('fastify-multipart');
 import { decorators, interfaces, models, types, exception } from '../globalImport';
@@ -7,7 +8,7 @@ import { decorators, interfaces, models, types, exception } from '../globalImpor
 import * as fs from 'fs';
 
 import { UtilsService } from '../utils/utils.service';
-import { fileDTO, fileDeleteQueryDTO } from './file.dto';
+import { fileDTO, fileCreateDTO, fileDeleteQueryDTO } from './file.dto';
 import { Transaction } from 'sequelize/types';
 
 @nestjs.Injectable()
@@ -23,20 +24,25 @@ export class FileService {
     private utils: UtilsService,
   ) {}
 
-  async getOne(id: number): Promise<types['models']['file']> {
-    const findData = await this.modelFile.findOne({
-      where: {
-        id,
-      },
-      include: { all: true, nested: true },
-    });
-    return findData;
+  async getOne(id: number, config: types['getOneConfig'] = {}) {
+    if (!config.attributes) config.attributes = ['*'];
+    const findData = await this.sequelize
+      .query(
+        `--sql
+        SELECT ${config.attributes.join(',')} 
+        FROM "file"
+        WHERE "id" = :id AND "deleteTime" IS NULL
+      `,
+        { replacements: { id }, type: QueryTypes.SELECT },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0] || null;
   }
 
-  async create(data: types['models']['file']) {
+  async create(data: fileCreateDTO) {
     const uploadDir = 'uploads';
     const now = new Date();
-    let path = [data.parentType, now.getFullYear(), now.getMonth() + 1, now.getDay()].join('/');
+    let path = [data.parentType, now.getFullYear(), now.getMonth() + 1, now.getDate()].join('/');
     const checkPath = uploadDir + '/' + path;
     if (!(await fs.promises.stat(checkPath).catch(() => false)))
       await fs.promises.mkdir(checkPath, { recursive: true });
@@ -63,14 +69,7 @@ export class FileService {
     await this.utils.updateDB({ table: 'file', id: fileId, data: updateData, transaction });
   }
 
-  async getTheOne(data: { id: number }, config: types['getOneConfig'] = {}) {
-    const findData = await this.modelFile
-      .findOne({ where: { id: data.id }, attributes: config.attributes })
-      .catch(exception.dbErrorCatcher);
-    return findData || null;
-  }
-
   async checkExists(id: number) {
-    return (await this.getTheOne({ id }, { attributes: ['id'] }).catch(exception.dbErrorCatcher)) ? true : false;
+    return (await this.getOne(id, { attributes: ['id'] }).catch(exception.dbErrorCatcher)) ? true : false;
   }
 }
