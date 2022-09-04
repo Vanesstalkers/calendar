@@ -220,10 +220,9 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
-                        , (${sql.project.getUserLink(
-                          { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
-                          { addUserData: true },
-                        )}) AS "ownUser"
+                        , (
+                            ${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}
+                          ) AS "ownUser"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -323,7 +322,7 @@ export class TaskService {
     return link[0];
   }
   async updateUserLink(linkId: number, updateData: taskUserLinkFullDTO, transaction?: Transaction) {
-    if(!updateData.deleteTime) updateData.deleteTime = null;
+    if (!updateData.deleteTime) updateData.deleteTime = null;
     await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
   }
   async getUserLink(taskId: number, userId: number) {

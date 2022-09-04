@@ -20,6 +20,7 @@ export const query = {
     if (config.addProjectData) {
       join.push('LEFT JOIN "project" as p ON p.id = p2u."projectId" AND u."deleteTime" IS NULL');
       select.push('p."title"');
+      select.push(`(${sql.file.getIcon('project', 'p')}) AS "projectIconFileId"`);
     }
     const where = ['p2u."deleteTime" IS NULL'];
     if (data.projectId) where.push(`"projectId" = ${data.projectId}`);

@@ -176,6 +176,18 @@ export class UserController {
     if (this.utils.validatePhone(phone))
       throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
+    const storageId = session.storageId;
+    const sessionStorage = await this.sessionService.getStorage(session);
+    const timeout = new Date().getTime() - new Date(sessionStorage.lastAuthAttempt).getTime();
+    const timeoutAmount = 60;
+    if (!data.disableTimeout && timeout < timeoutAmount * 1000)
+      throw new nestjs.BadRequestException({
+        code: 'AUTH_TIMEOUT',
+        msg: `Wait ${timeoutAmount - Math.floor(timeout / 1000)} seconds before next attempt.`,
+      });
+
+    await this.sessionService.updateStorageById(storageId, { lastAuthAttempt: new Date() });
+
     const userExist = await this.userService.getOne({ phone });
     if (userExist) {
       return this.login(data, session);

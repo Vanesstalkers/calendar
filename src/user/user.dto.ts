@@ -11,18 +11,15 @@ export class User extends sequelize.Model {
   @sequelize.Column
   id: number;
 
-  // @swagger.ApiPropertyOptional({description: 'Имя пользователя', example: 'Николай'})
   @sequelize.Column
   name: string;
 
-  // @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   @sequelize.Column
   phone: string;
 
   @sequelize.Column({ allowNull: true })
   position: string;
 
-  //@swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   @sequelize.Column({ allowNull: true })
   timezone: string;
 
@@ -98,6 +95,10 @@ class userConfigWithCurProjectDTO {
 export class userAuthQueryDataDTO {
   @swagger.ApiProperty({ description: 'Номер телефона', example: '9265126677' })
   phone?: string;
+  @swagger.ApiPropertyOptional({ description: 'Имя пользователя', type: 'string', example: 'Николай' })
+  name: string;
+  @swagger.ApiPropertyOptional({ description: 'Таймзона пользователя', example: 'Europe/Saratov' })
+  timezone: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigDTO })
   config?: object;
 }
@@ -106,6 +107,8 @@ export class userAuthQueryDTO {
   userData: userAuthQueryDataDTO;
   @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', type: 'boolean | null', example: true })
   preventSendSms: boolean;
+  @swagger.ApiPropertyOptional({ description: 'Отключить таймаут на вызов метода user/auth', type: 'boolean | null', example: true })
+  disableTimeout: boolean;
 }
 
 export class userGetOneQueryDTO {
@@ -129,7 +132,11 @@ export class userGetOneAnswerDTO {
   name: string;
   @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
   iconFileId: number;
-  @swagger.ApiPropertyOptional({ description: 'Описание контакта', type: 'string | null', example: 'CEO в Wazzup' })
+  @swagger.ApiPropertyOptional({
+    description: 'Описание контакта',
+    type: 'string | null',
+    example: 'Разработчик в Wazzup',
+  })
   position: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone: string;
@@ -182,7 +189,7 @@ export class userUpdateQueryDataDTO {
   phone?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя', example: 'Николай' })
   name?: string;
-  @swagger.ApiPropertyOptional({ description: 'Описание контакта', example: 'CEO в Wazzup' })
+  @swagger.ApiPropertyOptional({ description: 'Описание контакта', example: 'Разработчик в Wazzup' })
   position?: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone?: string;
