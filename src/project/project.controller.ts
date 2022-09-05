@@ -113,7 +113,10 @@ export class ProjectController {
     } else {
       const user = await this.userService.getOne({ id: fromUserLink.userId });
       const personalProject = user.projectList.find((project) => project.personal);
-      return { ...httpAnswer.OK, data: { redirectProjectId: personalProject.projectId } };
+      const redirectProjectId = personalProject.projectId;
+      await this.userService.update(user.id, { config: { currentProjectId: redirectProjectId } });
+      await this.sessionService.updateStorageById(session.storageId, { currentProjectId: redirectProjectId });
+      return { ...httpAnswer.OK, data: { redirectProjectId } };
     }
   }
 
@@ -146,7 +149,12 @@ export class ProjectController {
     await this.userService.checkExists(userId);
     const userExist = await this.userService.checkExists(userId);
     if (!userExist) throw new nestjs.BadRequestException(`User (id=${userId}) does not exist`);
-    await this.validateUserLinkAndReturn(projectId, { session });
+    const userLink = await this.validateUserLinkAndReturn(projectId, { session });
+    const personalOwnerId = await this.projectService.getPersonalOwner(projectId);
+    if (personalOwnerId && personalOwnerId != userLink.userId)
+      throw new nestjs.BadRequestException(
+        `User (id=${userLink.userId}) is not owner of personal project (id=${projectId}).`,
+      );
 
     await this.projectService.update(projectId, { userList: [{ role: 'member', userId }] });
     return httpAnswer.OK;
@@ -173,7 +181,10 @@ export class ProjectController {
     } else {
       const user = await this.userService.getOne({ id: userId });
       const personalProject = user.projectList.find((project) => project.personal);
-      return { ...httpAnswer.OK, data: { redirectProjectId: personalProject.projectId } };
+      const redirectProjectId = personalProject.projectId;
+      await this.userService.update(userId, { config: { currentProjectId: redirectProjectId } });
+      await this.sessionService.updateStorageById(session.storageId, { currentProjectId: redirectProjectId });
+      return { ...httpAnswer.OK, data: { redirectProjectId } };
     }
   }
 }

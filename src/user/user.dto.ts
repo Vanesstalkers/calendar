@@ -85,6 +85,11 @@ class userConfigDTO {
   phoneCode: string;
 }
 
+class userConfigUpdateDTO extends userConfigDTO {
+  @swagger.ApiPropertyOptional({ description: 'Проекты, отображаемые в личном', example: [10,31] })
+  showProjectsInPersonal: number[];
+}
+
 class userConfigWithCurProjectDTO {
   @swagger.ApiPropertyOptional({ description: 'Код страны (без префикса "+")', example: '7' })
   phoneCode: string;
@@ -193,7 +198,7 @@ export class userUpdateQueryDataDTO {
   position?: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone?: string;
-  @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigDTO })
+  @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigUpdateDTO })
   config?: object;
 }
 

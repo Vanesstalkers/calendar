@@ -76,19 +76,28 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() data: taskCreateQueryDTO, @nestjs.Session() session: FastifySession) {
+    const projectId = data.projectId;
     if (!data.taskData) data.taskData = {};
     if (!data.taskData.userList) data.taskData.userList = [];
 
-    if (!data.projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
     if (!data.taskData.userList.length) throw new nestjs.BadRequestException('User list is empty');
-    const projectExists = await this.projectService.checkExists(data.projectId);
+    const projectExists = await this.projectService.checkExists(projectId);
     if (!projectExists) throw new nestjs.BadRequestException('Project does not exist');
-    for (const execUser of data.taskData.userList) {
-      const userExists = await this.userService.checkExists(execUser.userId);
-      if (!userExists) throw new nestjs.BadRequestException('User does not exist');
+    const userId = await this.sessionService.getUserId(session);
+    const userLink = await this.projectService.getUserLink(userId, projectId, {
+      attributes: ['id', 'role', '"userId"', 'personal'],
+    });
+    if (!userLink)
+      throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
+
+    const personalOwnerId = await this.projectService.getPersonalOwner(projectId);
+    if (personalOwnerId && personalOwnerId != userLink.userId) {
+      throw new nestjs.BadRequestException(
+        `User (id=${userLink.userId}) is not owner of personal project (id=${projectId}).`,
+      );
     }
 
-    const userId = await this.sessionService.getUserId(session);
     data.taskData.ownUserId = userId;
     for (const link of data.taskData.userList) {
       const userLink = await this.projectService.getUserLink(link.userId, data.projectId, { attributes: ['id'] });
@@ -96,6 +105,12 @@ export class TaskController {
         throw new nestjs.BadRequestException(
           `User (id=${link.userId}) is not a member of project (id=${data.projectId}).`,
         );
+
+      if (personalOwnerId) {
+        const personalLinksExists = await this.userService.checkMutualPersonalLinksExists(link.userId, userId);
+        if (!personalLinksExists)
+          throw new nestjs.BadRequestException(`User (id=${userId}) is not in user (id=${link.userId}) contact list.`);
+      }
 
       if (!link.role) link.role = 'exec';
       if (!link.status && link.userId === userId) link.status = 'exec_ready';
@@ -110,7 +125,7 @@ export class TaskController {
   async getOne(@nestjs.Query() data: taskGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data?.taskId) throw new nestjs.BadRequestException('Task ID is empty');
     const userId = await this.sessionService.getUserId(session);
-    await this.validateAndReturnTask(data.taskId, userId);
+    const task = await this.validateAndReturnTask(data.taskId, userId);
 
     const result = await this.taskService.getOne({ id: data.taskId, userId });
     return { ...httpAnswer.OK, data: result };
@@ -136,8 +151,15 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
   async getAll(@nestjs.Body() data: taskGetAllQueryDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);
-    data.projectId = sessionData.currentProjectId;
-    const result = await this.taskService.getAll(data, sessionData.userId);
+    const userId = sessionData.userId;
+    data.projectIds = [sessionData.currentProjectId];
+    if (sessionData.currentProjectId === sessionData.personalProjectId) {
+      const user = await this.userService.getOne({ id: userId }, { attributes: ['config'] });
+      data.projectIds.push(...(user.config.showProjectsInPersonal || []));
+      const foreignProjectList = await this.userService.getForeignPersonalProjectList(userId);
+      data.projectIds.push(...foreignProjectList.map((project: { id: number }) => project.id));
+    }
+    const result = await this.taskService.getAll(data, userId);
     return { ...httpAnswer.OK, data: result };
   }
 

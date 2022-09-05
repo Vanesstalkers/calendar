@@ -32,11 +32,15 @@ export class UserService {
                         , u.position
                         , u.timezone
                         , u.config
-                        , array( ${sql.project.getUserLink(
-                          { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
-                          { addProjectData: true },
-                        )} ) AS "projectList"
-                        , ( ${sql.file.getIcon('user', 'u')} ) AS "iconFileId"
+                        , array(
+                          ${sql.selectProjectToUserLink(
+                            { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
+                            { addProjectData: true },
+                          )}
+                        ) AS "projectList"
+                        , (
+                          ${sql.selectIcon('user', 'u')}
+                        ) AS "iconFileId"
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
@@ -77,7 +81,7 @@ export class UserService {
                 SELECT    u.id
                         , u.phone
                         , u.name
-                        , ( ${sql.file.getIcon('user', 'u')} ) AS "iconFileId"
+                        , ( ${sql.selectIcon('user', 'u')} ) AS "iconFileId"
                 FROM      "user" u
                 LEFT JOIN "user_to_user" u2u ON u2u."userId" = :userId AND      
                           u2u."contactId" = u.id
@@ -172,5 +176,41 @@ export class UserService {
   async checkContactExists(userId: number, contactId: number) {
     const contact = await this.getContact(userId, contactId, { attributes: ['id'] }).catch(exception.dbErrorCatcher);
     return contact ? true : false;
+  }
+  async getForeignPersonalProjectList(userId: number){
+    const findData = await this.sequelize
+      .query(
+        `--sql
+          SELECT    p.id
+          FROM      "task_to_user" AS t2u
+                    LEFT JOIN "task" AS t ON t.id = t2u."taskId"
+                    LEFT JOIN "project" AS p ON p.id = t."projectId"
+                    LEFT JOIN "project_to_user" AS p2u 
+                    ON p2u."projectId" = t."projectId" AND p2u."userId" = t2u."userId"
+          WHERE     t2u."userId" = :userId AND      
+                    p.personal = true AND      
+                    p2u."role" = 'member'
+          GROUP BY  p.id
+      `,
+        { replacements: { userId }, type: QueryTypes.SELECT },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData;
+  }
+  async checkMutualPersonalLinksExists(ownUserId: number, relUserId: number){
+    const findData = await this.sequelize
+      .query(
+        `--sql
+          SELECT    p2u_member."id"
+          FROM      "project_to_user" AS p2u_member
+                  , "project_to_user" AS p2u_owner
+          WHERE     p2u_member."projectId" = p2u_owner."projectId" AND p2u_owner."personal" = true AND      
+                    p2u_owner."userId" = :ownUserId AND p2u_owner."role" = 'owner' AND p2u_owner."deleteTime" IS NULL AND
+                    p2u_member."userId" = :relUserId AND p2u_member."role" = 'member' AND p2u_member."deleteTime" IS NULL
+      `,
+        { replacements: { ownUserId, relUserId }, type: QueryTypes.SELECT },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0] ? true : false;
   }
 }

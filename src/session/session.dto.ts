@@ -19,6 +19,8 @@ export class sessionStorageDTO {
   login?: boolean;
   @swagger.ApiProperty({ description: 'Отметке о регистрации', example: true })
   registration?: boolean;
+  @swagger.ApiProperty({ description: 'ID личного проекта проекта', example: 0 })
+  personalProjectId?: number;
   @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
   currentProjectId?: number;
   lastAuthAttempt?: Date;

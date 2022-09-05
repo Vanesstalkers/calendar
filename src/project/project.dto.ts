@@ -15,9 +15,6 @@ export class Project extends sequelize.Model {
   @sequelize.Column
   title: string;
 
-  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
-  config: object;
-
   @sequelize.HasMany(() => models.project2user, 'projectId')
   userList: types['models']['project2user'][];
 
@@ -83,13 +80,10 @@ export class projectToUserUpdateDTO {
   deleteTime?: Date;
 }
 
-class projectConfigDTO {}
-
 export class projectUpdateQueryDataDTO {
   @swagger.ApiPropertyOptional({ description: 'Название проекта', type: 'string | null', example: 'Проект №1' })
   title?: string;
-  @swagger.ApiPropertyOptional({ description: 'Конфиг проекта', type: projectConfigDTO })
-  config?: object;
+  personal?: boolean;
   @swagger.ApiPropertyOptional({ description: 'Участники проекта', type: [projectToUserUpdateDTO] })
   userList?: projectToUserUpdateDTO[];
 }
@@ -140,7 +134,9 @@ export class projectUserLinkDTO {
 export class userGetOneAnswerProjectDTO extends projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })
   projectId?: number;
-  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки в проекте', type: 'number | null', example: 0 })
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки проекта', type: 'number | null', example: 0 })
+  projectIconFileId?: number;
+  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки пользователя в проекте', type: 'number | null', example: 0 })
   userIconFileId?: number;
 }
 
@@ -191,8 +187,8 @@ class projectGetOneAnswerTaskDTO extends taskDTO {
 export class projectGetOneAnswerDTO {
   @swagger.ApiProperty({ description: 'Название проекта', type: 'string', example: 'Проект №1' })
   title: string;
-  @swagger.ApiProperty({ description: 'Конфиг проекта', type: projectConfigDTO })
-  config: object;
+  @swagger.ApiPropertyOptional({ description: 'Признак личного проекта', type: 'boolean | null', example: true })
+  personal?: boolean;
   @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
   iconFileId?: number;
   @swagger.ApiProperty({ description: 'Участники проекта', type: [projectGetOneAnswerUserDTO] })

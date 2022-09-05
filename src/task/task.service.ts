@@ -88,14 +88,15 @@ export class TaskService {
     });
   }
 
-  async find(replacements, transaction?) {
+  async getMany(replacements, transaction?) {
     if (replacements.taskIdList.length === 0) return [];
     const findData = await this.sequelize
       .query(
         `--sql
-                SELECT    task.id
-                        , task.title
-                        , task.info
+                SELECT    task."id"
+                        , task."title"
+                        , task."info"
+                        , task."projectId"
                         , task."groupId"
                         , task."startTime"
                         , task."endTime"
@@ -105,79 +106,45 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
-                        , (${sql.project.getUserLink(
-                          { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
-                          { addUserData: true },
-                        )}) AS "ownUser"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    role
-                                            , "userId"
-                                            , status
-                                    FROM      "task_to_user" AS t2u
-                                    WHERE     t2u."deleteTime" IS NULL AND      
-                                              "taskId" = task.id
-                                    ) AS ROW
-                          ) AS "userList"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    id AS "tickId"
-                                            , text
-                                            , status
-                                    FROM      "tick"
-                                    WHERE     "deleteTime" IS NULL AND      
-                                              "taskId" = task.id
-                                    ) AS ROW
-                          ) AS "tickList"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    id AS "commentId"
-                                            , text
-                                            , array(
-                                              SELECT    row_to_json(ROW)
-                                              FROM      (
-                                                        SELECT    "id" AS "fileId"
-                                                                , "fileType"
-                                                        FROM      "file"
-                                                        WHERE     "deleteTime" IS NULL AND      
-                                                                  "parentId" = comment.id AND      
-                                                                  "parentType" = 'comment'
-                                                        ) AS ROW
-                                              ) AS "fileList"
-                                    FROM      "comment" AS comment
-                                    WHERE     "deleteTime" IS NULL AND      
-                                              "taskId" = task.id
-                                    ) AS ROW
-                          ) AS "commentList"
-                          , array(
-                            SELECT    row_to_json(ROW)
-                            FROM      (
-                                      SELECT    id AS "hashtagId"
-                                              , name
-                                      FROM      "hashtag"
-                                      WHERE     "deleteTime" IS NULL AND      
-                                                "taskId" = task.id
-                                      ) AS ROW
-                            ) AS "hashtagList"
-                          , task."projectId"
-                          , array(
-                            SELECT    row_to_json(ROW)
-                            FROM      (
-                                      SELECT    id AS "fileId"
-                                              , "fileType"
-                                      FROM      "file" AS taskFile
-                                      WHERE     "deleteTime" IS NULL AND      
-                                                "parentId" = task.id AND      
-                                                "parentType" = 'task'
-                                      ) AS ROW
-                            ) AS "fileList"
+                        , (
+                          ${sql.selectProjectToUserLink(
+                            { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
+                            { addUserData: true },
+                          )}
+                        ) AS "ownUser"
+                        , array(${sql.json(`--sql
+                            SELECT    "id", "role", "userId", "status"
+                            FROM      "task_to_user"
+                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                        `)}) AS "userList"
+                        , array(${sql.json(`--sql
+                            SELECT    "id" AS "tickId", "text", "status"
+                            FROM      "tick"
+                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                        `)}) AS "tickList"
+                        , array(${sql.json(`--sql
+                            SELECT    id AS "commentId", "text"
+                                    , array(${sql.json(`--sql
+                                        SELECT    "id" AS "fileId", "fileType"
+                                        FROM      "file"
+                                        WHERE     "deleteTime" IS NULL AND "parentId" = comment.id AND "parentType" = 'comment'
+                                    `)}) AS "fileList"
+                            FROM      "comment" AS comment
+                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                          `)}) AS "commentList"
+                          , array(${sql.json(`--sql
+                              SELECT    id AS "hashtagId", "name"
+                              FROM      "hashtag"
+                              WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                          `)}) AS "hashtagList"
+                          , array(${sql.json(`--sql
+                              SELECT    id AS "fileId", "fileType"
+                              FROM      "file" AS taskFile
+                              WHERE     "deleteTime" IS NULL AND "parentId" = task.id AND "parentType" = 'task'
+                          `)}) AS "fileList"
                 FROM      "task" AS task
-                LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
-                          t2u."taskId" = task.id AND      
-                          t2u."userId" = :userId
+                          LEFT JOIN "task_to_user" AS t2u
+                            ON t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND t2u."userId" = :userId
                 WHERE     task."deleteTime" IS NULL AND      
                           task.id IN (:taskIdList)
         `,
@@ -192,121 +159,30 @@ export class TaskService {
     const where = [`task.id = :id`];
     if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
 
-    const simpleSQL = config.attributes?.length
-      ? `--sql
-      SELECT ${config.attributes.join(',')} 
-      FROM      "task" AS task
-      LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
-                t2u."taskId" = task.id AND      
-                t2u."userId" = :userId
-      WHERE     ${where.join(' AND ')}
-      LIMIT    
-                1
-    `
-      : '';
-
-    const findData = await this.sequelize
-      .query(
-        simpleSQL ||
+    if (config.attributes?.length) {
+      const findData = await this.sequelize
+        .query(
           `--sql
-                SELECT    task.title
-                        , task.info
-                        , task."groupId"
-                        , task."startTime"
-                        , task."endTime"
-                        , task."timeType"
-                        , task."require"
-                        , task."regular"
-                        , task."extDestination"
-                        , task."execEndTime"
-                        , task."execUserId"
-                        , (
-                            ${sql.project.getUserLink({ projectId: 'task."projectId"', userId: 'task."ownUserId"' }, { addUserData: true })}
-                          ) AS "ownUser"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    id
-                                            , role
-                                            , "userId"
-                                            , status
-                                    FROM      "task_to_user" AS t2u
-                                    WHERE     t2u."deleteTime" IS NULL AND      
-                                              "taskId" = task.id
-                                    ) AS ROW
-                          ) AS "userList"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    id AS "tickId"
-                                            , text
-                                            , status
-                                    FROM      "tick"
-                                    WHERE     "deleteTime" IS NULL AND      
-                                              "taskId" = task.id
-                                    ) AS ROW
-                          ) AS "tickList"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    id AS "commentId"
-                                            , text
-                                            , array(
-                                              SELECT    row_to_json(ROW)
-                                              FROM      (
-                                                        SELECT    "id" AS "fileId"
-                                                                , "fileType"
-                                                        FROM      "file"
-                                                        WHERE     "deleteTime" IS NULL AND      
-                                                                  "parentId" = comment.id AND      
-                                                                  "parentType" = 'comment'
-                                                        ) AS ROW
-                                              ) AS "fileList"
-                                    FROM      "comment" AS comment
-                                    WHERE     "deleteTime" IS NULL AND      
-                                              "taskId" = task.id
-                                    ) AS ROW
-                          ) AS "commentList"
-                          , array(
-                            SELECT    row_to_json(ROW)
-                            FROM      (
-                                      SELECT    id AS "hashtagId"
-                                              , name
-                                      FROM      "hashtag"
-                                      WHERE     "deleteTime" IS NULL AND      
-                                                "taskId" = task.id
-                                      ) AS ROW
-                            ) AS "hashtagList"
-                          , task."projectId"
-                          , array(
-                            SELECT    row_to_json(ROW)
-                            FROM      (
-                                      SELECT    id AS "fileId"
-                                              , "fileType"
-                                      FROM      "file" AS taskFile
-                                      WHERE     "deleteTime" IS NULL AND      
-                                                "parentId" = task.id AND      
-                                                "parentType" = 'task'
-                                      ) AS ROW
-                            ) AS "fileList"
-                FROM      "task" AS task
-                LEFT JOIN "task_to_user" AS t2u ON t2u."deleteTime" IS NULL AND      
-                          t2u."taskId" = task.id AND      
-                          t2u."userId" = :userId
-                WHERE     task."deleteTime" IS NULL AND      
-                          task.id = :id
-                LIMIT    
-                          1
-        `,
-        {
-          type: QueryTypes.SELECT,
-          replacements: { id: data.id || null, userId: data.userId || null },
-          transaction,
-        },
-      )
-      .catch(exception.dbErrorCatcher);
+            SELECT ${config.attributes.join(',')} 
+            FROM      "task" AS task
+                      LEFT JOIN "task_to_user" AS t2u
+                        ON t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND t2u."userId" = :userId
+            WHERE     ${where.join(' AND ')}
+            LIMIT     1
+          `,
+          {
+            type: QueryTypes.SELECT,
+            replacements: { id: data.id || null, userId: data.userId || null },
+            transaction,
+          },
+        )
+        .catch(exception.dbErrorCatcher);
 
-    return findData[0] || null;
+      return findData[0] || null;
+    } else {
+      const findData = await this.getMany({ userId: data.userId, taskIdList: [data.id] }, transaction);
+      return findData[0] || null;
+    }
   }
 
   async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkFullDTO, transaction?: Transaction) {
@@ -390,16 +266,15 @@ export class TaskService {
     const findData = await this.sequelize
       .query(
         `--sql
-                SELECT    t.id,
-                          t.title                        
-                FROM      "task" t ${hashTable}
-                LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-                WHERE     t."projectId" = :projectId AND 
-                          ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-                LIMIT    
-                          :limit
-                OFFSET    
-                          :offset
+                SELECT  t.id
+                      , t.title                        
+                FROM    "task" t ${hashTable}
+                        LEFT JOIN "task_to_user" AS t2u 
+                        ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                WHERE   t."projectId" = :projectId AND 
+                        ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+                LIMIT   :limit
+                OFFSET  :offset
         `,
         {
           replacements: {
@@ -427,7 +302,7 @@ export class TaskService {
   }
 
   async getAll(data: taskGetAllQueryDTO = {}, userId: number) {
-    const replacements: any = { myId: userId, projectId: data.projectId };
+    const replacements: any = { myId: userId, projectIds: data.projectIds };
     let sqlWhere = [];
     const select: any = {};
 
@@ -436,7 +311,7 @@ export class TaskService {
         case 'new':
           sqlWhere = [
             't."deleteTime" IS NULL', // НЕ удалена
-            '"projectId" = :projectId', // принадлежит проекту
+            '"projectId" IN (:projectIds)', // принадлежит проекту
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
             [
               't."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
@@ -451,7 +326,7 @@ export class TaskService {
         case 'finished':
           sqlWhere = [
             't."deleteTime" IS NULL', // НЕ удалена
-            '"projectId" = :projectId', // принадлежит проекту
+            '"projectId" IN (:projectIds)', // принадлежит проекту
             't."ownUserId" = :myId', // пользователь является создателем
             `t."execEndTime" IS NOT NULL`, // указано время фактического исполнения
             //`t."execEndTime" IS NOT NULL AND t."execEndTime" < date_trunc('day', NOW())`,
@@ -460,7 +335,7 @@ export class TaskService {
         case 'toexec':
           sqlWhere = [
             't."deleteTime" IS NULL', // НЕ удалена
-            '"projectId" = :projectId', // принадлежит проекту
+            '"projectId" IN (:projectIds)', // принадлежит проекту
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
             't."startTime" IS NULL', // НЕ указано время начала
             't."endTime" IS NULL', // НЕ указано время окончания
@@ -486,7 +361,7 @@ export class TaskService {
       sqlWhere = [
         't2u.id IS NOT NULL', // пользователь назначен исполнителем
         't."deleteTime" IS NULL', // НЕ удалена
-        't."projectId" = :projectId', // принадлежит проекту
+        't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
         `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
@@ -526,7 +401,7 @@ export class TaskService {
       sqlWhere = [
         't2u.id IS NOT NULL', // пользователь назначен исполнителем
         't."deleteTime" IS NULL', // НЕ удалена
-        't."projectId" = :projectId', // принадлежит проекту
+        't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
         `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
@@ -551,7 +426,7 @@ export class TaskService {
       sqlWhere = [
         't2u.id IS NOT NULL', // пользователь назначен исполнителем
         't."deleteTime" IS NULL', // НЕ удалена
-        't."projectId" = :projectId', // принадлежит проекту
+        't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
         `t."timeType" = 'later'`, // относится к задачам "сделать потом"
       ];
@@ -572,7 +447,7 @@ export class TaskService {
     if (data.queryType === 'executors') {
       sqlWhere = [
         't."deleteTime" IS NULL', // НЕ удалена
-        't."projectId" = :projectId', // принадлежит проекту
+        't."projectId" IN (:projectIds)', // принадлежит проекту
         't."ownUserId" = :myId', // пользователь является создателем
         't2u."userId" IS NOT NULL', // исполнитель назначен
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
@@ -582,7 +457,7 @@ export class TaskService {
         SELECT    t.id
                 , t.title
                 , t2u."userId" AS "consignedExecUserId"
-                , (${sql.project.getUserLink(
+                , (${sql.selectProjectToUserLink(
                   { projectId: 't."projectId"', userId: 't2u."userId"' },
                   { addUserData: true },
                 )}) AS "consignedExecUserData"
@@ -707,7 +582,7 @@ export class TaskService {
       taskIdList = taskIdList.concat(result.resultList.map((task) => task.id));
     }
 
-    const fillDataTaskList = await this.find({ taskIdList, userId });
+    const fillDataTaskList = await this.getMany({ taskIdList, userId });
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
 
     if (data.queryType === 'inbox') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
