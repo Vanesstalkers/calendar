@@ -20,13 +20,9 @@ import * as fileDTO from './file/file.dto';
 
 import { sessionStorageDTO } from './session/session.dto';
 
-import * as projectSQL from './project/project.sql';
-import * as fileSQL from './file/file.sql';
+import * as sqlHelpers from './sqlHelpers';
 
-export const sql = {
-  project: projectSQL.query,
-  file: fileSQL.query,
-}
+export const sql = sqlHelpers;
 
 export const httpAnswer = {
   OK: { status: 'ok' },

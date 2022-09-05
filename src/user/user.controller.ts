@@ -97,6 +97,7 @@ export class UserController {
           await this.sessionService.updateStorageById(sessionStorageId, {
             registration: true,
             login: true,
+            personalProjectId: personalProject.id,
             currentProjectId: personalProject.id,
           });
         },
@@ -130,6 +131,7 @@ export class UserController {
             userId: user.id,
             registration: true,
             login: true,
+            personalProjectId: user.config.personalProjectId,
             currentProjectId: user.config.currentProjectId,
           });
         },
@@ -178,7 +180,7 @@ export class UserController {
 
     const storageId = session.storageId;
     const sessionStorage = await this.sessionService.getStorage(session);
-    const timeout = new Date().getTime() - new Date(sessionStorage.lastAuthAttempt).getTime();
+    const timeout = new Date().getTime() - new Date(sessionStorage?.lastAuthAttempt || 0).getTime();
     const timeoutAmount = 60;
     if (!data.disableTimeout && timeout < timeoutAmount * 1000)
       throw new nestjs.BadRequestException({
@@ -269,11 +271,12 @@ export class UserController {
 
     const projectToUser = project.userList.find((user) => user.userId === userId);
     projectToUser.projectId = project.id;
+    projectToUser.projectIconFileId = project.iconFileId;
     delete projectToUser.userId;
     return { ...httpAnswer.OK, data: projectToUser };
   }
 
-  @nestjs.Post('addContact')
+  //@nestjs.Post('addContact')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
   async addContact(@nestjs.Body() data: userAddContactQueryDTO, @nestjs.Session() session: FastifySession) {

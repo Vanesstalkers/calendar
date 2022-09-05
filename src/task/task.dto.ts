@@ -493,7 +493,7 @@ class taskGetAllQueryDataDTO {
 }
 
 export class taskGetAllQueryDTO {
-  projectId?: number;
+  projectIds?: number[];
   queryType?: string;
   queryData?: taskGetAllQueryDataDTO;
 }
@@ -504,7 +504,6 @@ export class taskGetAllQuerySwaggerI {
         type: 'object',
         required: ['queryType'],
         properties: {
-          projectId: { type: 'number', example: 0 },
           queryType: { type: 'number', example: 'inbox', enum: ['inbox', 'schedule', 'overdue', 'later', 'executors'] },
           queryData: {
             type: 'object',

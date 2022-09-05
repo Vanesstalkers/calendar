@@ -44,11 +44,11 @@ export class ProjectService {
   ) {
     const transaction = config.transaction;
 
+    if (config.personalProject) updateData.personal = true;
     await this.utils.updateDB({
       table: 'project',
       id: projectId,
       data: updateData,
-      jsonKeys: ['config'],
       handlers: {
         userList: async (value: any) => {
           const arr: any[] = Array.from(value);
@@ -75,10 +75,10 @@ export class ProjectService {
         `--sql
                 SELECT    p.id
                         , p.title
-                        , p.config
-                        , (${sql.file.getIcon('project', 'p')}) AS "iconFileId"
+                        , p.personal
+                        , (${sql.selectIcon('project', 'p')}) AS "iconFileId"
                         , array(
-                          ${sql.project.getUserLink({ projectId: ':id' }, { addUserData: true })}
+                          ${sql.selectProjectToUserLink({ projectId: ':id' }, { addUserData: true })}
                           ) AS "userList"
                         , array(
                           SELECT    row_to_json(ROW)
@@ -92,7 +92,7 @@ export class ProjectService {
                                             , t."require"
                                             , t."regular"
                                             , (
-                                              ${sql.project.getUserLink(
+                                              ${sql.selectProjectToUserLink(
                                                 { projectId: ':id', userId: '"ownUserId"' },
                                                 { addUserData: true },
                                               )}
@@ -184,7 +184,7 @@ export class ProjectService {
   }
 
   async updateUserLink(linkId: number, updateData: projectUserLinkDTO, transaction?: Transaction) {
-    if(!updateData.deleteTime) updateData.deleteTime = null;
+    if (!updateData.deleteTime) updateData.deleteTime = null;
     await this.utils.updateDB({ table: 'project_to_user', id: linkId, data: updateData, transaction });
   }
 
@@ -206,5 +206,19 @@ export class ProjectService {
   async checkUserLinkExists(userId: number, projectId: number) {
     const link = await this.getUserLink(userId, projectId, { attributes: ['id'] }).catch(exception.dbErrorCatcher);
     return link ? true : false;
+  }
+
+  async getPersonalOwner(projectId: number) {
+    const findData = await this.sequelize
+      .query(
+        `--sql
+        SELECT "userId"
+        FROM "project_to_user"
+        WHERE "projectId" = :projectId AND "personal" = true AND "role" = 'owner' AND "deleteTime" IS NULL
+      `,
+        { replacements: { projectId }, type: QueryTypes.SELECT },
+      )
+      .catch(exception.dbErrorCatcher);
+    return findData[0]?.userId || null;
   }
 }
