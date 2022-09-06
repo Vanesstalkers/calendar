@@ -127,9 +127,14 @@ export class ProjectController {
   async updateUser(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO) {
     const projectId = data.projectId;
     const userId = data.userId;
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    if (!userId) throw new nestjs.BadRequestException('User ID is empty');
     const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
 
-    await this.projectService.update(projectId, { userList: [{ userId, userName: data.userName }] });
+    const updateData: {userId: number, userName?: string, position?: string} = { userId };
+    if(data.userName !== undefined) updateData.userName = data.userName;
+    if(data.position !== undefined) updateData.position = data.position;
+    await this.projectService.update(projectId, { userList: [updateData] });
     if (data.iconFile) {
       data.iconFile.parentType = 'project_to_user';
       data.iconFile.parentId = userLink.id;

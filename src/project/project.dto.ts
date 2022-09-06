@@ -54,6 +54,9 @@ export class ProjectToUser extends sequelize.Model {
   @sequelize.Column
   userName: string;
 
+  @sequelize.Column({ allowNull: true })
+  position: string;
+
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
   config: object;
 
@@ -66,17 +69,18 @@ export class ProjectToUser extends sequelize.Model {
 }
 
 export class projectToUserUpdateDTO {
-  @swagger.ApiPropertyOptional({
-    description: 'Роль в проекте',
-    type: 'string | null',
-    enum: ['owner', 'member'],
-    example: 'owner',
-  })
-  role?: string;
   @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
   userId?: number;
+  @swagger.ApiProperty({ description: 'Системная роль', type: 'string', enum: ['owner', 'member'], example: 'owner' })
+  role?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName?: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Описание роли (должности) в проекте',
+    type: 'string | null',
+    example: 'Разработчик в Wazzup',
+  })
+  position?: string;
   deleteTime?: Date;
 }
 
@@ -104,6 +108,12 @@ export class projectUpdateUserQueryDTO {
   userId: number;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Описание роли (должности) в проекте',
+    type: 'string | null',
+    example: 'Разработчик в Wazzup',
+  })
+  position?: string;
   @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
   iconFile: types['models']['file'];
 }
@@ -123,10 +133,16 @@ export class projectGetOneQueryDTO {
 export class projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID сущности-связи project_to_user', type: 'number', example: 0 })
   projectToUserLinkId?: number;
-  @swagger.ApiProperty({ description: 'Роль в проекте', type: 'string', example: 'owner', enum: ['owner', 'member'] })
+  @swagger.ApiProperty({ description: 'Системная роль', type: 'string', example: 'owner', enum: ['owner', 'member'] })
   role?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName?: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Описание роли (должности) в проекте',
+    type: 'string | null',
+    example: 'Разработчик в Wazzup',
+  })
+  position?: string;
   @swagger.ApiPropertyOptional({ description: 'Признак личного проекта', type: 'boolean | null', example: true })
   personal?: boolean;
   deleteTime?: Date;
@@ -136,7 +152,11 @@ export class userGetOneAnswerProjectDTO extends projectUserLinkDTO {
   projectId?: number;
   @swagger.ApiPropertyOptional({ description: 'ID файла-иконки проекта', type: 'number | null', example: 0 })
   projectIconFileId?: number;
-  @swagger.ApiPropertyOptional({ description: 'ID файла-иконки пользователя в проекте', type: 'number | null', example: 0 })
+  @swagger.ApiPropertyOptional({
+    description: 'ID файла-иконки пользователя в проекте',
+    type: 'number | null',
+    example: 0,
+  })
   userIconFileId?: number;
 }
 
@@ -176,7 +196,7 @@ export class projectDeleteUserAnswerDTO {
 class projectGetOneAnswerTaskDTO extends taskDTO {
   @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
   taskId?: number;
-  @swagger.ApiProperty({ description: 'Автор задачи', type: ()=>projectToUserGetOneDTO })
+  @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })
   ownUser: projectUserLinkDTO;
   @swagger.ApiProperty({ description: 'Количество комментариев', type: 'number', example: 0 })
   commentCount: number;

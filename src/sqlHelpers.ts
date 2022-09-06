@@ -28,6 +28,7 @@ export function selectProjectToUserLink(
     '"userId"',
     '"projectId"',
     '"role"',
+    '"position"',
     'p2u."personal"',
     '"userName"',
     `(${this.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"`,

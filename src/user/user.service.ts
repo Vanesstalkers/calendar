@@ -29,7 +29,6 @@ export class UserService {
                 SELECT    u.id
                         , u.name
                         , u.phone
-                        , u.position
                         , u.timezone
                         , u.config
                         , array(
