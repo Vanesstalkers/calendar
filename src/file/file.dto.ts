@@ -30,6 +30,9 @@ export class File extends sequelize.Model {
   @sequelize.Column
   fileMimetype?: string;
 
+  @sequelize.Column
+  fileSize?: string;
+
   @sequelize.CreatedAt
   addTime?: Date;
   @sequelize.UpdatedAt
@@ -62,7 +65,19 @@ export class fileCreateDTO extends fileDTO {
   fileName?: string;
   @swagger.ApiPropertyOptional({ description: 'Расширение файла', type: 'string', example: 'jpg' })
   fileExtension?: string;
+  fileSize?: string;
   link?: string;
+}
+
+export class fileGetMetaAnswerDTO {
+  @swagger.ApiProperty({ description: 'Имя файла', example: 'picture.jpg' })
+  fileName?: string;
+  @swagger.ApiProperty({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
+  fileMimetype?: string;
+  @swagger.ApiProperty({ description: 'Размер файла (в байтах)', example: '9672' })
+  fileSize?: string;
+  @swagger.ApiProperty({ description: 'Ссылка на файл', example: '/file/get/35' })
+  fileUrl?: string;
 }
 
 export class fileListItemDTO {
@@ -81,6 +96,7 @@ class fileUploadQueryFileDTO {
   fileName?: string;
   @swagger.ApiPropertyOptional({ description: 'Расширение файла', type: 'string', example: 'jpg' })
   fileExtension?: string;
+  fileSize?: string;
   link?: string;
 }
 

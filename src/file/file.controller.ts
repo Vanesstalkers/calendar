@@ -14,12 +14,13 @@ import { FileService } from './file.service';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 
-import { fileDTO, fileDeleteQueryDTO } from './file.dto';
+import { fileDTO, fileDeleteQueryDTO, fileGetMetaAnswerDTO } from './file.dto';
 
 @nestjs.Controller('file')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @swagger.ApiTags('file')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
+@swagger.ApiExtraModels(fileGetMetaAnswerDTO)
 export class FileController {
   constructor(private service: FileService, private sessionService: SessionService, private utils: UtilsService) {}
 
@@ -42,9 +43,39 @@ export class FileController {
       const fileStream = fs.createReadStream('./uploads/' + file.link);
       res.headers({
         'Content-Type': file.fileMimetype,
-        'Content-Disposition': `filename="${file.fileName}"`,
+        //'Content-Disposition': `filename="${file.fileName}"`, // не работает для имен на кириллице
       });
       return new nestjs.StreamableFile(fileStream);
+    }
+  }
+
+  @nestjs.Get('getMeta/:id')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success({ models: [fileGetMetaAnswerDTO] }))
+  async getMeta(@nestjs.Param('id') id: 'string', @nestjs.Session() session: FastifySession) {
+    if (!id) throw new nestjs.BadRequestException('File ID is empty');
+
+    const file = await this.service.getOne(parseInt(id));
+
+    if (!file || !file.id) throw new nestjs.BadRequestException({ msg: 'File not found' });
+    if (!fs.existsSync('./uploads/' + file.link)) {
+      // !!! неправильный тип ошибки - нужно заменить
+      throw new nestjs.BadRequestException({ msg: 'File not found on disk' });
+    } else {
+      if (!file.fileSize) {
+        // !!! убрать после MVP
+        const stats = fs.statSync('./uploads/' + file.link);
+        file.fileSize = stats.size;
+      }
+      return {
+        ...httpAnswer.OK,
+        data: {
+          fileName: file.fileName,
+          fileMimetype: file.fileMimetype,
+          fileSize: file.fileSize,
+          fileUrl: `/file/get/${file.id}`,
+        },
+      };
     }
   }
 
@@ -53,6 +84,11 @@ export class FileController {
   @swagger.ApiResponse(new interfaces.response.created())
   async uploadFile(@nestjs.Body() data: fileUploadQueryDTO) {
     if (!data.file?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
+    if (data.file.fileContent.includes(';base64,')) {
+      const fileContent = data.file.fileContent.split(';base64,');
+      data.file.fileContent = fileContent[1];
+      if (!data.file.fileMimetype) data.file.fileMimetype = fileContent[0].replace('data:', '');
+    }
     if (!data.file.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
 
     //if (!data.file.fileMimetype) data.file.fileMimetype = 'image/jpeg';

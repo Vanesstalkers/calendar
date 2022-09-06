@@ -21,7 +21,7 @@ async function bootstrap() {
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
-      cookie: { path: '/', sameSite: 'none', secure: true },
+      cookie: { path: '/', sameSite: 'none', secure: true, maxAge: 86400 },
     });
     app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
 
