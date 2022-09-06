@@ -18,9 +18,6 @@ export class User extends sequelize.Model {
   phone: string;
 
   @sequelize.Column({ allowNull: true })
-  position: string;
-
-  @sequelize.Column({ allowNull: true })
   timezone: string;
 
   @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
@@ -137,12 +134,6 @@ export class userGetOneAnswerDTO {
   name: string;
   @swagger.ApiPropertyOptional({ description: 'ID файла-иконки', type: 'number | null', example: 0 })
   iconFileId: number;
-  @swagger.ApiPropertyOptional({
-    description: 'Описание контакта',
-    type: 'string | null',
-    example: 'Разработчик в Wazzup',
-  })
-  position: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone: string;
   @swagger.ApiProperty({ description: 'Конфиг пользователя', type: userConfigWithCurProjectDTO })
@@ -194,8 +185,6 @@ export class userUpdateQueryDataDTO {
   phone?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя', example: 'Николай' })
   name?: string;
-  @swagger.ApiPropertyOptional({ description: 'Описание контакта', example: 'Разработчик в Wazzup' })
-  position?: string;
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone?: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigUpdateDTO })

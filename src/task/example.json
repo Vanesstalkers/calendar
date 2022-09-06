@@ -1,0 +1,42 @@
+{
+  "НОВАЯ ЗАДАЧА": {
+    "method": "/task/create",
+    "request": {
+      "projectId": 104,
+      "taskData": {}
+    }
+  },
+  "НАЗНАЧАЕМ ЗАДАЧУ НА СЕБЯ": {
+    "method": "/task/update",
+    "request": {
+      "taskId": 176,
+      "taskData": {
+        "userList": [
+          {
+            "userId": 50,
+            "role": "exec"
+          }
+        ]
+      }
+    }
+  },
+  "УСТАНАВЛИВАЕМ ВРЕМЯ ЗАДАЧИ": {
+    "method": "/task/update",
+    "request": {
+      "taskId": 176,
+      "taskData": {
+        "endTime": "2022-07-08T20:00:00.000Z"
+      }
+    }
+  },
+  "ЗАВЕРШАЕМ ЗАДАЧУ": {
+    "method": "/task/update",
+    "request": {
+      "taskId": 176,
+      "taskData": {
+        "execUserId": 50,
+        "execEndTime": "2022-07-08T20:00:00.000Z"
+      }
+    }
+  }
+}
