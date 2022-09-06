@@ -52,11 +52,15 @@ export class FileService {
       .rename(uploadDir + '/' + data.fileName, uploadDir + '/' + newName)
       .catch(exception.fsErrorCatcher);
 
+    const stats = fs.statSync(uploadDir + '/' + newName);
+    const fileSize = stats.size;
+
     const file = await this.modelFile.create({
       link: newName,
       fileName: data.fileName,
       fileExtension: data.fileExtension,
       fileMimetype: data.fileMimetype,
+      fileSize: fileSize,
       parentType: data.parentType,
       parentId: data.parentId,
       fileType: data.fileType,
