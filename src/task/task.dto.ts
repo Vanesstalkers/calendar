@@ -270,6 +270,7 @@ class userRegularDTO {
     type: ['number'],
   })
   weekdaysList: [number];
+  origTaskId?: number;
 }
 
 export class taskDTO {
@@ -284,13 +285,13 @@ export class taskDTO {
     type: 'date | null',
     example: '2022-07-08T19:00:00.000Z',
   })
-  startTime?: Date;
+  startTime?: string;
   @swagger.ApiPropertyOptional({
     description: 'Время окончания',
     type: 'date | null',
     example: '2022-07-08T20:00:00.000Z',
   })
-  endTime?: Date;
+  endTime?: string;
   @swagger.ApiPropertyOptional({ description: 'Формат учета времени', example: 'later', enum: ['', 'later'] })
   timeType?: string;
   @swagger.ApiPropertyOptional({ description: 'Обязательность выполнения', type: 'boolean | null', example: false })

@@ -67,7 +67,12 @@ export class ProjectController {
   @swagger.ApiResponse(new interfaces.response.success({ models: [projectGetOneAnswerDTO] }))
   async getOne(@nestjs.Query() data: projectGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
-    await this.validateUserLinkAndReturn(projectId, { session });
+    const userLink = await this.validateUserLinkAndReturn(projectId, { session });
+    const personalOwnerId = await this.projectService.getPersonalOwner(projectId);
+    if (personalOwnerId && personalOwnerId != userLink.userId)
+      throw new nestjs.BadRequestException(
+        `User (id=${userLink.userId}) is not owner of personal project (id=${projectId}).`,
+      );
 
     const userId = await this.sessionService.getUserId(session);
     const result = await this.projectService.getOne({ id: projectId, userId });
@@ -131,9 +136,9 @@ export class ProjectController {
     if (!userId) throw new nestjs.BadRequestException('User ID is empty');
     const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
 
-    const updateData: {userId: number, userName?: string, position?: string} = { userId };
-    if(data.userName !== undefined) updateData.userName = data.userName;
-    if(data.position !== undefined) updateData.position = data.position;
+    const updateData: { userId: number; userName?: string; position?: string } = { userId };
+    if (data.userName !== undefined) updateData.userName = data.userName;
+    if (data.position !== undefined) updateData.position = data.position;
     await this.projectService.update(projectId, { userList: [updateData] });
     if (data.iconFile) {
       data.iconFile.parentType = 'project_to_user';

@@ -82,6 +82,12 @@ export class TaskController {
 
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
     if (!data.taskData.userList.length) throw new nestjs.BadRequestException('User list is empty');
+    if (data.taskData.regular) {
+      if (!data.taskData.endTime)
+        throw new nestjs.BadRequestException({code: 'MISSING_REQUIRED_PARAM', msg: 'Regular task must have "endTime".'});
+
+      // !!! тут нужна умная проверка по датам (не больше месяца назад для типа 'month' и т.п.)
+    }
     const projectExists = await this.projectService.checkExists(projectId);
     if (!projectExists) throw new nestjs.BadRequestException('Project does not exist');
     const userId = await this.sessionService.getUserId(session);
@@ -106,7 +112,7 @@ export class TaskController {
           `User (id=${link.userId}) is not a member of project (id=${data.projectId}).`,
         );
 
-      if (personalOwnerId) {
+      if (personalOwnerId && personalOwnerId != userId) {
         const personalLinksExists = await this.userService.checkMutualPersonalLinksExists(link.userId, userId);
         if (!personalLinksExists)
           throw new nestjs.BadRequestException(`User (id=${userId}) is not in user (id=${link.userId}) contact list.`);
@@ -116,6 +122,9 @@ export class TaskController {
       if (!link.status && link.userId === userId) link.status = 'exec_ready';
     }
     const task = await this.taskService.create(data.projectId, data.taskData).catch(exception.dbErrorCatcher);
+    if (data.taskData.regular) {
+      await this.taskService.cloneRegularTask(task.id, data.projectId, data.taskData);
+    }
     return { ...httpAnswer.OK, data: { id: task.id } };
   }
 
@@ -319,6 +328,7 @@ export class TaskController {
 
   @nestjs.Get('handleCron')
   async handleCron(@nestjs.Query() data) {
-    this.taskService.checkForDeleteFinished();
+    //this.taskService.checkForDeleteFinished();
+    this.taskService.cronCreateRegularTaskClones();
   }
 }

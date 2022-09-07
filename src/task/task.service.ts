@@ -20,6 +20,8 @@ import {
 
 import { UtilsService } from '../utils/utils.service';
 
+const REGULAR_TASK_SHIFT_DAYS_COUNT = 14;
+
 @nestjs.Injectable()
 export class TaskService {
   constructor(
@@ -363,7 +365,7 @@ export class TaskService {
         't."deleteTime" IS NULL', // НЕ удалена
         't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
-        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной (или является клоном)
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
         `t2u."status" = 'exec_ready'`, // задача принята в работу
         't."endTime" >= NOW()', // задача НЕ просрочена
@@ -379,20 +381,20 @@ export class TaskService {
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
-      sqlWhere = [
-        't2u.id IS NOT NULL', // пользователь назначен исполнителем
-        't."deleteTime" IS NULL', // НЕ удалена
-        `(t.regular->>'enabled')::boolean = true`, // регулярная задача
-      ];
-      select.schedule += `--sql
-        UNION ALL (
-          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
-          FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u
-          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-          WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-        )
-      `;
+      // sqlWhere = [
+      //   't2u.id IS NOT NULL', // пользователь назначен исполнителем
+      //   't."deleteTime" IS NULL', // НЕ удалена
+      //   `(t.regular->>'enabled')::boolean = true`, // регулярная задача
+      // ];
+      // select.schedule += `--sql
+      //   UNION ALL (
+      //     SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
+      //     FROM      "task" AS t
+      //     LEFT JOIN "task_to_user" AS t2u
+      //     ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+      //     WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+      //   )
+      // `;
       replacements.scheduleFrom = data.queryData.from;
       replacements.scheduleTo = data.queryData.to;
     }
@@ -403,7 +405,7 @@ export class TaskService {
         't."deleteTime" IS NULL', // НЕ удалена
         't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
-        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной (или является клоном)
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
         't."endTime" < NOW()', // задача просрочена
       ];
@@ -490,72 +492,75 @@ export class TaskService {
     let result = { resultList: [], endOfList: false };
 
     if (data.queryType === 'schedule') {
-      const replaceTask = {};
-      for (const task of baseTaskList.schedule) {
-        if (task.regular.enabled) {
-          const hasEndTime = task.endTime ? true : false;
+      // const replaceTask = {};
+      // for (const task of baseTaskList.schedule) {
+      //   if (task.regular.enabled) {
+      //     const hasEndTime = task.endTime ? true : false;
 
-          function fillRegularTasks(interval) {
-            let i = 0;
-            while (true) {
-              try {
-                if (i++ > 10) throw new Error('Too wide range'); // библиотека очень медленная
-                const newDate = interval.next();
-                const cloneTask = { ...task, id: undefined, origTaskId: task.id, regular: true };
-                if (hasEndTime) {
-                  cloneTask.endTime = newDate.value.toISOString();
-                } else {
-                  cloneTask.startTime = newDate.value.toISOString();
-                }
-                replaceTask[task.id].push(cloneTask);
-              } catch (e) {
-                break;
-              }
-            }
-          }
+      //     function fillRegularTasks(interval) {
+      //       let i = 0;
+      //       while (true) {
+      //         try {
+      //           if (i++ > 10) throw new Error('Too wide range'); // библиотека очень медленная
+      //           const newDate = interval.next();
+      //           const cloneTask = { ...task, id: undefined, origTaskId: task.id, regular: true };
+      //           if (hasEndTime) {
+      //             cloneTask.endTime = newDate.value.toISOString();
+      //           } else {
+      //             cloneTask.startTime = newDate.value.toISOString();
+      //           }
+      //           replaceTask[task.id].push(cloneTask);
+      //         } catch (e) {
+      //           break;
+      //         }
+      //       }
+      //     }
 
-          replaceTask[task.id] = [];
-          const d = new Date(hasEndTime ? task.endTime : task.startTime);
-          const intervalConfig = {
-            currentDate: new Date(data.queryData.from + ' 00:00:00'),
-            endDate: new Date(data.queryData.to + ' 23:59:59'),
-            iterator: true,
-          };
-          const taskAddTime = new Date(task.addTime);
-          if (taskAddTime > intervalConfig.currentDate) intervalConfig.currentDate = taskAddTime;
-          // !!! на самом деле фейковые задачи будут создаваться начиная с сегодняшнего дня,
-          // так как за предыдущие дни их уже должен был создать cron (начнет создавать, когда его напишем)
+      //     replaceTask[task.id] = [];
+      //     const d = new Date(hasEndTime ? task.endTime : task.startTime);
+      //     const intervalConfig = {
+      //       currentDate: new Date(data.queryData.from + ' 00:00:00'),
+      //       endDate: new Date(data.queryData.to + ' 23:59:59'),
+      //       iterator: true,
+      //     };
+      //     const taskAddTime = new Date(task.addTime);
+      //     if (taskAddTime > intervalConfig.currentDate) intervalConfig.currentDate = taskAddTime;
+      //     // !!! на самом деле фейковые задачи будут создаваться начиная с сегодняшнего дня,
+      //     // так как за предыдущие дни их уже должен был создать cron (начнет создавать, когда его напишем)
 
-          switch (task.regular.rule) {
-            case 'day':
-              fillRegularTasks(parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * *`, intervalConfig));
-              break;
-            case 'week':
-              fillRegularTasks(
-                parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * ${d.getDay()}`, intervalConfig),
-              );
-              break;
-            case 'month':
-              fillRegularTasks(
-                parser.parseExpression(`${d.getMinutes()} ${d.getHours()} ${d.getDate()} * *`, intervalConfig),
-              );
-              break;
-            case 'weekdays':
-              fillRegularTasks(
-                parser.parseExpression(
-                  `${d.getMinutes()} ${d.getHours()} * * ${task.regular.weekdaysList.join(',')}`,
-                  intervalConfig,
-                ),
-              );
-              break;
-          }
-        }
-      }
-      result.resultList = baseTaskList.schedule;
-      for (const [id, cloneList] of Object.entries(replaceTask)) {
-        result.resultList = result.resultList.filter((task) => task.id !== +id).concat(cloneList);
-      }
-      taskIdList = taskIdList.concat(result.resultList.map((task) => task.id || task.origTaskId));
+      //     switch (task.regular.rule) {
+      //       case 'day':
+      //         fillRegularTasks(parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * *`, intervalConfig));
+      //         break;
+      //       case 'week':
+      //         fillRegularTasks(
+      //           parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * ${d.getDay()}`, intervalConfig),
+      //         );
+      //         break;
+      //       case 'month':
+      //         fillRegularTasks(
+      //           parser.parseExpression(`${d.getMinutes()} ${d.getHours()} ${d.getDate()} * *`, intervalConfig),
+      //         );
+      //         break;
+      //       case 'weekdays':
+      //         fillRegularTasks(
+      //           parser.parseExpression(
+      //             `${d.getMinutes()} ${d.getHours()} * * ${task.regular.weekdaysList.join(',')}`,
+      //             intervalConfig,
+      //           ),
+      //         );
+      //         break;
+      //     }
+      //   }
+      // }
+      // result.resultList = baseTaskList.schedule;
+      // for (const [id, cloneList] of Object.entries(replaceTask)) {
+      //   result.resultList = result.resultList.filter((task) => task.id !== +id).concat(cloneList);
+      // }
+      // taskIdList = taskIdList.concat(result.resultList.map((task) => task.id || task.origTaskId));
+
+      result.resultList = baseTaskList.schedule.map((task) => task.id);
+      taskIdList = taskIdList.concat(result.resultList);
     }
     if (data.queryType === 'inbox') {
       result.resultList = baseTaskList.inbox.map((task) => task.id);
@@ -586,12 +591,13 @@ export class TaskService {
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
 
     if (data.queryType === 'inbox') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
-    if (data.queryType === 'schedule') {
-      result.endOfList = true;
-      result.resultList = result.resultList.map((task) => {
-        return { ...taskMap[task.id || task.origTaskId], ...task };
-      });
-    }
+    if (data.queryType === 'schedule') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
+    // if (data.queryType === 'schedule') {
+    //   result.endOfList = true;
+    //   result.resultList = result.resultList.map((task) => {
+    //     return { ...taskMap[task.id || task.origTaskId], ...task };
+    //   });
+    // }
     if (data.queryType === 'overdue') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'later') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'executors')
@@ -616,5 +622,128 @@ export class TaskService {
         `,
       )
       .catch(exception.dbErrorCatcher);
+  }
+
+  @Cron('0 0 3 * * *')
+  async cronCreateRegularTaskClones() {
+    const nowWithShift = `NOW() + interval '${REGULAR_TASK_SHIFT_DAYS_COUNT} days'`;
+
+    var findData = await this.sequelize
+      .query(
+        `
+          SELECT task.id
+                , task."projectId"
+                , task.title
+                , task.info
+                , task."groupId"
+                , task."startTime"
+                , task."endTime"
+                , task."timeType"
+                , task."require"
+                , task."regular"
+                , task."extDestination"
+                , task."execEndTime"
+                , task."execUserId"
+                , task."ownUserId"
+                , array(
+                    SELECT    row_to_json(ROW)
+                      FROM      (
+                          SELECT    role
+                              , "userId"
+                              , status
+                          FROM      "task_to_user" AS t2u
+                          WHERE     t2u."deleteTime" IS NULL AND
+                                "taskId" = task.id
+                      ) AS ROW
+                ) AS "userList"
+                FROM "task" as task
+                WHERE  "deleteTime" IS NULL AND
+                regular @> '{"enabled":true}' AND 
+                  (
+                    ( 
+                      regular @> '{"rule":"weekdays"}' 
+                      AND regular -> 'weekdaysList' @> CAST( CAST((SELECT EXTRACT(ISODOW FROM ${nowWithShift})) AS text) as jsonb) 
+                    ) OR
+                    (
+                      regular @> '{"rule":"week"}' AND 
+                        (
+                          (
+                            "endTime" IS NULL  AND EXTRACT(ISODOW FROM "startTime") = EXTRACT(ISODOW FROM ${nowWithShift})
+                          ) OR 
+                          EXTRACT(ISODOW FROM "endTime") = EXTRACT(ISODOW FROM ${nowWithShift})                      
+                        )
+                    ) OR
+                    regular @> '{"rule":"day"}' OR
+                    (
+                      regular @> '{"rule":"month"}' AND
+                        (
+                          (
+                            "endTime" IS NULL  AND 
+                            EXTRACT(DAY FROM "startTime") = EXTRACT(DAY FROM ${nowWithShift})
+                          ) OR 
+                          EXTRACT(DAY FROM "endTime") = EXTRACT(DAY FROM ${nowWithShift})
+                        )
+                    )
+                  )
+        `,
+      )
+      .catch(exception.dbErrorCatcher);
+    console.log('cronCreateRegularTaskClones', findData[0]);
+
+    const dateWithShift = new Date();
+    dateWithShift.setDate(dateWithShift.getDate() + REGULAR_TASK_SHIFT_DAYS_COUNT);
+
+    for (const task of findData[0]) {
+      let tempTime;
+      let { id, ...newObject } = task;
+      newObject.regular.enabled = false;
+      newObject.regular.origTaskId = task.id;
+
+      if (newObject.startTime !== null) {
+        tempTime = new Date(newObject.startTime);
+        tempTime.setFullYear(dateWithShift.getFullYear(), dateWithShift.getMonth(), dateWithShift.getDate());
+        newObject.startTime = tempTime.toISOString();
+      }
+
+      if (newObject.endTime !== null) {
+        tempTime = new Date(newObject.endTime);
+        tempTime.setFullYear(dateWithShift.getFullYear(), dateWithShift.getMonth(), dateWithShift.getDate());
+        newObject.endTime = tempTime.toISOString();
+      }
+
+      this.create(task.projectId, newObject).catch(exception.dbErrorCatcher);
+    }
+  }
+
+  async cloneRegularTask(taskId: number, projectId: number, taskData: taskFullDTO) {
+    if (taskData.regular.rule == 'month') return;
+
+    const termDate = new Date(new Date().setHours(23, 59, 59999) + REGULAR_TASK_SHIFT_DAYS_COUNT * 24 * 60 * 60 * 1000);
+    let theDate = new Date(taskData.endTime ? taskData.endTime : taskData.startTime);
+    let theStartDate = taskData.startTime ? new Date(taskData.startTime) : null;
+    let theEndDate = taskData.endTime ? new Date(taskData.endTime) : null;
+    const theStep = taskData.regular.rule == 'week' ? 7 : 1;
+    const theDays = taskData.regular.rule == 'weekdays' ? taskData.regular.weekdaysList : null;
+
+    taskData.regular = {
+      enabled: false,
+      rule: taskData.regular.rule,
+      weekdaysList: taskData.regular.weekdaysList,
+    };
+    taskData.regular.origTaskId = taskId;
+
+    while (theDate <= termDate) {
+      if (theStartDate !== null) taskData.startTime = theStartDate.toISOString();
+      if (theEndDate !== null) taskData.endTime = theEndDate.toISOString();
+
+      if (theDays === null || theDays.includes(theDate.getDay())) {
+        await this.create(projectId, taskData).catch(exception.dbErrorCatcher);
+      }
+
+      const timeShift = theStep * 24 * 60 * 60 * 1000;
+      theDate = new Date(theDate.getTime() + timeShift);
+      if (theStartDate !== null) theStartDate = new Date(theStartDate.getTime() + timeShift);
+      if (theEndDate !== null) theEndDate = new Date(theEndDate.getTime() + timeShift);
+    }
   }
 }
