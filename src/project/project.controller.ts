@@ -18,10 +18,48 @@ import {
 
 import { ProjectService } from './project.service';
 import { ProjectTransferService } from './transfer.service';
+import { UserController, UserInstance } from '../user/user.controller';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
 import { UtilsService } from '../utils/utils.service';
+
+export class ProjectInstance {
+  id: number;
+  ctx: ProjectController;
+  data: projectGetOneAnswerDTO;
+  consumer: UserInstance;
+  constructor(ctx: ProjectController) {
+    this.ctx = ctx;
+  }
+  async init(projectId: number, consumerId: number) {
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    this.id = projectId;
+    this.data = await this.ctx.projectService.getOne({ id: projectId });
+    if (!this.data) throw new nestjs.BadRequestException(`Project (id=${projectId}) does not exist`);
+
+    if (consumerId) {
+      if (!this.isMember(consumerId)) {
+        throw new nestjs.BadRequestException(
+          `User (id=${consumerId}) is not a member of project (id=${this.id})`,
+        );
+      }
+      this.consumer = await new UserInstance(this.ctx.userController).init(consumerId);
+    }
+    return this;
+  }
+  isPersonal() {
+    return this.data.personal;
+  }
+  isMember(userId: number) {
+    return this.data.userList.find((userLink) => userLink.userId === userId) ? true : false;
+  }
+  isOwner(userId: number) {
+    return this.data.userList.find((userLink) => userLink.userId === userId && userLink.role === 'owner')
+      ? true
+      : false;
+  }
+}
 
 @nestjs.Controller('project')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
@@ -31,8 +69,9 @@ import { UtilsService } from '../utils/utils.service';
 @swagger.ApiExtraModels(models.project2user, models.user, projectGetOneAnswerDTO, projectDeleteUserAnswerDTO)
 export class ProjectController {
   constructor(
-    private projectService: ProjectService,
+    public projectService: ProjectService,
     private transferService: ProjectTransferService,
+    public userController: UserController,
     private userService: UserService,
     private sessionService: SessionService,
     private fileService: FileService,
@@ -86,6 +125,16 @@ export class ProjectController {
     const projectId = data.projectId;
     await this.validateUserLinkAndReturn(projectId, { session });
 
+    const personalOwnerId = await this.projectService.getPersonalOwner(projectId);
+    if (personalOwnerId) {
+      for (const key of Object.keys(data.projectData)) {
+        if (['title', 'personal'].includes(key)) {
+          throw new nestjs.BadRequestException(
+            `Access denied to change key ("${key}") of personal project (id=${projectId}).`,
+          );
+        }
+      }
+    }
     await this.projectService.update(projectId, data.projectData);
     return httpAnswer.OK;
   }

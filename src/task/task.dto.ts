@@ -322,12 +322,15 @@ export class taskFullDTO extends taskDTO {
     type: 'date | null',
     example: '2022-07-08T20:00:00.000Z',
   })
-  execEndTime?: Date;
+  execEndTime?: string;
   @swagger.ApiPropertyOptional({ description: 'фактический исполнитель', type: 'number | null', example: 0 })
   execUserId?: number;
   @swagger.ApiPropertyOptional({ description: 'Чек-лист', type: [taskTickDTO] })
   tickList?: taskTickDTO[];
+  projectId?: number;
   ownUserId?: number;
+  ownUser?: projectUserLinkDTO;
+  deleteTime?: Date;
 }
 
 export class taskUpdateDTO extends taskFullDTO {

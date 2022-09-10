@@ -146,6 +146,7 @@ export class projectUserLinkDTO {
   @swagger.ApiPropertyOptional({ description: 'Признак личного проекта', type: 'boolean | null', example: true })
   personal?: boolean;
   deleteTime?: Date;
+  userId?: number;
 }
 export class userGetOneAnswerProjectDTO extends projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })

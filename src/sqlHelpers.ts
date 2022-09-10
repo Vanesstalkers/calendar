@@ -5,7 +5,43 @@ export function json(sql: string) {
     `;
 }
 
-export function selectIcon(table: string, tableSym: string) {
+export function selectIcon(table: string, tableSym: string, [baseTable, baseTableSym] = []) {
+  return baseTable
+    ? `
+      SELECT id FROM (
+        ( SELECT    "id", 1 as "order"
+          FROM      "file"
+          WHERE     "deleteTime" IS NULL AND
+                    "parentId" = ${tableSym}.id AND      
+                    "parentType" = '${table}' AND  
+                    "fileType" = 'icon'
+          ORDER BY  "addTime" DESC
+          LIMIT     1)
+        UNION ALL
+        ( SELECT    "id", 2 as "order"
+          FROM      "file"
+          WHERE     "deleteTime" IS NULL AND
+                    "parentId" = ${baseTableSym}.id AND      
+                    "parentType" = '${baseTable}' AND  
+                    "fileType" = 'icon'
+          ORDER BY  "addTime" DESC
+          LIMIT     1)
+      ) as f
+      ORDER BY "order"
+      LIMIT 1
+    `
+    : `--sql
+      SELECT    "id"
+      FROM      "file"
+      WHERE     "deleteTime" IS NULL AND      
+                "parentId" = ${tableSym}.id AND      
+                "parentType" = '${table}' AND      
+                "fileType" = 'icon'
+      ORDER BY  "addTime" DESC
+      LIMIT     1
+    `;
+}
+export function selectIconWithBase(table: string, tableSym: string) {
   return `--sql
       SELECT    "id"
       FROM      "file"
@@ -37,8 +73,10 @@ export function selectProjectToUserLink(
 
   if (config.addUserData) {
     join.push('LEFT JOIN "user" AS u ON u.id = p2u."userId" AND u."deleteTime" IS NULL');
-    select.push('u."name" AS "baseUserName"');
-    select.push(`(${this.selectIcon('user', 'u')}) AS "baseUserIconFileId"`);
+    // select.push('u."name" AS "baseUserName"');
+    // select.push(`(${this.selectIcon('user', 'u')}) AS "baseUserIconFileId"`);
+    select.push('(CASE WHEN "userName" IS NOT NULL THEN "userName" ELSE u."name" END) as "userName"');
+    select.push(`(${this.selectIcon('project_to_user', 'p2u', ['user', 'u'])}) AS "userIconFileId"`);
   }
 
   if (config.skipForeignPersonalProject) config.addProjectData = true;
@@ -48,7 +86,7 @@ export function selectProjectToUserLink(
     select.push(`(${this.selectIcon('project', 'p')}) AS "projectIconFileId"`);
 
     //if (config.skipForeignPersonalProject) {
-      where.push(`(p2u."role" = 'owner' OR p.personal IS DISTINCT FROM true)`);
+    where.push(`(p2u."role" = 'owner' OR p.personal IS DISTINCT FROM true)`);
     //}
   }
 
