@@ -176,22 +176,7 @@ export class UserService {
   }
   async getForeignPersonalProjectList(userId: number) {
     const findData = await this.sequelize
-      .query(
-        `--sql
-          SELECT    p.id
-          FROM      "task_to_user" AS t2u
-                    LEFT JOIN "task" AS t ON t.id = t2u."taskId" AND t."deleteTime" IS NULL
-                    LEFT JOIN "project" AS p ON p.id = t."projectId" AND p."deleteTime" IS NULL
-                    LEFT JOIN "project_to_user" AS p2u 
-                    ON p2u."projectId" = t."projectId" AND p2u."userId" = t2u."userId" AND p2u."deleteTime" IS NULL
-          WHERE     t2u."userId" = :userId AND      
-                    t2u."deleteTime" IS NULL AND
-                    p.personal = true AND      
-                    p2u."role" = 'member'
-          GROUP BY  p.id
-      `,
-        { replacements: { userId }, type: QueryTypes.SELECT },
-      )
+      .query(sql.foreignPersonalProjectList(), { replacements: { userId }, type: QueryTypes.SELECT })
       .catch(exception.dbErrorCatcher);
     return findData;
   }

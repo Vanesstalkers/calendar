@@ -74,7 +74,7 @@ export class TaskService {
           userList: async (value: [taskUserLinkFullDTO]) => {
             const arr: taskUserLinkFullDTO[] = Array.from(value);
             for (const link of arr) {
-              await this.upsertLinkToUser(taskId, link.userId, link, transaction);
+              if (link.userId) await this.upsertLinkToUser(taskId, link.userId, link, transaction);
             }
             return { preventDefault: true };
           },
@@ -109,7 +109,7 @@ export class TaskService {
 
   async getMany(replacements, config: types['getOneConfig'] = {}) {
     if (replacements.taskIdList.length === 0) return [];
-    
+
     const where = [`task.id IN (:taskIdList)`];
     if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
 
@@ -320,7 +320,7 @@ export class TaskService {
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
     const sqlWhere = [`t2u."userId" = :userId OR t."ownUserId" = :userId`];
     if (hashFlag) {
-      sqlWhere.push('h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)');
+      sqlWhere.push(...['h."deleteTime" IS NULL', 'h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)']);
     } else {
       sqlWhere.push('(LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query))');
     }
@@ -333,10 +333,15 @@ export class TaskService {
         `--sql
                 SELECT  t.id
                       , t.title                        
-                FROM    "task" t ${hashTable}
+                FROM    "task" t
                         LEFT JOIN "task_to_user" AS t2u 
                         ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-                WHERE   t."projectId" = :projectId AND 
+                        ${hashTable}
+                WHERE   t."projectId" IN (
+                          SELECT :projectId
+                          UNION ALL
+                          ${sql.foreignPersonalProjectList()}
+                        ) AND 
                         ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
                 LIMIT   :limit
                 OFFSET  :offset

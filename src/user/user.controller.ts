@@ -112,9 +112,15 @@ export class UserController {
             { title: `${user.id}th user's work project`, userList: [{ userId: user.id, role: 'owner' }] },
             { transaction },
           );
+          await this.userService.update(
+            user.id,
+            {
+              config: { personalProjectId: personalProject.id, currentProjectId: personalProject.id },
+            },
+            transaction,
+          );
           await transaction.commit();
 
-          await this.changeCurrentProject({ projectId: personalProject.id }, session);
           await this.sessionService.updateStorageById(sessionStorageId, {
             registration: true,
             login: true,

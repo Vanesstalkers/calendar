@@ -41,18 +41,6 @@ export function selectIcon(table: string, tableSym: string, [baseTable, baseTabl
       LIMIT     1
     `;
 }
-export function selectIconWithBase(table: string, tableSym: string) {
-  return `--sql
-      SELECT    "id"
-      FROM      "file"
-      WHERE     "deleteTime" IS NULL AND      
-                "parentId" = ${tableSym}.id AND      
-                "parentType" = '${table}' AND      
-                "fileType" = 'icon'
-      ORDER BY  "addTime" DESC
-      LIMIT     1
-    `;
-}
 
 export function selectProjectToUserLink(
   data: { projectId?: string; userId?: string },
@@ -100,5 +88,21 @@ export function selectProjectToUserLink(
                   FROM      "project_to_user" AS p2u ${join.join(' ')}
                   WHERE     ${where.join(' AND ')}
                 ) AS ROW
+    `;
+}
+
+export function foreignPersonalProjectList() {
+  return `
+          SELECT    p.id
+          FROM      "task_to_user" AS t2u
+                    LEFT JOIN "task" AS t ON t.id = t2u."taskId" AND t."deleteTime" IS NULL
+                    LEFT JOIN "project" AS p ON p.id = t."projectId" AND p."deleteTime" IS NULL
+                    LEFT JOIN "project_to_user" AS p2u 
+                    ON p2u."projectId" = t."projectId" AND p2u."userId" = t2u."userId" AND p2u."deleteTime" IS NULL
+          WHERE     t2u."userId" = :userId AND      
+                    t2u."deleteTime" IS NULL AND
+                    p.personal = true AND      
+                    p2u."role" = 'member'
+          GROUP BY  p.id
     `;
 }
