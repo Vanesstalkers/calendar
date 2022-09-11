@@ -43,7 +43,14 @@ export class UserService {
                         , array(
                           SELECT    row_to_json(ROW)
                           FROM      (
-                                    SELECT    p2u."userId"
+                                    SELECT    p2u."id" AS "projectToUserLinkId",
+                                              "userId",
+                                              "projectId",
+                                              "role",
+                                              "position",
+                                              p2u."personal",
+                                              "userName",
+                                              (${sql.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"
                                     FROM      "project_to_user" p2u
                                     WHERE     p2u."projectId" = (u.config ->> 'personalProjectId')::integer AND p2u."userId" != u.id
                                     ) AS ROW

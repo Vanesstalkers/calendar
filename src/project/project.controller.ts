@@ -40,9 +40,7 @@ export class ProjectInstance {
 
     if (consumerId) {
       if (!this.isMember(consumerId)) {
-        throw new nestjs.BadRequestException(
-          `User (id=${consumerId}) is not a member of project (id=${this.id})`,
-        );
+        throw new nestjs.BadRequestException(`User (id=${consumerId}) is not a member of project (id=${this.id})`);
       }
       this.consumer = await new UserInstance(this.ctx.userController).init(consumerId);
     }
@@ -215,7 +213,7 @@ export class ProjectController {
         `User (id=${userLink.userId}) is not owner of personal project (id=${projectId}).`,
       );
 
-    await this.projectService.update(projectId, { userList: [{ role: 'member', userId }] });
+    await this.projectService.update(projectId, { userList: [{ role: 'member', userId, position: data.position, userName: data.userName }] });
     return httpAnswer.OK;
   }
 

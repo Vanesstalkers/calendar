@@ -69,7 +69,7 @@ export class ProjectService {
     });
   }
 
-  async getOne(data: { id: number; userId: number }, config: types['getOneConfig'] = {}) {
+  async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}) {
     const findData = await this.sequelize
       .query(
         `--sql
@@ -79,74 +79,75 @@ export class ProjectService {
                         , (${sql.selectIcon('project', 'p')}) AS "iconFileId"
                         , array(
                           ${sql.selectProjectToUserLink({ projectId: ':id' }, { addUserData: true })}
-                          ) AS "userList"
-                        , array(
-                          SELECT    row_to_json(ROW)
-                          FROM      (
-                                    SELECT    t."id" AS "taskId"
-                                            , t."title"
-                                            , t."groupId"
-                                            , t."startTime"
-                                            , t."endTime"
-                                            , t."timeType"
-                                            , t."require"
-                                            , t."regular"
-                                            , (
-                                              ${sql.selectProjectToUserLink(
-                                                { projectId: ':id', userId: '"ownUserId"' },
-                                                { addUserData: true },
-                                              )}
-                                              ) AS "ownUser"
-                                            , array(
-                                              SELECT    row_to_json(ROW)
-                                              FROM      (
-                                                        SELECT    t2u."userId"
-                                                                , t2u."role"
-                                                                , t2u."status"
-                                                        FROM      "task_to_user" AS t2u
-                                                        WHERE     t2u."deleteTime" IS NULL AND      
-                                                                  "taskId" = t.id
-                                                        ) AS ROW
-                                              ) AS "userList"
-                                            , array(
-                                              SELECT    row_to_json(ROW)
-                                              FROM      (
-                                                        SELECT    id
-                                                                , name
-                                                        FROM      "hashtag"
-                                                        WHERE     "deleteTime" IS NULL AND      
-                                                                  "taskId" = t.id
-                                                        ) AS ROW
-                                              ) AS "hashtagList"
-                                            , (
-                                              SELECT    COUNT(id)
-                                              FROM      "comment"
-                                              WHERE     "deleteTime" IS NULL AND      
-                                                        "taskId" = t.id
-                                              ) AS "commentCount"
-                                            , array(
-                                              SELECT    row_to_json(ROW)
-                                              FROM      (
-                                                        SELECT    "id" AS "fileId"
-                                                                , "fileType"
-                                                        FROM      "file"
-                                                        WHERE     "deleteTime" IS NULL AND      
-                                                                  "parentId" = t.id AND      
-                                                                  "parentType" = 'task'
-                                                        ) AS ROW
-                                              ) AS "fileList"
-                                    FROM      "task" AS t
-                                    LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND      
-                                              t2u."userId" = :userId AND      
-                                              t2u."deleteTime" IS NULL
-                                    WHERE     t."deleteTime" IS NULL AND      
-                                              t."projectId" = p.id AND      
-                                              (
-                                              t2u."id" IS NOT NULL OR       
-                                              t."ownUserId" = :userId
-                                              )
-                                    ) AS ROW
-                          ) AS "taskList"
+                          ) AS "userList"`+
+                        // , array(
+                        //   SELECT    row_to_json(ROW)
+                        //   FROM      (
+                        //             SELECT    t."id" AS "taskId"
+                        //                     , t."title"
+                        //                     , t."groupId"
+                        //                     , t."startTime"
+                        //                     , t."endTime"
+                        //                     , t."timeType"
+                        //                     , t."require"
+                        //                     , t."regular"
+                        //                     , (
+                        //                       ${sql.selectProjectToUserLink(
+                        //                         { projectId: ':id', userId: '"ownUserId"' },
+                        //                         { addUserData: true },
+                        //                       )}
+                        //                       ) AS "ownUser" 
+                        //                     , array(
+                        //                       SELECT    row_to_json(ROW)
+                        //                       FROM      (
+                        //                                 SELECT    t2u."userId"
+                        //                                         , t2u."role"
+                        //                                         , t2u."status"
+                        //                                 FROM      "task_to_user" AS t2u
+                        //                                 WHERE     t2u."deleteTime" IS NULL AND      
+                        //                                           "taskId" = t.id
+                        //                                 ) AS ROW
+                        //                       ) AS "userList"
+                        //                     , array(
+                        //                       SELECT    row_to_json(ROW)
+                        //                       FROM      (
+                        //                                 SELECT    id
+                        //                                         , name
+                        //                                 FROM      "hashtag"
+                        //                                 WHERE     "deleteTime" IS NULL AND      
+                        //                                           "taskId" = t.id
+                        //                                 ) AS ROW
+                        //                       ) AS "hashtagList"
+                        //                     , (
+                        //                       SELECT    COUNT(id)
+                        //                       FROM      "comment"
+                        //                       WHERE     "deleteTime" IS NULL AND      
+                        //                                 "taskId" = t.id
+                        //                       ) AS "commentCount"
+                        //                     , array(
+                        //                       SELECT    row_to_json(ROW)
+                        //                       FROM      (
+                        //                                 SELECT    "id" AS "fileId"
+                        //                                         , "fileType"
+                        //                                 FROM      "file"
+                        //                                 WHERE     "deleteTime" IS NULL AND      
+                        //                                           "parentId" = t.id AND      
+                        //                                           "parentType" = 'task'
+                        //                                 ) AS ROW
+                        //                       ) AS "fileList"
+                        //             FROM      "task" AS t
+                        //             LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND      
+                        //                       t2u."userId" = :userId AND      
+                        //                       t2u."deleteTime" IS NULL
+                        //             WHERE     t."deleteTime" IS NULL AND      
+                        //                       t."projectId" = p.id AND      
+                        //                       (
+                        //                       t2u."id" IS NOT NULL OR       
+                        //                       t."ownUserId" = :userId
+                        //                       )
+                        //             ) AS ROW
+                        //   ) AS "taskList"
+                `--sql
                 FROM      "project" AS p
                 WHERE     p.id = :id AND      
                           p."deleteTime" IS NULL

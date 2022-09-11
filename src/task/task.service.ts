@@ -137,9 +137,12 @@ export class TaskService {
                           )}
                         ) AS "ownUser"
                         , array(${sql.json(`--sql
-                            SELECT    "id", "role", "userId", "status"
-                            FROM      "task_to_user"
-                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                            SELECT    t2u."id", t2u."role", t2u."userId", t2u."status", p2u.*
+                            FROM      "task_to_user" AS t2u, (
+                              (${sql.selectProjectToUserLink({}, { addUserData: true, jsonWrapper: false })})
+                            ) AS p2u
+                            WHERE     t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND
+                                      p2u."projectId" = task."projectId" AND p2u."userId" = t2u."userId"
                         `)}) AS "userList"
                         , array(${sql.json(`--sql
                             SELECT    "id" AS "tickId", "text", "status"

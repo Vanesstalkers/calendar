@@ -44,7 +44,12 @@ export function selectIcon(table: string, tableSym: string, [baseTable, baseTabl
 
 export function selectProjectToUserLink(
   data: { projectId?: string; userId?: string },
-  config: { addUserData?: boolean; addProjectData?: boolean; skipForeignPersonalProject?: boolean },
+  config: {
+    addUserData?: boolean;
+    addProjectData?: boolean;
+    skipForeignPersonalProject?: boolean;
+    jsonWrapper?: boolean;
+  },
 ) {
   const join = [];
   const select = [
@@ -81,14 +86,13 @@ export function selectProjectToUserLink(
   if (data.projectId) where.push(`"projectId" = ${data.projectId}`);
   if (data.userId) where.push(`"userId" = ${data.userId}`);
 
-  return `--sql
-      SELECT    row_to_json(ROW)
-      FROM      (
-                  SELECT    ${select.join(',')}  
-                  FROM      "project_to_user" AS p2u ${join.join(' ')}
-                  WHERE     ${where.join(' AND ')}
-                ) AS ROW
-    `;
+  const sql = `--sql
+    SELECT    ${select.join(',')}
+    FROM      "project_to_user" AS p2u ${join.join(' ')}
+    WHERE     ${where.join(' AND ')}
+  `;
+
+  return config.jsonWrapper === false ? sql : this.json(sql);
 }
 
 export function foreignPersonalProjectList() {

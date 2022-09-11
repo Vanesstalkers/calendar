@@ -56,6 +56,21 @@ export class TaskInstance {
   isMember(userId: number) {
     return this.data.userList.find((userLink) => userLink.userId === userId) ? true : false;
   }
+  getStatus() {
+    let status = 'ready';
+    if (this.data.userList.find((user) => user.role === 'control' && !user.status)) status = 'on_control';
+    if (!this.data.execEndTime) status = 'in_work';
+    if (this.data.userList.find((user) => user.role === 'exec' && !user.status)) status = 'not_in_work';
+    return status;
+  }
+  needPostcontrol() {
+    const taskExecutors = this.data.userList.filter((link: taskUserLinkFullDTO) => link.role === 'exec');
+    const taskHasSingleExecutor = taskExecutors.length === 1;
+    const taskExecutorsDiffersFromOwner = !taskExecutors.find(
+      (link: taskUserLinkFullDTO) => link.userId === this.data.ownUser.userId,
+    );
+    return taskHasSingleExecutor && taskExecutorsDiffersFromOwner;
+  }
 
   async init(
     taskId: number,
@@ -277,16 +292,8 @@ export class TaskController {
       }
     }
     // при завершении задачи исполнителем назначаем создателя контролером
-    if (data.taskData.execEndTime) {
-      const { userList = [] } = await this.taskService.getOne({ id: taskId });
-      const taskExecutors = userList.filter((link: taskUserLinkFullDTO) => link.role === 'exec');
-      const taskHasSingleExecutor = taskExecutors.length === 1;
-      const taskExecutorsDiffersFromOwner = !taskExecutors.find(
-        (link: taskUserLinkFullDTO) => link.userId === ownUserId,
-      );
-      if (taskHasSingleExecutor && taskExecutorsDiffersFromOwner) {
-        data.taskData.userList.push({ userId: ownUserId, role: 'control' });
-      }
+    if (data.taskData.execEndTime && task.needPostcontrol()) {
+      data.taskData.userList.push({ userId: task.data.ownUser.userId, role: 'control' });
     }
     await this.taskService.update(taskId, data.taskData);
     return httpAnswer.OK;
@@ -300,7 +307,33 @@ export class TaskController {
     const sessionUserId = await this.sessionService.getUserId(session);
     const task = await new TaskInstance(this).init(taskId, { consumerId: sessionUserId });
 
-    await this.taskService.update(taskId, { execUserId: sessionUserId, execEndTime: new Date().toISOString() });
+    const taskStatus = task.getStatus();
+    const updateData: taskUpdateDTO = { userList: [] };
+
+    switch (taskStatus) {
+      case 'not_in_work':
+        if (!task.isMember(sessionUserId))
+          throw new nestjs.BadRequestException('Access denied. Expecting task executor confirm.');
+        updateData.userList.push({ userId: sessionUserId, status: 'exec_ready' });
+        break;
+      case 'in_work':
+        if (!task.isMember(sessionUserId))
+          throw new nestjs.BadRequestException('Access denied. Expecting task executor confirm.');
+        updateData.execUserId = sessionUserId;
+        updateData.execEndTime = new Date().toISOString();
+        if (task.needPostcontrol()) updateData.userList.push({ userId: task.data.ownUser.userId, role: 'control' });
+        break;
+      case 'on_control':
+        if (!task.isOwner(sessionUserId))
+          throw new nestjs.BadRequestException('Access denied. Expecting task controller confirm.');
+        updateData.userList.push({ userId: sessionUserId, status: 'control_ready' });
+        break;
+      case 'ready':
+        throw new nestjs.BadRequestException('Task closed. No further action expected.');
+        break;
+    }
+
+    await this.taskService.update(taskId, updateData);
     return httpAnswer.OK;
   }
 
