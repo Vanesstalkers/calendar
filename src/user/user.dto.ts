@@ -140,8 +140,10 @@ export class userGetOneAnswerDTO {
   config: object;
   @swagger.ApiProperty({ description: 'Список проектов', type: [userGetOneAnswerProjectDTO] })
   projectList: object;
-  @swagger.ApiProperty({ description: 'Список контактов', type: [userContactListDTO] })
-  contactList: object;
+  // @swagger.ApiProperty({ description: 'Список контактов', type: [userContactListDTO] })
+  // contactList: object;
+  @swagger.ApiProperty({ description: 'Список контактов', type: [userGetOneAnswerProjectDTO] })
+  contactList: userGetOneAnswerProjectDTO[];
 }
 
 export class userSearchQueryDTO {
