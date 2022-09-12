@@ -218,6 +218,14 @@ export class taskUserLinkDTO {
 export class taskUserLinkFullDTO extends taskUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID связи' })
   id?: number;
+  @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
+  userName?: string;
+  @swagger.ApiPropertyOptional({
+    description: 'ID файла-иконки пользователя в проекте',
+    type: 'number | null',
+    example: 0,
+  })
+  userIconFileId?: number;
 }
 
 export class taskTickDTO {
@@ -270,6 +278,7 @@ class userRegularDTO {
     type: ['number'],
   })
   weekdaysList: [number];
+  origTaskId?: number;
 }
 
 export class taskDTO {
@@ -284,13 +293,13 @@ export class taskDTO {
     type: 'date | null',
     example: '2022-07-08T19:00:00.000Z',
   })
-  startTime?: Date;
+  startTime?: string;
   @swagger.ApiPropertyOptional({
     description: 'Время окончания',
     type: 'date | null',
     example: '2022-07-08T20:00:00.000Z',
   })
-  endTime?: Date;
+  endTime?: string;
   @swagger.ApiPropertyOptional({ description: 'Формат учета времени', example: 'later', enum: ['', 'later'] })
   timeType?: string;
   @swagger.ApiPropertyOptional({ description: 'Обязательность выполнения', type: 'boolean | null', example: false })
@@ -321,12 +330,15 @@ export class taskFullDTO extends taskDTO {
     type: 'date | null',
     example: '2022-07-08T20:00:00.000Z',
   })
-  execEndTime?: Date;
+  execEndTime?: string;
   @swagger.ApiPropertyOptional({ description: 'фактический исполнитель', type: 'number | null', example: 0 })
   execUserId?: number;
   @swagger.ApiPropertyOptional({ description: 'Чек-лист', type: [taskTickDTO] })
   tickList?: taskTickDTO[];
+  projectId?: number;
   ownUserId?: number;
+  ownUser?: projectUserLinkDTO;
+  deleteTime?: Date;
 }
 
 export class taskUpdateDTO extends taskFullDTO {

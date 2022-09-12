@@ -146,6 +146,7 @@ export class projectUserLinkDTO {
   @swagger.ApiPropertyOptional({ description: 'Признак личного проекта', type: 'boolean | null', example: true })
   personal?: boolean;
   deleteTime?: Date;
+  userId?: number;
 }
 export class userGetOneAnswerProjectDTO extends projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })
@@ -179,6 +180,14 @@ export class projectAddUserQueryDTO {
   projectId: number;
   @swagger.ApiProperty({ description: 'ID пользователя' })
   userId: number;
+  @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
+  userName?: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Описание роли (должности) в проекте',
+    type: 'string | null',
+    example: 'Разработчик в Wazzup',
+  })
+  position?: string;
 }
 
 export class projectDeleteUserQueryDTO {

@@ -20,6 +20,8 @@ import {
 
 import { UtilsService } from '../utils/utils.service';
 
+const REGULAR_TASK_SHIFT_DAYS_COUNT = 14;
+
 @nestjs.Injectable()
 export class TaskService {
   constructor(
@@ -33,63 +35,84 @@ export class TaskService {
     private utils: UtilsService,
   ) {}
 
-  async create(projectId: number, taskData: taskFullDTO, transaction?: Transaction) {
-    const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
-    const createData = await this.sequelize
-      .query(
-        `
-        INSERT INTO task ("projectId", "addTime", "updateTime") VALUES (:projectId, NOW(), NOW()) RETURNING id;
-      `,
-        { type: QueryTypes.INSERT, replacements: { projectId }, transaction },
-      )
-      .catch(exception.dbErrorCatcher);
-    const task = createData[0][0];
-    await this.update(task.id, taskData, transaction);
+  async create(taskData: taskFullDTO, transaction?: Transaction) {
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+      const createData = await this.sequelize
+        .query(
+          `
+          INSERT INTO task ("projectId", "addTime", "updateTime") VALUES (:projectId, NOW(), NOW()) RETURNING id;
+        `,
+          { type: QueryTypes.INSERT, replacements: { projectId: taskData.projectId }, transaction },
+        )
+        .catch(exception.dbErrorCatcher);
+      const task = createData[0][0];
 
-    if (createTransaction) await transaction.commit();
-    return task;
+      await this.update(task.id, taskData, transaction);
+      if (taskData.regular) await this.cloneRegularTask(task.id, taskData, transaction);
+
+      if (createTransaction) await transaction.commit();
+      return task;
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
 
   async update(taskId: number, updateData: taskUpdateDTO, transaction?: Transaction) {
-    await this.utils.updateDB({
-      table: 'task',
-      id: taskId,
-      data: updateData,
-      jsonKeys: ['regular'],
-      handlers: {
-        userList: async (value: [taskUserLinkFullDTO]) => {
-          const arr: taskUserLinkFullDTO[] = Array.from(value);
-          for (const link of arr) {
-            await this.upsertLinkToUser(taskId, link.userId, link, transaction);
-          }
-          return { preventDefault: true };
-        },
-        tickList: async (value: any) => {
-          const arr: any[] = Array.from(value);
-          for (const tick of arr) {
-            if (tick.id) {
-              await this.updateTick(tick.id, tick, transaction);
-            } else {
-              await this.createTick(taskId, tick, transaction);
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      await this.utils.updateDB({
+        table: 'task',
+        id: taskId,
+        data: updateData,
+        jsonKeys: ['regular'],
+        handlers: {
+          userList: async (value: [taskUserLinkFullDTO]) => {
+            const arr: taskUserLinkFullDTO[] = Array.from(value);
+            for (const link of arr) {
+              if (link.userId) await this.upsertLinkToUser(taskId, link.userId, link, transaction);
             }
-          }
-          return { preventDefault: true };
+            return { preventDefault: true };
+          },
+          tickList: async (value: any) => {
+            const arr: any[] = Array.from(value);
+            for (const tick of arr) {
+              if (tick.id) {
+                await this.updateTick(tick.id, tick, transaction);
+              } else {
+                await this.createTick(taskId, tick, transaction);
+              }
+            }
+            return { preventDefault: true };
+          },
+          hashtagList: async (value: any) => {
+            const arr: any[] = Array.from(value);
+            for (const hashtag of arr) {
+              await this.upsertHashtag(taskId, hashtag.name, transaction);
+            }
+            return { preventDefault: true };
+          },
         },
-        hashtagList: async (value: any) => {
-          const arr: any[] = Array.from(value);
-          for (const hashtag of arr) {
-            await this.upsertHashtag(taskId, hashtag.name, transaction);
-          }
-          return { preventDefault: true };
-        },
-      },
-      transaction,
-    });
+        transaction,
+      });
+
+      if (createTransaction) await transaction.commit();
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
 
-  async getMany(replacements, transaction?) {
+  async getMany(replacements, config: types['getOneConfig'] = {}) {
     if (replacements.taskIdList.length === 0) return [];
+
+    const where = [`task.id IN (:taskIdList)`];
+    if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
+
     const findData = await this.sequelize
       .query(
         `--sql
@@ -106,6 +129,7 @@ export class TaskService {
                         , task."extDestination"
                         , task."execEndTime"
                         , task."execUserId"
+                        , task."deleteTime"
                         , (
                           ${sql.selectProjectToUserLink(
                             { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
@@ -113,9 +137,12 @@ export class TaskService {
                           )}
                         ) AS "ownUser"
                         , array(${sql.json(`--sql
-                            SELECT    "id", "role", "userId", "status"
-                            FROM      "task_to_user"
-                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                            SELECT    t2u."id", t2u."role", t2u."userId", t2u."status", p2u.*
+                            FROM      "task_to_user" AS t2u, (
+                              (${sql.selectProjectToUserLink({}, { addUserData: true, jsonWrapper: false })})
+                            ) AS p2u
+                            WHERE     t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND
+                                      p2u."projectId" = task."projectId" AND p2u."userId" = t2u."userId"
                         `)}) AS "userList"
                         , array(${sql.json(`--sql
                             SELECT    "id" AS "tickId", "text", "status"
@@ -143,19 +170,16 @@ export class TaskService {
                               WHERE     "deleteTime" IS NULL AND "parentId" = task.id AND "parentType" = 'task'
                           `)}) AS "fileList"
                 FROM      "task" AS task
-                          LEFT JOIN "task_to_user" AS t2u
-                            ON t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND t2u."userId" = :userId
-                WHERE     task."deleteTime" IS NULL AND      
-                          task.id IN (:taskIdList)
+                WHERE     ${where.join(' AND ')}
         `,
-        { type: QueryTypes.SELECT, replacements, transaction },
+        { type: QueryTypes.SELECT, replacements },
       )
       .catch(exception.dbErrorCatcher);
 
     return findData || null;
   }
 
-  async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}, transaction?: Transaction) {
+  async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}) {
     const where = [`task.id = :id`];
     if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
 
@@ -173,33 +197,47 @@ export class TaskService {
           {
             type: QueryTypes.SELECT,
             replacements: { id: data.id || null, userId: data.userId || null },
-            transaction,
           },
         )
         .catch(exception.dbErrorCatcher);
 
       return findData[0] || null;
     } else {
-      const findData = await this.getMany({ userId: data.userId, taskIdList: [data.id] }, transaction);
+      const findData = await this.getMany({ taskIdList: [data.id] }, config);
       return findData[0] || null;
     }
   }
 
   async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkFullDTO, transaction?: Transaction) {
-    const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
 
-    const link = await this.taskToUserModel
-      .upsert({ taskId, userId }, { conflictFields: ['taskId', 'userId'], transaction })
-      .catch(exception.dbErrorCatcher);
-    await this.updateUserLink(link[0].id, linkData, transaction);
+      const link = await this.taskToUserModel
+        .upsert({ taskId, userId }, { conflictFields: ['taskId', 'userId'], transaction })
+        .catch(exception.dbErrorCatcher);
+      await this.updateUserLink(link[0].id, linkData, transaction);
 
-    if (createTransaction) await transaction.commit();
-    return link[0];
+      if (createTransaction) await transaction.commit();
+      return link[0];
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
   async updateUserLink(linkId: number, updateData: taskUserLinkFullDTO, transaction?: Transaction) {
-    if (!updateData.deleteTime) updateData.deleteTime = null;
-    await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      if (!updateData.deleteTime) updateData.deleteTime = null;
+      await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
+
+      if (createTransaction) await transaction.commit();
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
   async getUserLink(taskId: number, userId: number) {
     const findData = await this.taskToUserModel
@@ -209,19 +247,34 @@ export class TaskService {
   }
 
   async upsertHashtag(taskId: number, name: string, transaction?: Transaction) {
-    const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
 
-    const link = await this.hashtagModel
-      .upsert({ taskId, name, deleteTime: null }, { conflictFields: ['taskId', 'name'], transaction })
-      .catch(exception.dbErrorCatcher);
-    // await this.updateHashtag(link[0].id, hashtagData, transaction);
+      const link = await this.hashtagModel
+        .upsert({ taskId, name, deleteTime: null }, { conflictFields: ['taskId', 'name'], transaction })
+        .catch(exception.dbErrorCatcher);
+      // await this.updateHashtag(link[0].id, hashtagData, transaction);
 
-    if (createTransaction) await transaction.commit();
-    return link[0];
+      if (createTransaction) await transaction.commit();
+      return link[0];
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
   async updateHashtag(id: number, data: taskHashtagDTO, transaction?: Transaction) {
-    await this.utils.updateDB({ table: 'hashtag', id, data, transaction });
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      await this.utils.updateDB({ table: 'hashtag', id, data, transaction });
+
+      if (createTransaction) await transaction.commit();
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
   async getHashtag(taskId: number, name: string) {
     const findData = await this.hashtagModel
@@ -231,17 +284,32 @@ export class TaskService {
   }
 
   async createTick(taskId: number, tickData: taskTickDTO, transaction?: Transaction) {
-    const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
 
-    const tick = await this.tickModel.create({ taskId }, { transaction }).catch(exception.dbErrorCatcher);
-    await this.updateTick(tick.id, tickData, transaction);
+      const tick = await this.tickModel.create({ taskId }, { transaction }).catch(exception.dbErrorCatcher);
+      await this.updateTick(tick.id, tickData, transaction);
 
-    if (createTransaction) await transaction.commit();
-    return tick;
+      if (createTransaction) await transaction.commit();
+      return tick;
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
   async updateTick(id: number, data: taskTickDTO, transaction?: Transaction) {
-    await this.utils.updateDB({ table: 'tick', id, data, transaction });
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      await this.utils.updateDB({ table: 'tick', id, data, transaction });
+
+      if (createTransaction) await transaction.commit();
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
   async getTick(taskId: number, id: number) {
     const findData = await this.tickModel
@@ -255,7 +323,7 @@ export class TaskService {
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
     const sqlWhere = [`t2u."userId" = :userId OR t."ownUserId" = :userId`];
     if (hashFlag) {
-      sqlWhere.push('h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)');
+      sqlWhere.push(...['h."deleteTime" IS NULL', 'h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)']);
     } else {
       sqlWhere.push('(LOWER(t.title) LIKE LOWER(:query) OR LOWER(t.info) LIKE LOWER(:query))');
     }
@@ -268,10 +336,15 @@ export class TaskService {
         `--sql
                 SELECT  t.id
                       , t.title                        
-                FROM    "task" t ${hashTable}
+                FROM    "task" t
                         LEFT JOIN "task_to_user" AS t2u 
                         ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-                WHERE   t."projectId" = :projectId AND 
+                        ${hashTable}
+                WHERE   t."projectId" IN (
+                          SELECT :projectId
+                          UNION ALL
+                          ${sql.foreignPersonalProjectList()}
+                        ) AND 
                         ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
                 LIMIT   :limit
                 OFFSET  :offset
@@ -314,9 +387,8 @@ export class TaskService {
             '"projectId" IN (:projectIds)', // принадлежит проекту
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
             [
-              't."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
-              `t2u."role" = 'exec' AND t2u."status" != 'exec_ready'`, // задача не принята в работу
-              `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'ready'`, // нужен контроль исполнения назначенной исполнителю задачи
+              't."execEndTime" IS NULL AND t."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
+              `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'control_ready'`, // нужен контроль исполнения назначенной исполнителю задачи
             ]
               .map((item) => `(${item})`)
               .join(' OR '),
@@ -349,6 +421,7 @@ export class TaskService {
           FROM      "task" AS t
           LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+          GROUP BY  t.id, t.title
           LIMIT     :inboxLimit
           OFFSET    :inboxOffset
         `;
@@ -363,7 +436,7 @@ export class TaskService {
         't."deleteTime" IS NULL', // НЕ удалена
         't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
-        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной (или является клоном)
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
         `t2u."status" = 'exec_ready'`, // задача принята в работу
         't."endTime" >= NOW()', // задача НЕ просрочена
@@ -379,20 +452,20 @@ export class TaskService {
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
-      sqlWhere = [
-        't2u.id IS NOT NULL', // пользователь назначен исполнителем
-        't."deleteTime" IS NULL', // НЕ удалена
-        `(t.regular->>'enabled')::boolean = true`, // регулярная задача
-      ];
-      select.schedule += `--sql
-        UNION ALL (
-          SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
-          FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u
-          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-          WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-        )
-      `;
+      // sqlWhere = [
+      //   't2u.id IS NOT NULL', // пользователь назначен исполнителем
+      //   't."deleteTime" IS NULL', // НЕ удалена
+      //   `(t.regular->>'enabled')::boolean = true`, // регулярная задача
+      // ];
+      // select.schedule += `--sql
+      //   UNION ALL (
+      //     SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
+      //     FROM      "task" AS t
+      //     LEFT JOIN "task_to_user" AS t2u
+      //     ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+      //     WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+      //   )
+      // `;
       replacements.scheduleFrom = data.queryData.from;
       replacements.scheduleTo = data.queryData.to;
     }
@@ -403,7 +476,7 @@ export class TaskService {
         't."deleteTime" IS NULL', // НЕ удалена
         't."projectId" IN (:projectIds)', // принадлежит проекту
         `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
-        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной
+        `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной (или является клоном)
         `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
         't."endTime" < NOW()', // задача просрочена
       ];
@@ -464,9 +537,11 @@ export class TaskService {
         FROM      "task" AS t
         LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL AND (t2u."userId" != t."ownUserId")
         LEFT JOIN "task_to_user" AS _t2u ON _t2u."taskId" = t.id AND _t2u."deleteTime" IS NULL AND (_t2u."userId" != t2u."userId")
+        LEFT JOIN "project_to_user" as p2u ON p2u."userId" = t2u."userId" AND p2u."projectId" = t."projectId" AND p2u."deleteTime" IS NULL
+        LEFT JOIN "user" as u ON u."id" = t2u."userId"
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-        LIMIT    
-                  :executorsLimit
+        ORDER BY  COALESCE(p2u."userName", u."name", u."id"::VARCHAR), t2u."userId"
+        LIMIT     :executorsLimit
         OFFSET    :executorsOffset
       `;
 
@@ -490,72 +565,75 @@ export class TaskService {
     let result = { resultList: [], endOfList: false };
 
     if (data.queryType === 'schedule') {
-      const replaceTask = {};
-      for (const task of baseTaskList.schedule) {
-        if (task.regular.enabled) {
-          const hasEndTime = task.endTime ? true : false;
+      // const replaceTask = {};
+      // for (const task of baseTaskList.schedule) {
+      //   if (task.regular.enabled) {
+      //     const hasEndTime = task.endTime ? true : false;
 
-          function fillRegularTasks(interval) {
-            let i = 0;
-            while (true) {
-              try {
-                if (i++ > 10) throw new Error('Too wide range'); // библиотека очень медленная
-                const newDate = interval.next();
-                const cloneTask = { ...task, id: undefined, origTaskId: task.id, regular: true };
-                if (hasEndTime) {
-                  cloneTask.endTime = newDate.value.toISOString();
-                } else {
-                  cloneTask.startTime = newDate.value.toISOString();
-                }
-                replaceTask[task.id].push(cloneTask);
-              } catch (e) {
-                break;
-              }
-            }
-          }
+      //     function fillRegularTasks(interval) {
+      //       let i = 0;
+      //       while (true) {
+      //         try {
+      //           if (i++ > 10) throw new Error('Too wide range'); // библиотека очень медленная
+      //           const newDate = interval.next();
+      //           const cloneTask = { ...task, id: undefined, origTaskId: task.id, regular: true };
+      //           if (hasEndTime) {
+      //             cloneTask.endTime = newDate.value.toISOString();
+      //           } else {
+      //             cloneTask.startTime = newDate.value.toISOString();
+      //           }
+      //           replaceTask[task.id].push(cloneTask);
+      //         } catch (e) {
+      //           break;
+      //         }
+      //       }
+      //     }
 
-          replaceTask[task.id] = [];
-          const d = new Date(hasEndTime ? task.endTime : task.startTime);
-          const intervalConfig = {
-            currentDate: new Date(data.queryData.from + ' 00:00:00'),
-            endDate: new Date(data.queryData.to + ' 23:59:59'),
-            iterator: true,
-          };
-          const taskAddTime = new Date(task.addTime);
-          if (taskAddTime > intervalConfig.currentDate) intervalConfig.currentDate = taskAddTime;
-          // !!! на самом деле фейковые задачи будут создаваться начиная с сегодняшнего дня,
-          // так как за предыдущие дни их уже должен был создать cron (начнет создавать, когда его напишем)
+      //     replaceTask[task.id] = [];
+      //     const d = new Date(hasEndTime ? task.endTime : task.startTime);
+      //     const intervalConfig = {
+      //       currentDate: new Date(data.queryData.from + ' 00:00:00'),
+      //       endDate: new Date(data.queryData.to + ' 23:59:59'),
+      //       iterator: true,
+      //     };
+      //     const taskAddTime = new Date(task.addTime);
+      //     if (taskAddTime > intervalConfig.currentDate) intervalConfig.currentDate = taskAddTime;
+      //     // !!! на самом деле фейковые задачи будут создаваться начиная с сегодняшнего дня,
+      //     // так как за предыдущие дни их уже должен был создать cron (начнет создавать, когда его напишем)
 
-          switch (task.regular.rule) {
-            case 'day':
-              fillRegularTasks(parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * *`, intervalConfig));
-              break;
-            case 'week':
-              fillRegularTasks(
-                parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * ${d.getDay()}`, intervalConfig),
-              );
-              break;
-            case 'month':
-              fillRegularTasks(
-                parser.parseExpression(`${d.getMinutes()} ${d.getHours()} ${d.getDate()} * *`, intervalConfig),
-              );
-              break;
-            case 'weekdays':
-              fillRegularTasks(
-                parser.parseExpression(
-                  `${d.getMinutes()} ${d.getHours()} * * ${task.regular.weekdaysList.join(',')}`,
-                  intervalConfig,
-                ),
-              );
-              break;
-          }
-        }
-      }
-      result.resultList = baseTaskList.schedule;
-      for (const [id, cloneList] of Object.entries(replaceTask)) {
-        result.resultList = result.resultList.filter((task) => task.id !== +id).concat(cloneList);
-      }
-      taskIdList = taskIdList.concat(result.resultList.map((task) => task.id || task.origTaskId));
+      //     switch (task.regular.rule) {
+      //       case 'day':
+      //         fillRegularTasks(parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * *`, intervalConfig));
+      //         break;
+      //       case 'week':
+      //         fillRegularTasks(
+      //           parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * ${d.getDay()}`, intervalConfig),
+      //         );
+      //         break;
+      //       case 'month':
+      //         fillRegularTasks(
+      //           parser.parseExpression(`${d.getMinutes()} ${d.getHours()} ${d.getDate()} * *`, intervalConfig),
+      //         );
+      //         break;
+      //       case 'weekdays':
+      //         fillRegularTasks(
+      //           parser.parseExpression(
+      //             `${d.getMinutes()} ${d.getHours()} * * ${task.regular.weekdaysList.join(',')}`,
+      //             intervalConfig,
+      //           ),
+      //         );
+      //         break;
+      //     }
+      //   }
+      // }
+      // result.resultList = baseTaskList.schedule;
+      // for (const [id, cloneList] of Object.entries(replaceTask)) {
+      //   result.resultList = result.resultList.filter((task) => task.id !== +id).concat(cloneList);
+      // }
+      // taskIdList = taskIdList.concat(result.resultList.map((task) => task.id || task.origTaskId));
+
+      result.resultList = baseTaskList.schedule.map((task) => task.id);
+      taskIdList = taskIdList.concat(result.resultList);
     }
     if (data.queryType === 'inbox') {
       result.resultList = baseTaskList.inbox.map((task) => task.id);
@@ -582,16 +660,17 @@ export class TaskService {
       taskIdList = taskIdList.concat(result.resultList.map((task) => task.id));
     }
 
-    const fillDataTaskList = await this.getMany({ taskIdList, userId });
+    const fillDataTaskList = await this.getMany({ taskIdList });
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
 
     if (data.queryType === 'inbox') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
-    if (data.queryType === 'schedule') {
-      result.endOfList = true;
-      result.resultList = result.resultList.map((task) => {
-        return { ...taskMap[task.id || task.origTaskId], ...task };
-      });
-    }
+    if (data.queryType === 'schedule') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
+    // if (data.queryType === 'schedule') {
+    //   result.endOfList = true;
+    //   result.resultList = result.resultList.map((task) => {
+    //     return { ...taskMap[task.id || task.origTaskId], ...task };
+    //   });
+    // }
     if (data.queryType === 'overdue') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'later') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'executors')
@@ -616,5 +695,150 @@ export class TaskService {
         `,
       )
       .catch(exception.dbErrorCatcher);
+  }
+
+  @Cron('0 0 3 * * *')
+  async cronCreateRegularTaskClones() {
+    const nowWithShift = `NOW() + interval '${REGULAR_TASK_SHIFT_DAYS_COUNT} days'`;
+
+    var findData = await this.sequelize
+      .query(
+        `
+          SELECT task.id
+                , task."projectId"
+                , task.title
+                , task.info
+                , task."groupId"
+                , task."startTime"
+                , task."endTime"
+                , task."timeType"
+                , task."require"
+                , task."regular"
+                , task."extDestination"
+                , task."execEndTime"
+                , task."execUserId"
+                , task."ownUserId"
+                , array(
+                    SELECT    row_to_json(ROW)
+                      FROM      (
+                          SELECT    role
+                              , "userId"
+                              , status
+                          FROM      "task_to_user" AS t2u
+                          WHERE     t2u."deleteTime" IS NULL AND
+                                "taskId" = task.id
+                      ) AS ROW
+                ) AS "userList"
+                FROM "task" as task
+                WHERE  "deleteTime" IS NULL AND
+                regular @> '{"enabled":true}' AND 
+                  (
+                    ( 
+                      regular @> '{"rule":"weekdays"}' 
+                      AND regular -> 'weekdaysList' @> CAST( CAST((SELECT EXTRACT(ISODOW FROM ${nowWithShift})) AS text) as jsonb) 
+                    ) OR
+                    (
+                      regular @> '{"rule":"week"}' AND 
+                        (
+                          (
+                            "endTime" IS NULL  AND EXTRACT(ISODOW FROM "startTime") = EXTRACT(ISODOW FROM ${nowWithShift})
+                          ) OR 
+                          EXTRACT(ISODOW FROM "endTime") = EXTRACT(ISODOW FROM ${nowWithShift})                      
+                        )
+                    ) OR
+                    regular @> '{"rule":"day"}' OR
+                    (
+                      regular @> '{"rule":"month"}' AND
+                        (
+                          (
+                            "endTime" IS NULL  AND 
+                            EXTRACT(DAY FROM "startTime") = EXTRACT(DAY FROM ${nowWithShift})
+                          ) OR 
+                          EXTRACT(DAY FROM "endTime") = EXTRACT(DAY FROM ${nowWithShift})
+                        )
+                    )
+                  )
+        `,
+      )
+      .catch(exception.dbErrorCatcher);
+    console.log('cronCreateRegularTaskClones', findData[0]);
+    const tasksToClone = findData[0];
+
+    if (tasksToClone.length) {
+      const transaction = await this.sequelize.transaction();
+      try {
+        const dateWithShift = new Date();
+        dateWithShift.setDate(dateWithShift.getDate() + REGULAR_TASK_SHIFT_DAYS_COUNT);
+
+        for (const task of tasksToClone) {
+          let tempTime;
+          let { id, ...newObject } = task;
+          newObject.regular.enabled = false;
+          newObject.regular.origTaskId = task.id;
+
+          if (newObject.startTime !== null) {
+            tempTime = new Date(newObject.startTime);
+            tempTime.setFullYear(dateWithShift.getFullYear(), dateWithShift.getMonth(), dateWithShift.getDate());
+            newObject.startTime = tempTime.toISOString();
+          }
+
+          if (newObject.endTime !== null) {
+            tempTime = new Date(newObject.endTime);
+            tempTime.setFullYear(dateWithShift.getFullYear(), dateWithShift.getMonth(), dateWithShift.getDate());
+            newObject.endTime = tempTime.toISOString();
+          }
+
+          this.create(newObject, transaction).catch(exception.dbErrorCatcher);
+        }
+        await transaction.commit();
+      } catch (err) {
+        if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+        throw err;
+      }
+    }
+  }
+
+  async cloneRegularTask(taskId: number, taskData: taskFullDTO, transaction?: Transaction) {
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      if (taskData.regular.rule == 'month') return;
+
+      const termDate = new Date(
+        new Date().setHours(23, 59, 59999) + REGULAR_TASK_SHIFT_DAYS_COUNT * 24 * 60 * 60 * 1000,
+      );
+      let theDate = new Date(taskData.endTime ? taskData.endTime : taskData.startTime);
+      let theStartDate = taskData.startTime ? new Date(taskData.startTime) : null;
+      let theEndDate = taskData.endTime ? new Date(taskData.endTime) : null;
+      const theStep = taskData.regular.rule == 'week' ? 7 : 1;
+      const theDays = taskData.regular.rule == 'weekdays' ? taskData.regular.weekdaysList : null;
+
+      taskData.regular = {
+        enabled: false,
+        rule: taskData.regular.rule,
+        weekdaysList: taskData.regular.weekdaysList,
+      };
+      taskData.regular.origTaskId = taskId;
+
+      while (theDate <= termDate) {
+        if (theStartDate !== null) taskData.startTime = theStartDate.toISOString();
+        if (theEndDate !== null) taskData.endTime = theEndDate.toISOString();
+
+        if (theDays === null || theDays.includes(theDate.getDay())) {
+          await this.create(taskData, transaction).catch(exception.dbErrorCatcher);
+        }
+
+        const timeShift = theStep * 24 * 60 * 60 * 1000;
+        theDate = new Date(theDate.getTime() + timeShift);
+        if (theStartDate !== null) theStartDate = new Date(theStartDate.getTime() + timeShift);
+        if (theEndDate !== null) theEndDate = new Date(theEndDate.getTime() + timeShift);
+      }
+
+      if (createTransaction) await transaction.commit();
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
+    }
   }
 }
