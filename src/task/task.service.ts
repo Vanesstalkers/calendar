@@ -537,9 +537,11 @@ export class TaskService {
         FROM      "task" AS t
         LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL AND (t2u."userId" != t."ownUserId")
         LEFT JOIN "task_to_user" AS _t2u ON _t2u."taskId" = t.id AND _t2u."deleteTime" IS NULL AND (_t2u."userId" != t2u."userId")
+        LEFT JOIN "project_to_user" as p2u ON p2u."userId" = t2u."userId" AND p2u."projectId" = t."projectId" AND p2u."deleteTime" IS NULL
+        LEFT JOIN "user" as u ON u."id" = t2u."userId"
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-        LIMIT    
-                  :executorsLimit
+        ORDER BY  COALESCE(p2u."userName", u."name", u."id"::VARCHAR), t2u."userId"
+        LIMIT     :executorsLimit
         OFFSET    :executorsOffset
       `;
 

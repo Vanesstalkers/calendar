@@ -90,6 +90,7 @@ export function selectProjectToUserLink(
     SELECT    ${select.join(',')}
     FROM      "project_to_user" AS p2u ${join.join(' ')}
     WHERE     ${where.join(' AND ')}
+    ORDER BY  p2u."personal" DESC
   `;
 
   return config.jsonWrapper === false ? sql : this.json(sql);
