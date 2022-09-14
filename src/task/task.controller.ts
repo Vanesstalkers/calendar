@@ -130,7 +130,7 @@ export class TaskInstance {
         });
       }
     }
-    if (data.regular && !(data.endTime || this.data.endTime)) {
+    if (data.regular?.enabled && !(data.endTime || this.data?.endTime)) {
       throw new nestjs.BadRequestException({
         code: 'MISSING_REQUIRED_PARAM',
         msg: 'Regular task must have "endTime" param.',
@@ -153,9 +153,10 @@ export class TaskInstance {
 
       const checkUser = await new UserInstance(this.ctx.userController).init(checkUserId);
       if (this.project.isPersonal() && this.consumer.id !== checkUserId && !checkUser.hasContact(this.consumer.id)) {
-        throw new nestjs.BadRequestException(
-          `User (id=${this.consumer.id}) is not in user (id=${checkUserId}) contact list.`,
-        );
+        throw new nestjs.BadRequestException({
+          code: 'NOT_IN_CONTACT_LIST',
+          msg: `User (id=${this.consumer.id}) is not in user (id=${checkUserId}) contact list.`,
+        });
       }
 
       if (data.startTime !== undefined && data.endTime !== undefined) {
@@ -252,17 +253,26 @@ export class TaskController {
   @swagger.ApiBody(new taskGetAllQuerySwaggerI())
   @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
   async getAll(@nestjs.Body() data: taskGetAllQueryDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.queryType) throw new nestjs.BadRequestException('Query type is empty');
+    if (!data.queryData) throw new nestjs.BadRequestException('Query data is empty');
+
     const sessionData = await this.sessionService.getState(session);
-    const userId = sessionData.userId;
+    const sessionUserId = sessionData.userId;
 
     data.projectIds = [sessionData.currentProjectId];
     if (sessionData.currentProjectId === sessionData.personalProjectId) {
-      const user = await this.userService.getOne({ id: userId }, { attributes: ['config'] });
-      data.projectIds.push(...(user.config.showProjectsInPersonal || []));
-      const foreignProjectList = await this.userService.getForeignPersonalProjectList(userId);
+      const foreignProjectList = await this.userService.getForeignPersonalProjectList(sessionUserId);
       data.projectIds.push(...foreignProjectList.map((project: { id: number }) => project.id));
     }
-    const result = await this.taskService.getAll(data, userId);
+
+    const sessionUserCurrentProject = await new ProjectInstance(this.projectController).init(
+      sessionData.currentProjectId,
+      sessionUserId,
+    );
+    const sessionUserCurrentProjectLink = sessionUserCurrentProject.getUserLink(sessionUserId);
+    data.scheduleFilters = sessionUserCurrentProjectLink.config?.scheduleFilters;
+
+    const result = await this.taskService.getAll(data, sessionUserId);
     return { ...httpAnswer.OK, data: result };
   }
 

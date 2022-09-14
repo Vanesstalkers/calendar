@@ -50,7 +50,9 @@ export class TaskService {
       const task = createData[0][0];
 
       await this.update(task.id, taskData, transaction);
-      if (taskData.regular) await this.cloneRegularTask(task.id, taskData, transaction);
+      if (taskData.regular?.enabled === true) {
+        await this.cloneRegularTask(task.id, taskData, transaction);
+      }
 
       if (createTransaction) await transaction.commit();
       return task;
@@ -64,6 +66,8 @@ export class TaskService {
     try {
       const createTransaction = !transaction;
       if (createTransaction) transaction = await this.sequelize.transaction();
+
+      if (updateData.groupId !== undefined) delete updateData.groupId;
 
       await this.utils.updateDB({
         table: 'task',
@@ -331,7 +335,7 @@ export class TaskService {
       data.query = data.query.replace('#', '');
     }
 
-    const findData = await this.sequelize
+    const findIds = await this.sequelize
       .query(
         `--sql
                 SELECT  t.id
@@ -361,21 +365,23 @@ export class TaskService {
       )
       .catch(exception.dbErrorCatcher);
 
+    const findData = await this.getMany({ taskIdList: (findIds[0] || []).map((item) => item.id) });
+
     let endOfList = false;
-    if (!findData[0]) {
+    if (!findData) {
       endOfList = true;
     } else {
-      if (findData[0]?.length < data.limit + 1) {
+      if (findData?.length < data.limit + 1) {
         endOfList = true;
       } else {
-        findData[0].pop();
+        findData.pop();
       }
     }
-    return { data: findData[0], endOfList };
+    return { data: findData, endOfList };
   }
 
   async getAll(data: taskGetAllQueryDTO = {}, userId: number) {
-    const replacements: any = { myId: userId, projectIds: data.projectIds };
+    const replacements: any = { myId: userId };
     let sqlWhere = [];
     const select: any = {};
 
@@ -415,6 +421,8 @@ export class TaskService {
             't2u."userId" = :myId', // пользователь назначен исполнителем
           ];
           break;
+        default:
+          return { endOfList: false, resultList: [] };
       }
       select.inbox = `--sql
           SELECT    t.id, t.title
@@ -452,22 +460,12 @@ export class TaskService {
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
-      // sqlWhere = [
-      //   't2u.id IS NOT NULL', // пользователь назначен исполнителем
-      //   't."deleteTime" IS NULL', // НЕ удалена
-      //   `(t.regular->>'enabled')::boolean = true`, // регулярная задача
-      // ];
-      // select.schedule += `--sql
-      //   UNION ALL (
-      //     SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
-      //     FROM      "task" AS t
-      //     LEFT JOIN "task_to_user" AS t2u
-      //     ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-      //     WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-      //   )
-      // `;
       replacements.scheduleFrom = data.queryData.from;
       replacements.scheduleTo = data.queryData.to;
+
+      if (data.scheduleFilters) {
+        data.projectIds.push(...Object.keys(data.scheduleFilters).map((projectId) => parseInt(projectId)));
+      }
     }
 
     if (data.queryType === 'overdue') {
@@ -550,6 +548,7 @@ export class TaskService {
       replacements.executorsOffset = data.queryData.offset || 0;
     }
 
+    replacements.projectIds = data.projectIds;
     const findData = await this.sequelize
       .query(
         'SELECT ' +
@@ -565,73 +564,6 @@ export class TaskService {
     let result = { resultList: [], endOfList: false };
 
     if (data.queryType === 'schedule') {
-      // const replaceTask = {};
-      // for (const task of baseTaskList.schedule) {
-      //   if (task.regular.enabled) {
-      //     const hasEndTime = task.endTime ? true : false;
-
-      //     function fillRegularTasks(interval) {
-      //       let i = 0;
-      //       while (true) {
-      //         try {
-      //           if (i++ > 10) throw new Error('Too wide range'); // библиотека очень медленная
-      //           const newDate = interval.next();
-      //           const cloneTask = { ...task, id: undefined, origTaskId: task.id, regular: true };
-      //           if (hasEndTime) {
-      //             cloneTask.endTime = newDate.value.toISOString();
-      //           } else {
-      //             cloneTask.startTime = newDate.value.toISOString();
-      //           }
-      //           replaceTask[task.id].push(cloneTask);
-      //         } catch (e) {
-      //           break;
-      //         }
-      //       }
-      //     }
-
-      //     replaceTask[task.id] = [];
-      //     const d = new Date(hasEndTime ? task.endTime : task.startTime);
-      //     const intervalConfig = {
-      //       currentDate: new Date(data.queryData.from + ' 00:00:00'),
-      //       endDate: new Date(data.queryData.to + ' 23:59:59'),
-      //       iterator: true,
-      //     };
-      //     const taskAddTime = new Date(task.addTime);
-      //     if (taskAddTime > intervalConfig.currentDate) intervalConfig.currentDate = taskAddTime;
-      //     // !!! на самом деле фейковые задачи будут создаваться начиная с сегодняшнего дня,
-      //     // так как за предыдущие дни их уже должен был создать cron (начнет создавать, когда его напишем)
-
-      //     switch (task.regular.rule) {
-      //       case 'day':
-      //         fillRegularTasks(parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * *`, intervalConfig));
-      //         break;
-      //       case 'week':
-      //         fillRegularTasks(
-      //           parser.parseExpression(`${d.getMinutes()} ${d.getHours()} * * ${d.getDay()}`, intervalConfig),
-      //         );
-      //         break;
-      //       case 'month':
-      //         fillRegularTasks(
-      //           parser.parseExpression(`${d.getMinutes()} ${d.getHours()} ${d.getDate()} * *`, intervalConfig),
-      //         );
-      //         break;
-      //       case 'weekdays':
-      //         fillRegularTasks(
-      //           parser.parseExpression(
-      //             `${d.getMinutes()} ${d.getHours()} * * ${task.regular.weekdaysList.join(',')}`,
-      //             intervalConfig,
-      //           ),
-      //         );
-      //         break;
-      //     }
-      //   }
-      // }
-      // result.resultList = baseTaskList.schedule;
-      // for (const [id, cloneList] of Object.entries(replaceTask)) {
-      //   result.resultList = result.resultList.filter((task) => task.id !== +id).concat(cloneList);
-      // }
-      // taskIdList = taskIdList.concat(result.resultList.map((task) => task.id || task.origTaskId));
-
       result.resultList = baseTaskList.schedule.map((task) => task.id);
       taskIdList = taskIdList.concat(result.resultList);
     }
@@ -664,13 +596,30 @@ export class TaskService {
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
 
     if (data.queryType === 'inbox') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
-    if (data.queryType === 'schedule') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
-    // if (data.queryType === 'schedule') {
-    //   result.endOfList = true;
-    //   result.resultList = result.resultList.map((task) => {
-    //     return { ...taskMap[task.id || task.origTaskId], ...task };
-    //   });
-    // }
+    if (data.queryType === 'schedule') {
+      result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
+      if (data.scheduleFilters) {
+        result.resultList = result.resultList
+          .map((task) => {
+            const filters = data.scheduleFilters[task.projectId];
+            if (filters) {
+              function applyShowFilter(task) {
+                return filters.showTaskContent
+                  ? task
+                  : { id: task.id, startTime: task.startTime, endTime: task.endTime };
+              }
+              if (filters.showAllTasks) {
+                return applyShowFilter(task);
+              } else {
+                return task.userList.length > 1 ? applyShowFilter(task) : null;
+              }
+            } else {
+              return task;
+            }
+          })
+          .filter((task) => task);
+      }
+    }
     if (data.queryType === 'overdue') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'later') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'executors')

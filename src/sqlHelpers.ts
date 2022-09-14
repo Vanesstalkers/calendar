@@ -49,6 +49,7 @@ export function selectProjectToUserLink(
     addProjectData?: boolean;
     skipForeignPersonalProject?: boolean;
     jsonWrapper?: boolean;
+    showLinkConfig?: boolean;
   },
 ) {
   const join = [];
@@ -62,6 +63,7 @@ export function selectProjectToUserLink(
     '"userName"',
     `(${this.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"`,
   ];
+  if(config.showLinkConfig) select.push('p2u."config"');
   const where = ['p2u."deleteTime" IS NULL'];
 
   if (config.addUserData) {

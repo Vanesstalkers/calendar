@@ -68,6 +68,25 @@ export class ProjectToUser extends sequelize.Model {
   deleteTime: Date;
 }
 
+export class projectToUserConfigFiltersDTO {
+  @swagger.ApiProperty({
+    description: 'Показывать все задачи из этого проекта (true) или только задачи встречи (false)',
+    type: 'boolean',
+    example: true,
+  })
+  showAllTasks: boolean;
+  @swagger.ApiProperty({
+    description: 'Показывать содержимое задач (true) или нет (false)',
+    type: 'boolean',
+    example: true,
+  })
+  showTaskContent: boolean;
+}
+class projectToUserConfigDTO {
+  @swagger.ApiPropertyOptional({ type: { '[ID проекта]': { type: projectToUserConfigFiltersDTO } } })
+  scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
+}
+
 export class projectToUserUpdateDTO {
   @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
   userId?: number;
@@ -81,6 +100,11 @@ export class projectToUserUpdateDTO {
     example: 'Разработчик в Wazzup',
   })
   position?: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Конфиг сущности-связи project_to_user',
+    type: () => projectToUserConfigDTO,
+  })
+  config?: projectToUserConfigDTO;
   deleteTime?: Date;
 }
 
@@ -173,6 +197,27 @@ export class projectToUserGetOneDTO extends projectUserLinkDTO {
 class projectGetOneAnswerUserDTO extends projectToUserGetOneDTO {
   @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
   userId?: number;
+  @swagger.ApiPropertyOptional({
+    description: 'Конфиг сущности-связи project_to_user',
+    type: {
+      scheduleFilters: {
+        type: 'object',
+        properties: {
+          '[ID проекта]': {
+            type: 'object',
+            properties: {
+              showAllTasks: {
+                type: 'boolean',
+                description: 'Показывать все задачи из этого проекта (true) или только задачи встречи (false)',
+              },
+              showTaskContent: { type: 'boolean', description: 'Показывать содержимое задач (true) или нет (false)' },
+            },
+          },
+        },
+      },
+    },
+  })
+  config?: projectToUserConfigDTO;
 }
 
 export class projectAddUserQueryDTO {
@@ -222,6 +267,4 @@ export class projectGetOneAnswerDTO {
   iconFileId?: number;
   @swagger.ApiProperty({ description: 'Участники проекта', type: [projectGetOneAnswerUserDTO] })
   userList: projectGetOneAnswerUserDTO[];
-  @swagger.ApiProperty({ description: 'Задачи проекта', type: [projectGetOneAnswerTaskDTO] })
-  taskList: projectGetOneAnswerTaskDTO[];
 }
