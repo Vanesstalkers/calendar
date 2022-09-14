@@ -57,6 +57,9 @@ export class ProjectInstance {
       ? true
       : false;
   }
+  getUserLink(userId: number) {
+    return this.data.userList.find((link) => link.userId === userId);
+  }
 }
 
 @nestjs.Controller('project')
@@ -213,7 +216,9 @@ export class ProjectController {
         `User (id=${userLink.userId}) is not owner of personal project (id=${projectId}).`,
       );
 
-    await this.projectService.update(projectId, { userList: [{ role: 'member', userId, position: data.position, userName: data.userName }] });
+    await this.projectService.update(projectId, {
+      userList: [{ role: 'member', userId, position: data.position, userName: data.userName }],
+    });
     return httpAnswer.OK;
   }
 

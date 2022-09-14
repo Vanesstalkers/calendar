@@ -2,7 +2,7 @@ import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
-import { projectUserLinkDTO, projectToUserGetOneDTO } from '../project/project.dto';
+import { projectUserLinkDTO, projectToUserGetOneDTO, projectToUserConfigFiltersDTO } from '../project/project.dto';
 import { fileListItemDTO } from '../file/file.dto';
 import { commentListItemDTO } from '../comment/comment.dto';
 
@@ -302,8 +302,6 @@ export class taskDTO {
   endTime?: string;
   @swagger.ApiPropertyOptional({ description: 'Формат учета времени', example: 'later', enum: ['', 'later'] })
   timeType?: string;
-  @swagger.ApiPropertyOptional({ description: 'Обязательность выполнения', type: 'boolean | null', example: false })
-  require?: boolean;
   @swagger.ApiPropertyOptional({ description: 'Регулярная задача', type: userRegularDTO })
   regular?: userRegularDTO;
   @swagger.ApiProperty({ description: 'Список исполнителей', type: [taskUserLinkDTO] })
@@ -506,6 +504,7 @@ class taskGetAllQueryDataDTO {
 
 export class taskGetAllQueryDTO {
   projectIds?: number[];
+  scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
   queryType?: string;
   queryData?: taskGetAllQueryDataDTO;
 }
