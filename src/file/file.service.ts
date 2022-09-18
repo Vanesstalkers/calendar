@@ -4,6 +4,7 @@ import { QueryTypes } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import fastify = require('fastify-multipart');
 import { decorators, interfaces, models, types, exception } from '../globalImport';
+import { LoggerService } from '../logger/logger.service';
 
 import * as fs from 'fs';
 
@@ -22,6 +23,7 @@ export class FileService {
     @sequelize.InjectModel(models.project2user)
     private modelProjectToUser: typeof models.project2user,
     private utils: UtilsService,
+    private logger: LoggerService,
   ) {}
 
   async getOne(id: number, config: types['getOneConfig'] = {}) {
@@ -55,7 +57,7 @@ export class FileService {
     const stats = fs.statSync(uploadDir + '/' + newName);
     const fileSize = stats.size;
 
-    const file = await this.modelFile.create({
+    const createData = {
       link: newName,
       fileName: data.fileName,
       fileExtension: data.fileExtension,
@@ -64,7 +66,9 @@ export class FileService {
       parentType: data.parentType,
       parentId: data.parentId,
       fileType: data.fileType,
-    });
+    };
+    this.logger.sendLog({ fileData: createData });
+    const file = await this.modelFile.create(createData);
 
     return file;
   }

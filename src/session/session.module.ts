@@ -8,7 +8,8 @@ import { UtilsService } from '../utils/utils.service';
 
 @Module({
   imports: [],
-  providers: [UtilsService, SessionService],
   controllers: [SessionController],
+  providers: [SessionService],
+  exports: [SessionService],
 })
 export class SessionModule {}

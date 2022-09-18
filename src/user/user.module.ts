@@ -6,7 +6,7 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from './auth.service';
 import { ProjectService } from '../project/project.service';
 import { FileService } from '../file/file.service';
 
@@ -21,7 +21,8 @@ import { FileService } from '../file/file.service';
       models.file,
     ]),
   ],
-  providers: [UtilsService, UserService, SessionService, ProjectService, AuthService, FileService],
   controllers: [UserController],
+  providers: [UserService, AuthService],
+  exports: [UserService, AuthService],
 })
 export class UserModule {}

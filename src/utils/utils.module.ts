@@ -8,7 +8,8 @@ import { UtilsController } from './utils.controller';
 
 @Module({
   imports: [SequelizeModule.forFeature([])],
-  providers: [SessionService, UtilsService],
   controllers: [UtilsController],
+  providers: [UtilsService],
+  exports: [UtilsService],
 })
 export class UtilsModule {}

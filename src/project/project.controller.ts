@@ -180,7 +180,7 @@ export class ProjectController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
-  async updateUser(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO) {
+  async updateUser(@nestjs.Body() /* @decorators.Multipart() */ data: projectUpdateUserQueryDTO) {
     const projectId = data.projectId;
     const userId = data.userId;
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');

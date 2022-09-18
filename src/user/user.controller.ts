@@ -7,7 +7,7 @@ import { decorators, interfaces, models, types, httpAnswer, interceptors } from 
 
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from './auth.service';
 import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
@@ -327,7 +327,7 @@ export class UserController {
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
   async update(
-    @nestjs.Body() @decorators.Multipart() data: userUpdateQueryDTO, // без @nestjs.Body() не будет работать swagger
+    @nestjs.Body() /* @decorators.Multipart() */ data: userUpdateQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
     if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');

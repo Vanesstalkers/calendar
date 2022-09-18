@@ -9,7 +9,8 @@ import { CommentService } from './comment.service';
 
 @Module({
   imports: [SequelizeModule.forFeature([models.comment])],
-  providers: [SessionService, UtilsService, CommentService],
   controllers: [CommentController],
+  providers: [CommentService],
+  exports: [CommentService],
 })
 export class CommentModule {}

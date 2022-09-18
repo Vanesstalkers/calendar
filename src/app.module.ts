@@ -1,4 +1,5 @@
 import { Module, NestModule, DynamicModule, Global, CacheModule } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ScheduleModule } from '@nestjs/schedule';
 import { models } from './globalImport';
@@ -14,6 +15,9 @@ import { TaskModule } from './task/task.module';
 import { CommentModule } from './comment/comment.module';
 import { FileModule } from './file/file.module';
 import { UtilsModule } from './utils/utils.module';
+import { LoggerModule } from './logger/logger.module';
+
+import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 var dbImport: DynamicModule, cacheImport: DynamicModule;
 
@@ -54,6 +58,7 @@ try {
   imports: [
     dbImport,
     cacheImport,
+    LoggerModule,
     UserModule,
     SessionModule,
     ProjectModule,
@@ -76,8 +81,14 @@ try {
       models.file,
     ]),
   ],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: UniversalExceptionFilter,
+    },
+  ],
   controllers: [],
+  exports: [LoggerModule, UserModule, SessionModule, ProjectModule, TaskModule, CommentModule, FileModule, UtilsModule],
 })
 export class AppModule implements NestModule {
   configure() {}

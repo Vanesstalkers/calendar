@@ -7,7 +7,7 @@ import { ProjectService } from './project.service';
 import { ProjectTransferService } from './transfer.service';
 import { UserController } from '../user/user.controller';
 import { UserService } from '../user/user.service';
-import { AuthService } from '../auth/auth.service';
+import { AuthService } from '../user/auth.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
 import { UtilsService } from '../utils/utils.service';
@@ -23,16 +23,8 @@ import { UtilsService } from '../utils/utils.service';
       models.file,
     ]),
   ],
-  providers: [
-    ProjectService,
-    ProjectTransferService,
-    UserService,
-    UserController,
-    AuthService,
-    SessionService,
-    FileService,
-    UtilsService,
-  ],
   controllers: [ProjectController],
+  providers: [ProjectService, ProjectTransferService, UserController],
+  exports: [ProjectService, ProjectTransferService],
 })
 export class ProjectModule {}

@@ -25,7 +25,8 @@ import { join } from 'path';
     //   exclude: ['/api*'],
     // }),
   ],
-  providers: [FileService, SessionService, UtilsService],
   controllers: [FileController],
+  providers: [FileService],
+  exports: [FileService],
 })
 export class FileModule {}
