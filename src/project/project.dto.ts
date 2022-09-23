@@ -3,7 +3,7 @@ import * as swagger from '@nestjs/swagger';
 import { models, types } from '../globalImport';
 
 import { taskDTO } from '../task/task.dto';
-import { fileListItemDTO } from '../file/file.dto';
+import { fileListItemDTO, fileUploadQueryFileDTO } from '../file/file.dto';
 
 @sequelize.Table({ tableName: 'project' })
 export class Project extends sequelize.Model {
@@ -126,6 +126,22 @@ export class projectUpdateQueryDTO {
 }
 
 export class projectUpdateUserQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
+  @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
+  userName: string;
+  @swagger.ApiPropertyOptional({
+    description: 'Описание роли (должности) в проекте',
+    type: 'string | null',
+    example: 'Разработчик в Wazzup',
+  })
+  position?: string;
+  @swagger.ApiProperty({ type: fileUploadQueryFileDTO })
+  iconFile: fileUploadQueryFileDTO;
+}
+export class projectUpdateUserWithFormdataQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
   @swagger.ApiProperty({ description: 'ID пользователя' })

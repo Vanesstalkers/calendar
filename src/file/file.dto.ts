@@ -87,10 +87,10 @@ export class fileListItemDTO {
   fileType: string;
 }
 
-class fileUploadQueryFileDTO {
+export class fileUploadQueryFileDTO {
   @swagger.ApiProperty({ description: 'Содержимое файла в base64', example: 'iVBORw0KGgoAAAANSUh...' })
   fileContent?: string;
-  @swagger.ApiProperty({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
+  @swagger.ApiPropertyOptional({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
   fileMimetype?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя файла', type: 'string', example: 'picture.jpg' })
   fileName?: string;

@@ -5,6 +5,8 @@ import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
 
+import * as fs from 'fs';
+
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
 import { AuthService } from '../auth/auth.service';
@@ -23,6 +25,7 @@ import {
   userChangeCurrentProjectQueryDTO,
   userAddContactQueryDTO,
   userUpdateQueryDTO,
+  userUpdateWithFormdataQueryDTO,
 } from './user.dto';
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
@@ -324,10 +327,49 @@ export class UserController {
 
   @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async update(@nestjs.Body() data: userUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
+    const userId = data.userId;
+    if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');
+
+    if (data.iconFile) {
+      if (!data.iconFile?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
+      if (data.iconFile.fileContent.includes(';base64,')) {
+        const fileContent = data.iconFile.fileContent.split(';base64,');
+        data.iconFile.fileContent = fileContent[1];
+        if (!data.iconFile.fileMimetype) data.iconFile.fileMimetype = fileContent[0].replace('data:', '');
+      }
+      if (!data.iconFile.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
+    }
+
+    await this.userService.update(userId, data.userData);
+
+    if (data.iconFile) {
+      if (!data.iconFile.fileExtension) data.iconFile.fileExtension = (data.iconFile.fileName || '').split('.').pop();
+      if (!data.iconFile.fileName)
+        data.iconFile.fileName =
+          ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.iconFile.fileExtension;
+      data.iconFile.link = './uploads/' + data.iconFile.fileName;
+      await fs.promises.writeFile(data.iconFile.link, Buffer.from(data.iconFile.fileContent, 'base64'));
+
+      await this.fileService.create(
+        Object.assign(data.iconFile, {
+          parentType: 'user',
+          parentId: userId,
+          fileType: 'icon',
+        }),
+      );
+    }
+
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Post('updateWithFormdata')
+  @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
-  async update(
-    @nestjs.Body() @decorators.Multipart() data: userUpdateQueryDTO, // без @nestjs.Body() не будет работать swagger
+  async updateWithFormdata(
+    @nestjs.Body() @decorators.Multipart() data: userUpdateWithFormdataQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
     if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');

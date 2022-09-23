@@ -4,10 +4,13 @@ import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
 
+import * as fs from 'fs';
+
 import {
   projectCreateQueryDTO,
   projectUpdateQueryDTO,
   projectUpdateUserQueryDTO,
+  projectUpdateUserWithFormdataQueryDTO,
   projectTransferQueryDTO,
   projectGetOneQueryDTO,
   projectGetOneAnswerDTO,
@@ -178,9 +181,53 @@ export class ProjectController {
 
   @nestjs.Post('updateUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async updateUser(@nestjs.Body() data: projectUpdateUserQueryDTO) {
+    const projectId = data.projectId;
+    const userId = data.userId;
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    if (!userId) throw new nestjs.BadRequestException('User ID is empty');
+    const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
+
+    if (data.iconFile) {
+      if (!data.iconFile?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
+      if (data.iconFile.fileContent.includes(';base64,')) {
+        const fileContent = data.iconFile.fileContent.split(';base64,');
+        data.iconFile.fileContent = fileContent[1];
+        if (!data.iconFile.fileMimetype) data.iconFile.fileMimetype = fileContent[0].replace('data:', '');
+      }
+      if (!data.iconFile.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
+    }
+
+    const updateData: { userId: number; userName?: string; position?: string } = { userId };
+    if (data.userName !== undefined) updateData.userName = data.userName;
+    if (data.position !== undefined) updateData.position = data.position;
+    await this.projectService.update(projectId, { userList: [updateData] });
+
+    if (data.iconFile) {
+      if (!data.iconFile.fileExtension) data.iconFile.fileExtension = (data.iconFile.fileName || '').split('.').pop();
+      if (!data.iconFile.fileName)
+        data.iconFile.fileName =
+          ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.iconFile.fileExtension;
+      data.iconFile.link = './uploads/' + data.iconFile.fileName;
+      await fs.promises.writeFile(data.iconFile.link, Buffer.from(data.iconFile.fileContent, 'base64'));
+
+      await this.fileService.create(
+        Object.assign(data.iconFile, {
+          parentType: 'project_to_user',
+          parentId: userLink.id,
+          fileType: 'icon',
+        }),
+      );
+    }
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Post('updateUserWithFormdata')
+  @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
-  async updateUser(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO) {
+  async updateUserWithFormdata(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserWithFormdataQueryDTO) {
     const projectId = data.projectId;
     const userId = data.userId;
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');

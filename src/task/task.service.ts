@@ -140,8 +140,8 @@ export class TaskService {
                             { addUserData: true },
                           )}
                         ) AS "ownUser"
-                        , array(${sql.json(`--sql
-                            SELECT    t2u."id", t2u."role", t2u."userId", t2u."status", p2u.*
+                        , array(${sql.json(`--sql --порядок p2u.* принципиален, т.к. в нем тоже есть "role"
+                            SELECT    p2u.*, t2u."id", t2u."role", t2u."userId", t2u."status"
                             FROM      "task_to_user" AS t2u, (
                               (${sql.selectProjectToUserLink({}, { addUserData: true, jsonWrapper: false })})
                             ) AS p2u
@@ -394,6 +394,7 @@ export class TaskService {
             `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
             [
               't."execEndTime" IS NULL AND t."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
+              `t2u."role" = 'exec' AND t2u."status" IS DISTINCT FROM 'exec_ready'`, // время задачи уже указано, но задача еще не принята исполнителем (актуально для встреч)
               `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'control_ready'`, // нужен контроль исполнения назначенной исполнителю задачи
             ]
               .map((item) => `(${item})`)
@@ -455,9 +456,12 @@ export class TaskService {
         (
           SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u
-          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                    LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :myId 
+                                                    AND t2u."taskId" = t.id 
+                                                    AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+          ORDER BY  CASE WHEN t."timeType" = 'day' THEN 1 ELSE 0 END 
+                    NULLS FIRST
         )
       `;
       replacements.scheduleFrom = data.queryData.from;

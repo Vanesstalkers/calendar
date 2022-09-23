@@ -44,15 +44,19 @@ export class UtilsService {
       let replaceValue = value,
         dbHandler = false;
       if (handlers[key]) {
-        const handlerResult = await handlers[key](value, transaction) || {};
+        const handlerResult = (await handlers[key](value, transaction)) || {};
         if (handlerResult.preventDefault) continue;
         if (handlerResult.replaceValue) replaceValue = handlerResult.replaceValue;
         //if (handlerResult.dbHandler) dbHandler = handlerResult.dbHandler;
       }
 
       if (jsonKeys.includes(key)) {
-        setList.push(`"${key}" = "${key}"::jsonb || :${key}::jsonb`);
-        replacements[key] = JSON.stringify(replaceValue);
+        if (replaceValue === null) {
+          setList.push(`"${key}" = '{}'::jsonb`);
+        } else {
+          setList.push(`"${key}" = "${key}"::jsonb || :${key}::jsonb`);
+          replacements[key] = JSON.stringify(replaceValue);
+        }
       } else {
         if (value !== undefined) {
           setList.push(`"${key}" = :${key}`);

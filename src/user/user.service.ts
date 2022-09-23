@@ -34,7 +34,7 @@ export class UserService {
                         , array(
                           ${sql.selectProjectToUserLink(
                             { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
-                            { addProjectData: true },
+                            { addProjectData: true, showLinkConfig: true },
                           )}
                         ) AS "projectList"
                         , (
@@ -210,8 +210,8 @@ export class UserService {
         `--sql
           SELECT    *
           FROM      "task_to_user" AS t2u
-                    LEFT JOIN "task" AS t ON t.id = t2u."taskId"
-          WHERE     t2u."userId" = :userId AND      
+                    LEFT JOIN "task" AS t ON t.id = t2u."taskId" AND t2u."deleteTime" IS NULL
+          WHERE     t2u."userId" = :userId AND t."deleteTime" IS NULL AND      
                     t."startTime" IS NOT NULL AND t."endTime" IS NOT NULL AND      
                     NOT (t."startTime" > :endTime OR t."endTime" < :startTime)
       `,

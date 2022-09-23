@@ -91,7 +91,6 @@ export class FileController {
     }
     if (!data.file.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
 
-    //if (!data.file.fileMimetype) data.file.fileMimetype = 'image/jpeg';
     if (!data.file.fileExtension) data.file.fileExtension = (data.file.fileName || '').split('.').pop();
     if (!data.file.fileName)
       data.file.fileName = ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.file.fileExtension;

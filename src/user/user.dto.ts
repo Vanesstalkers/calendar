@@ -3,6 +3,7 @@ import * as swagger from '@nestjs/swagger';
 import { interfaces, models, types } from '../globalImport';
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
+import { fileUploadQueryFileDTO } from '../file/file.dto';
 
 @sequelize.Table({ tableName: 'user' })
 export class User extends sequelize.Model {
@@ -194,6 +195,15 @@ export class userUpdateQueryDataDTO {
 }
 
 export class userUpdateQueryDTO {
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
+  @swagger.ApiProperty({ description: 'schema: userUpdateQueryDataDTO', type: userUpdateQueryDataDTO })
+  userData: userUpdateQueryDataDTO;
+  @swagger.ApiProperty({ type: fileUploadQueryFileDTO })
+  iconFile: fileUploadQueryFileDTO;
+}
+
+export class userUpdateWithFormdataQueryDTO {
   @swagger.ApiProperty({ description: 'ID пользователя' })
   userId: number;
   @swagger.ApiProperty({ description: 'schema: userUpdateQueryDataDTO', type: userUpdateQueryDataDTO })

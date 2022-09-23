@@ -278,10 +278,17 @@ class userRegularDTO {
     type: ['number'],
   })
   weekdaysList: [number];
+  @swagger.ApiPropertyOptional({
+    description: 'Ссылка на оригинальную задачу (для регулярных задач)',
+    example: 1,
+    type: 'number',
+  })
   origTaskId?: number;
 }
 
 export class taskDTO {
+  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
+  id?: number;
   @swagger.ApiPropertyOptional({ description: 'Заголовок задачи', type: 'string' })
   title?: string;
   @swagger.ApiPropertyOptional({ description: 'Описание задачи', type: 'string' })
