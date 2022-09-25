@@ -14,6 +14,7 @@ export class ProjectTransferService {
       await this.projectService.updateUserLink(fromUserLink.id, { deleteTime: new Date() }, transaction);
       await this.projectService.updateUserLink(toUserLink.id, { role: 'owner' }, transaction);
 
+      // тут "updateTime" = NOW() не делаем, потому что это системное действие
       await this.utils.queryDB(
         `--sql
             UPDATE "task"

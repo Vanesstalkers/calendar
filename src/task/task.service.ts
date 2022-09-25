@@ -293,7 +293,7 @@ export class TaskService {
   async search(data: taskSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
     const hashFlag = /^#/.test(data.query);
     const hashTable = hashFlag ? ', "hashtag" h ' : '';
-    const sqlWhere = [`t2u."userId" = :userId OR t."ownUserId" = :userId`];
+    const sqlWhere = [`t2u."userId" = :userId OR t."ownUserId" = :userId`, `t."deleteTime" IS NULL`];
     if (hashFlag) {
       sqlWhere.push(...['h."deleteTime" IS NULL', 'h."taskId" = t.id AND LOWER(h.name) LIKE LOWER(:query)']);
     } else {
@@ -609,7 +609,7 @@ export class TaskService {
     console.log('checkForDeleteFinished', new Date().toISOString());
     await this.utils.queryDB(
       `--sql
-        UPDATE task SET "deleteTime" = NOW() WHERE id IN (
+        UPDATE task SET "deleteTime" = NOW(), "updateTime" = NOW() WHERE id IN (
           SELECT    t.id
           FROM      "task" AS t, "user" AS u
           WHERE     u.id = t."ownUserId"

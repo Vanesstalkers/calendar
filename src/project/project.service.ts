@@ -85,10 +85,7 @@ export class ProjectService {
   async checkExists(id: number) {
     const findData = await this.utils.queryDB(
       `--sql
-        SELECT    "id"
-        FROM      "project"
-        WHERE     "id" = :id AND "deleteTime" IS NULL
-        LIMIT     1
+        SELECT "id" FROM "project" WHERE "id" = :id AND "deleteTime" IS NULL LIMIT 1
         `,
       { type: QueryTypes.SELECT, replacements: { id } },
     );

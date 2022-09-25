@@ -58,7 +58,7 @@ export class UserService {
   }
 
   async search(data: userSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
-    const customWhere = [''];
+    const customWhere = ['', 'u."deleteTime" IS NULL'];
     if (!data.globalSearch) customWhere.push('u2u.id IS NOT NULL');
 
     const findData = await this.utils.queryDB(
@@ -157,7 +157,12 @@ export class UserService {
   }
 
   async checkExists(id: number) {
-    const findData = await this.utils.queryDB(`SELECT id FROM "user" WHERE id = :id`, { replacements: { id } });
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT id FROM "user" WHERE id = :id AND "deleteTime" IS NULL LIMIT 1
+        `,
+      { replacements: { id } },
+    );
     return findData[0][0] ? true : false;
   }
 
