@@ -1,6 +1,4 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { models, types } from '../globalImport';
 
 export class searchPhoneCodeQueryDTO {
   @swagger.ApiProperty({ type: 'string', example: 'Afg...', description: 'Строка поиска' })

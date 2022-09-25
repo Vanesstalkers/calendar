@@ -1,15 +1,8 @@
 import * as nestjs from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
-import { Session as FastifySession } from '@fastify/secure-session';
-import {
-  decorators,
-  interfaces,
-  models,
-  types,
-  httpAnswer,
-} from '../../globalImport';
+import { decorators, interfaces, types, httpAnswer } from '../../globalImport';
+
+import { LoggerService } from '../../logger/logger.service';
 
 export function fsErrorCatcher(err: any): any {
   console.log('fsErrorCatcher', { err });
@@ -36,10 +29,7 @@ export function dbErrorCatcher(err: any): any {
       code: 'DB_BAD_QUERY',
       msg: `Dublicate unique key (${err.parent?.detail})`,
     });
-  } else if (
-    err.name === 'SequelizeDatabaseError' ||
-    err.message.includes('Invalid value')
-  ) {
+  } else if (err.name === 'SequelizeDatabaseError' || err.message.includes('Invalid value')) {
     throw new nestjs.BadRequestException({
       code: 'DB_BAD_QUERY',
       msg: err.message,
@@ -50,16 +40,17 @@ export function dbErrorCatcher(err: any): any {
 }
 
 @nestjs.Catch()
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
-  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
-  catch(exception: unknown, host: nestjs.ArgumentsHost): void {
-    console.log('UniversalExceptionFilter', { exception });
+  constructor(private readonly httpAdapterHost: HttpAdapterHost, private logger: LoggerService) {}
+  async catch(exception: unknown, host: nestjs.ArgumentsHost) {
     const { httpAdapter } = this.httpAdapterHost;
-    const ctx = host.switchToHttp();
+    const request = host.switchToHttp().getRequest();
+    const response = host.switchToHttp().getResponse();
     const responseBody: types['interfaces']['response']['exception'] = {
       ...httpAnswer.ERR,
       timestamp: new Date(),
-      path: httpAdapter.getRequestUrl(ctx.getRequest()),
+      path: httpAdapter.getRequestUrl(request),
     };
     let responseStatus = nestjs.HttpStatus.INTERNAL_SERVER_ERROR;
 
@@ -75,9 +66,12 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
       responseBody.msg = exceptionData.msg || exception.message;
       responseBody.code = exceptionData.code;
     } else {
-      // !!! добавить запись в лог
+      console.log('unknownException in UniversalExceptionFilter', { exception });
     }
 
-    httpAdapter.reply(ctx.getResponse(), responseBody, responseStatus);
+    httpAdapter.reply(response, responseBody, responseStatus);
+    
+    // если вызвать логгер раньше, то reply почему то не отработает
+    this.logger.sendLog({ exception: responseBody }, { request, finalizeType: 'error' });
   }
 }

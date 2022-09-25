@@ -1,32 +1,6 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { models, types } from '../globalImport';
 
 import { fileListItemDTO } from '../file/file.dto';
-
-@sequelize.Table({ tableName: 'comment' })
-export class Comment extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.ForeignKey(() => models.task)
-  @sequelize.Column
-  taskId: number;
-  @sequelize.BelongsTo(() => models.task)
-  task: types['models']['task'];
-
-  @sequelize.Column
-  text: string;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
 
 export class commentDTO {
   @swagger.ApiProperty({ description: 'Тест комментария', type: 'string' })

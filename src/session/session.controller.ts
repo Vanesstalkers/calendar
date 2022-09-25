@@ -1,18 +1,12 @@
 import * as nestjs from '@nestjs/common';
-import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types } from '../globalImport';
 
 import { SessionService } from './session.service';
 import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Controller('session')
 export class SessionController {
-  constructor(
-    private sessionService: SessionService,
-    private utils: UtilsService,
-  ) {}
+  constructor(private sessionService: SessionService, private utils: UtilsService) {}
 
   // @nestjs.Get('getStorage')
   // @nestjs.Header('Content-Type', 'application/json')

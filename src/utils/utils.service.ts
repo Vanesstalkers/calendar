@@ -1,12 +1,19 @@
 import * as nestjs from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize/types';
 import axios from 'axios';
 import config from '../config';
-import { decorators, interfaces, models, types, exception } from '../globalImport';
+import { decorators, interfaces, types, exception } from '../globalImport';
+
+import * as stream from 'stream';
+import * as fs from 'node:fs';
+import * as util from 'node:util';
+
+import { LoggerService } from '../logger/logger.service';
 
 @nestjs.Injectable()
 export class UtilsService {
-  constructor(private sequelize: Sequelize) {}
+  constructor(private sequelize: Sequelize, private logger: LoggerService) {}
 
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
@@ -34,6 +41,51 @@ export class UtilsService {
     return result;
   }
 
+  async parseMultipart(request) {
+    const pump = util.promisify(stream.pipeline);
+    const value = {};
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.file) {
+        const tmpPath = './uploads/' + part.filename;
+        await pump(part.file, fs.createWriteStream(tmpPath));
+        // const buff = await part.toBuffer()
+        // const decoded = Buffer.from(buff.toString(), 'base64').toString()
+        // value[part.fieldname] = decoded // set `part.value` to specify the request body value
+        value[part.fieldname] = {
+          fileName: part.filename,
+          fileMimetype: part.mimetype,
+          fileExtension: part.filename.split('.').pop(),
+          link: tmpPath,
+        };
+      } else {
+        if (part.value[0] === '{') {
+          try {
+            value[part.fieldname] = JSON.parse(part.value);
+          } catch (err) {
+            throw new nestjs.BadRequestException({ msg: 'Invalid JSON-data', code: 'DB_BAD_QUERY' });
+          }
+        } else {
+          value[part.fieldname] = part.value;
+        }
+      }
+    }
+    return value;
+  }
+
+  async queryDB(sql, options?) {
+    const startTime = Date.now();
+    options.logging = async (fullfilled_sql) => {
+      await this.logger.sendLog({
+        sql,
+        fullfilled_sql: fullfilled_sql.split('): ', 2)[1] || fullfilled_sql,
+        replacements: options.replacements,
+        execTime: (Date.now() - startTime) / 1000,
+      });
+    };
+    return await this.sequelize.query(sql, options).catch(exception.dbErrorCatcher);
+  }
+
   async updateDB({ table, id, data, handlers = {}, jsonKeys = [], transaction }) {
     const setList = [];
     const replacements = { id };
@@ -41,13 +93,11 @@ export class UtilsService {
     for (const [key, value] of Object.entries(data)) {
       if (key === 'id') continue;
 
-      let replaceValue = value,
-        dbHandler = false;
+      let replaceValue = value;
       if (handlers[key]) {
         const handlerResult = (await handlers[key](value, transaction)) || {};
         if (handlerResult.preventDefault) continue;
         if (handlerResult.replaceValue) replaceValue = handlerResult.replaceValue;
-        //if (handlerResult.dbHandler) dbHandler = handlerResult.dbHandler;
       }
 
       if (jsonKeys.includes(key)) {
@@ -66,12 +116,29 @@ export class UtilsService {
     }
 
     if (setList.length) {
-      await this.sequelize
-        .query(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, {
-          replacements,
-          transaction,
-        })
-        .catch(exception.dbErrorCatcher);
+      setList.unshift(`"updateTime" = NOW()`);
+      await this.queryDB(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, {
+        replacements,
+        transaction,
+      });
+    }
+  }
+
+  async withDBTransaction<T>(
+    transaction: Transaction,
+    action: (transaction: Transaction) => Promise<void | T>,
+  ): Promise<void | T> {
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      const actionResult = await action(transaction);
+
+      if (createTransaction) await transaction.commit();
+      return actionResult;
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
     }
   }
 }

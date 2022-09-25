@@ -23,7 +23,8 @@ async function bootstrap() {
       salt: 'mq9hDxBVDbspDR6n',
       cookie: { path: '/', sameSite: 'none', secure: true, maxAge: 86400 },
     });
-    app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
+
+    // app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
 
     const swaggerConfig = new DocumentBuilder()
       .setTitle('API description')

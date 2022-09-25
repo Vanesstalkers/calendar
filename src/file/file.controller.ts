@@ -3,7 +3,7 @@ import * as swagger from '@nestjs/swagger';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
 import * as fs from 'node:fs';
 import { join } from 'path';
@@ -13,6 +13,7 @@ import { fileUploadQueryDTO, fileUploadWithFormdataQueryDTO } from './file.dto';
 import { FileService } from './file.service';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
+import { LoggerService } from '../logger/logger.service';
 
 import { fileDTO, fileDeleteQueryDTO, fileGetMetaAnswerDTO } from './file.dto';
 
@@ -22,7 +23,12 @@ import { fileDTO, fileDeleteQueryDTO, fileGetMetaAnswerDTO } from './file.dto';
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
 @swagger.ApiExtraModels(fileGetMetaAnswerDTO)
 export class FileController {
-  constructor(private service: FileService, private sessionService: SessionService, private utils: UtilsService) {}
+  constructor(
+    private service: FileService,
+    private sessionService: SessionService,
+    private utils: UtilsService,
+    private logger: UtilsService,
+  ) {}
 
   @nestjs.Get('get/:id')
   @nestjs.UseGuards(decorators.isLoggedIn)
@@ -105,7 +111,7 @@ export class FileController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.created())
-  async uploadWithFormdata(@nestjs.Body() @decorators.Multipart() data: fileUploadWithFormdataQueryDTO) {
+  async uploadWithFormdata(@nestjs.Body() /* @decorators.Multipart() */ data: fileUploadWithFormdataQueryDTO) {
     const file = await this.service.create(Object.assign(data.file, data.fileData));
     return { ...httpAnswer.OK, data: { id: file.id } };
   }

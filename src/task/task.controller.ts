@@ -2,7 +2,7 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify-multipart';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, exception, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, exception, httpAnswer, interceptors } from '../globalImport';
 
 import {
   taskCreateQueryDTO,

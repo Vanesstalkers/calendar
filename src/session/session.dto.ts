@@ -1,6 +1,4 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { models, types } from '../globalImport';
 
 export interface sessionDTO {
   storageId?: string;
@@ -24,4 +22,7 @@ export class sessionStorageDTO {
   @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
   currentProjectId?: number;
   lastAuthAttempt?: Date;
+  authCode?: string;
+  authType?: string;
+  registrationData?: any;
 }

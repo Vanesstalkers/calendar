@@ -1,72 +1,7 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { models, types } from '../globalImport';
 
 import { taskDTO } from '../task/task.dto';
-import { fileListItemDTO, fileUploadQueryFileDTO } from '../file/file.dto';
-
-@sequelize.Table({ tableName: 'project' })
-export class Project extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.Column
-  title: string;
-
-  @sequelize.HasMany(() => models.project2user, 'projectId')
-  userList: types['models']['project2user'][];
-
-  @swagger.ApiProperty({ type: () => [models.task] })
-  @sequelize.HasMany(() => models.task, 'projectId')
-  taskList: types['models']['task'][];
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
-
-@sequelize.Table({ tableName: 'project_to_user' })
-export class ProjectToUser extends sequelize.Model {
-  @sequelize.Column({ allowNull: true })
-  role: string;
-
-  @sequelize.ForeignKey(() => models.user)
-  @sequelize.Column
-  userId: number;
-  @swagger.ApiProperty({ type: () => models.user })
-  @sequelize.BelongsTo(() => models.user)
-  user: types['models']['user'];
-
-  @sequelize.ForeignKey(() => models.project)
-  @sequelize.Column
-  projectId: number;
-  @sequelize.BelongsTo(() => models.project)
-  project: types['models']['project'];
-
-  @sequelize.Column({ defaultValue: false })
-  personal: boolean;
-
-  @sequelize.Column
-  userName: string;
-
-  @sequelize.Column({ allowNull: true })
-  position: string;
-
-  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
-  config: object;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
+import { fileDTO, fileListItemDTO, fileUploadQueryFileDTO } from '../file/file.dto';
 
 export class projectToUserConfigFiltersDTO {
   @swagger.ApiProperty({
@@ -155,7 +90,7 @@ export class projectUpdateUserWithFormdataQueryDTO {
   })
   position?: string;
   @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
-  iconFile: types['models']['file'];
+  iconFile: fileDTO;
 }
 
 export class projectTransferQueryDTO {
