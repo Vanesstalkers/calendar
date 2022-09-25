@@ -72,6 +72,6 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
     httpAdapter.reply(response, responseBody, responseStatus);
     
     // если вызвать логгер раньше, то reply почему то не отработает
-    this.logger.sendLog({ exception: responseBody }, { request, finalizeType: 'error' });
+    await this.logger.sendLog({ exception: responseBody }, { request, finalizeType: 'error' });
   }
 }

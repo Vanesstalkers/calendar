@@ -20,9 +20,21 @@ import {
   projectGetOneAnswerUserDTO,
 } from './project.dto';
 
+import {
+  taskGetAllQueryDTO,
+  taskGetOneAnswerDTO,
+  taskGetAllQuerySwaggerI,
+  taskInboxQueryDataDTO,
+  taskScheduleQueryDataDTO,
+  taskOverdueQueryDataDTO,
+  taskLaterQueryDataDTO,
+  taskExecutorsQueryDataDTO,
+} from '../task/task.dto';
+
 import { ProjectService } from './project.service';
 import { ProjectTransferService } from './transfer.service';
 import { UserController, UserInstance } from '../user/user.controller';
+import { TaskService } from '../task/task.service';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
@@ -64,6 +76,18 @@ export class ProjectInstance {
   getUserLink(userId: number) {
     return this.data.userList.find((link) => link.userId === userId);
   }
+  async fillGetTasksQuery(queryData, sessionData) {
+    const projectIds = [this.id];
+    if (this.id === sessionData.personalProjectId) {
+      const foreignProjectList = await this.ctx.userService.getForeignPersonalProjectList(this.consumer.id);
+      projectIds.push(...foreignProjectList.map((project: { id: number }) => project.id));
+    }
+
+    const sessionUserCurrentProjectLink = this.getUserLink(this.consumer.id);
+    const scheduleFilters = sessionUserCurrentProjectLink.config?.scheduleFilters;
+
+    return { ...queryData, projectIds, scheduleFilters };
+  }
 }
 
 @nestjs.Controller('project')
@@ -77,7 +101,8 @@ export class ProjectController {
     public projectService: ProjectService,
     private transferService: ProjectTransferService,
     public userController: UserController,
-    private userService: UserService,
+    public userService: UserService,
+    private taskService: TaskService,
     private sessionService: SessionService,
     private fileService: FileService,
     private utils: UtilsService,
@@ -296,5 +321,68 @@ export class ProjectController {
       await this.sessionService.updateStorageById(session.storageId, { currentProjectId: redirectProjectId });
       return { ...httpAnswer.OK, data: { redirectProjectId } };
     }
+  }
+
+  @nestjs.Post('getInboxTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getInboxTasks(@nestjs.Body() data: taskInboxQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.filter) throw new nestjs.BadRequestException('Attribute "filter" is empty');
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getInboxTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getScheduleTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getScheduleTasks(@nestjs.Body() data: taskScheduleQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.from) throw new nestjs.BadRequestException('Attribute "from" is empty');
+    if (!data.to) throw new nestjs.BadRequestException('Attribute "to" is empty');
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getScheduleTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getOverdueTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getOverdueTasks(@nestjs.Body() data: taskOverdueQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getOverdueTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getLaterTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getLaterTasks(@nestjs.Body() data: taskLaterQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getLaterTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getExecutorsTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getExecutorsTasks(@nestjs.Body() data: taskExecutorsQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getExecutorsTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
   }
 }

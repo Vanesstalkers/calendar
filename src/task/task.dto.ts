@@ -304,6 +304,44 @@ export class taskGetAllQueryExecutorsDTO {
   offset?: number;
 }
 
+class taskBaseQueryDataDTO {
+  projectIds?: number[];
+  scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
+}
+
+export class taskInboxQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
+  filter?: string;
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskScheduleQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2000-07-08' })
+  from: Date;
+  @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2032-07-10' })
+  to: Date;
+}
+export class taskOverdueQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskLaterQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskExecutorsQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+
 class taskGetAllQueryDataDTO {
   @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
   filter?: string;
@@ -315,6 +353,8 @@ class taskGetAllQueryDataDTO {
   from: Date;
   @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2032-07-10' })
   to: Date;
+  projectIds?: number[];
+  scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
 }
 
 export class taskGetAllQueryDTO {

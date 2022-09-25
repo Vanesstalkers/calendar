@@ -14,6 +14,7 @@ export class LoggerService {
     @nestjs.Inject('DATABASE_CONNECTION') private db: Db,
   ) {}
   traceList = [];
+  finalized = false;
   getTraceList() {
     return this.traceList;
   }
@@ -51,11 +52,15 @@ export class LoggerService {
       }
       this.traceList.push(...insertData);
       if (finalizeType) {
+        this.finalized = true;
         const traceList = this.getTraceList();
         const sqlLogs = traceList.filter((logItem) => logItem.sql);
         const baseLog = traceList.filter((logItem) => !logItem.sql).reduce((acc, item) => ({ ...acc, ...item }), {});
         await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
         //await this.db.collection(col).insertMany(this.getTraceList().map((logItem) => ({ ...logItem, finalizeType })));
+      } else if (this.finalized) {
+        // сюда попадут части логов, которые записывались в файлы (в случае ошибки запроса к БД они отработают позже)
+        await this.db.collection(col).insertMany([...insertData]);
       }
     } catch (err) {
       console.log('sendLog err', err);
@@ -74,7 +79,7 @@ export class LoggerService {
     const check = async (data: object) => {
       for (const [key, val] of Object.entries(data)) {
         if (val && typeof val === 'object') await check(val);
-        else if (['sql', 'fileContent'].includes(key) && typeof val === 'string' && val.length > 500)
+        else if (['sql', 'fullfilled_sql', 'fileContent'].includes(key) && typeof val === 'string' && val.length > 1000)
           data[key] = await this.putIntoLogFile(val, { traceId, key });
       }
     };

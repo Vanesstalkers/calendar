@@ -12,6 +12,11 @@ import {
   taskHashtagDTO,
   taskGetAllQueryDTO,
   taskSearchQueryDTO,
+  taskInboxQueryDataDTO,
+  taskScheduleQueryDataDTO,
+  taskOverdueQueryDataDTO,
+  taskLaterQueryDataDTO,
+  taskExecutorsQueryDataDTO,
 } from './task.dto';
 
 import { UtilsService } from '../utils/utils.service';
@@ -600,6 +605,245 @@ export class TaskService {
     if (data.queryType === 'later') result.resultList = result.resultList.map((taskId) => taskMap[taskId]);
     if (data.queryType === 'executors')
       result.resultList = result.resultList.map((task) => ({ ...taskMap[task.id], ...task }));
+
+    return result;
+  }
+
+  async getInboxTasks(userId: number, query: taskInboxQueryDataDTO) {
+    const result = { resultList: [], endOfList: false };
+    let sqlWhere = [];
+    switch (query.filter) {
+      case 'new':
+        sqlWhere = [
+          `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+          [
+            't."execEndTime" IS NULL AND t."startTime" IS NULL AND t."endTime" IS NULL', // НЕ указано время начала + НЕ указано время окончания
+            `t2u."role" = 'exec' AND t2u."status" IS DISTINCT FROM 'exec_ready'`, // время задачи уже указано, но задача еще не принята исполнителем (актуально для встреч)
+            `t2u."role" = 'control' AND t2u."status" IS DISTINCT FROM 'control_ready'`, // нужен контроль исполнения назначенной исполнителю задачи
+          ]
+            .map((item) => `(${item})`)
+            .join(' OR '),
+          't2u."userId" = :userId', // пользователь назначен исполнителем
+        ];
+        break;
+      case 'finished':
+        sqlWhere = [
+          't."ownUserId" = :userId', // пользователь является создателем
+          `t."execEndTime" IS NOT NULL`, // указано время фактического исполнения
+        ];
+        break;
+      case 'toexec':
+        sqlWhere = [
+          `"timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+          't."startTime" IS NULL', // НЕ указано время начала
+          't."endTime" IS NULL', // НЕ указано время окончания
+          't."ownUserId" != :userId', // пользователь НЕ является создателем
+          't2u."userId" = :userId', // пользователь назначен исполнителем
+        ];
+        break;
+      default:
+        return result;
+    }
+    if (!query.limit) query.limit = 50;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    t.id, t.title
+        FROM      "task" AS t
+                  LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+        WHERE     "projectId" IN (:projectIds)
+              AND t."deleteTime" IS NULL
+              AND ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        GROUP BY  t.id, t.title
+        LIMIT     :limit
+        OFFSET    :offset
+      `,
+      { replacements: { userId, projectIds: query.projectIds, limit: query.limit + 1, offset: query.offset || 0 } },
+    );
+
+    result.resultList = findData[0];
+    if (result.resultList.length < query.limit + 1) result.endOfList = true;
+    else result.resultList.pop();
+    const fillDataTaskList = await this.getMany({ taskIdList: result.resultList.map((task) => task.id) });
+    const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+    result.resultList = result.resultList.map((task) => taskMap[task.id]);
+
+    return result;
+  }
+
+  async getScheduleTasks(userId: number, query: taskScheduleQueryDataDTO) {
+    const result = { resultList: [], endOfList: false };
+    const sqlWhere = [
+      't2u.id IS NOT NULL', // пользователь назначен исполнителем
+      't."deleteTime" IS NULL', // НЕ удалена
+      't."projectId" IN (:projectIds)', // принадлежит проекту
+      `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+      `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной (или является клоном)
+      `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+      `t2u."status" = 'exec_ready'`, // задача принята в работу
+      't."endTime" >= NOW()', // задача НЕ просрочена
+      't."endTime" >= :from::timestamp', // удовлетворяет запросу
+      `t."endTime" <= :to::timestamp + '1 day'::interval`, // удовлетворяет запросу
+    ];
+    if (query.scheduleFilters) {
+      query.projectIds.push(...Object.keys(query.scheduleFilters).map((projectId) => parseInt(projectId)));
+    }
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
+        FROM      "task" AS t
+                  LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :userId
+                                                  AND t2u."taskId" = t.id 
+                                                  AND t2u."deleteTime" IS NULL
+        WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        ORDER BY  CASE WHEN t."timeType" = 'day' THEN 1 ELSE 0 END 
+                  NULLS FIRST
+      `,
+      { replacements: { userId, projectIds: query.projectIds, from: query.from, to: query.to } },
+    );
+
+    result.resultList = findData[0];
+    const fillDataTaskList = await this.getMany({ taskIdList: result.resultList.map((task) => task.id) });
+    const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+    result.resultList = result.resultList.map((task) => taskMap[task.id]);
+    if (query.scheduleFilters) {
+      result.resultList = result.resultList
+        .map((task) => {
+          const filters = query.scheduleFilters[task.projectId];
+          if (filters) {
+            function applyShowFilter(task) {
+              return filters.showTaskContent ? task : { id: task.id, startTime: task.startTime, endTime: task.endTime };
+            }
+            return filters.showAllTasks
+              ? applyShowFilter(task)
+              : task.userList.length > 1
+              ? applyShowFilter(task)
+              : null;
+          } else {
+            return task;
+          }
+        })
+        .filter((task) => task);
+    }
+
+    return result;
+  }
+
+  async getOverdueTasks(userId: number, query: taskOverdueQueryDataDTO) {
+    const result = { resultList: [], endOfList: false };
+    const sqlWhere = [
+      't2u.id IS NOT NULL', // пользователь назначен исполнителем
+      't."deleteTime" IS NULL', // НЕ удалена
+      't."projectId" IN (:projectIds)', // принадлежит проекту
+      `t."timeType" IS DISTINCT FROM 'later'`, // НЕ относится к задачам "сделать потом"
+      `(t.regular->>'enabled')::boolean IS DISTINCT FROM true`, // НЕ является регулярной (или является клоном)
+      `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+      't."endTime" < NOW()', // задача просрочена
+    ];
+    if (!query.limit) query.limit = 50;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
+        FROM      "task" AS t
+                  LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :userId 
+                                                  AND t2u."taskId" = t.id 
+                                                  AND t2u."deleteTime" IS NULL
+        WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        LIMIT     :limit
+        OFFSET    :offset
+      `,
+      { replacements: { userId, projectIds: query.projectIds, limit: query.limit + 1, offset: query.offset || 0 } },
+    );
+
+    result.resultList = findData[0];
+    if (result.resultList.length < query.limit + 1) result.endOfList = true;
+    else result.resultList.pop();
+    const fillDataTaskList = await this.getMany({ taskIdList: result.resultList.map((task) => task.id) });
+    const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+    result.resultList = result.resultList.map((task) => taskMap[task.id]);
+
+    return result;
+  }
+
+  async getLaterTasks(userId: number, query: taskLaterQueryDataDTO) {
+    const result = { resultList: [], endOfList: false };
+    const sqlWhere = [
+      't2u.id IS NOT NULL', // пользователь назначен исполнителем
+      't."deleteTime" IS NULL', // НЕ удалена
+      't."projectId" IN (:projectIds)', // принадлежит проекту
+      `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+      `t."timeType" = 'later'`, // относится к задачам "сделать потом"
+    ];
+    if (!query.limit) query.limit = 50;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    t.id, t.title
+        FROM      "task" AS t
+                  LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :userId
+                                                  AND t2u."taskId" = t.id 
+                                                  AND t2u."deleteTime" IS NULL
+        WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        LIMIT     :limit
+        OFFSET    :offset
+      `,
+      { replacements: { userId, projectIds: query.projectIds, limit: query.limit + 1, offset: query.offset || 0 } },
+    );
+
+    result.resultList = findData[0];
+    if (result.resultList.length < query.limit + 1) result.endOfList = true;
+    else result.resultList.pop();
+    const fillDataTaskList = await this.getMany({ taskIdList: result.resultList.map((task) => task.id) });
+    const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+    result.resultList = result.resultList.map((task) => taskMap[task.id]);
+
+    return result;
+  }
+
+  async getExecutorsTasks(userId: number, query: taskExecutorsQueryDataDTO) {
+    const result = { resultList: [], endOfList: false };
+    const sqlWhere = [
+      't."deleteTime" IS NULL', // НЕ удалена
+      't."projectId" IN (:projectIds)', // принадлежит проекту
+      't."ownUserId" = :userId', // пользователь является создателем
+      't2u."userId" IS NOT NULL', // исполнитель назначен
+      `t."execEndTime" IS NULL`, // НЕ указано время фактического исполнения
+      `_t2u.id IS NULL`, // назначен всего один исполнитель
+    ];
+    if (!query.limit) query.limit = 50;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    t.id
+                , t.title
+                , t2u."userId" AS "consignedExecUserId"
+                , (${sql.selectProjectToUserLink(
+                  { projectId: 't."projectId"', userId: 't2u."userId"' },
+                  { addUserData: true },
+                )}) AS "consignedExecUserData"
+        FROM      "task" AS t
+                  LEFT JOIN "task_to_user" AS t2u ON  t2u."taskId" = t.id
+                                                  AND t2u."deleteTime" IS NULL 
+                                                  AND t2u."userId" != t."ownUserId"
+                  LEFT JOIN "task_to_user" AS _t2u ON _t2u."taskId" = t.id
+                                                  AND _t2u."deleteTime" IS NULL
+                                                  AND _t2u."userId" != t2u."userId"
+                  LEFT JOIN "project_to_user" as p2u ON p2u."userId" = t2u."userId"
+                                                    AND p2u."projectId" = t."projectId"
+                                                    AND p2u."deleteTime" IS NULL
+                  LEFT JOIN "user" as u ON u."id" = t2u."userId"
+        WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        ORDER BY  COALESCE(p2u."userName", u."name", u."id"::VARCHAR)
+                , t2u."userId"
+        LIMIT     :limit
+        OFFSET    :offset
+      `,
+      { replacements: { userId, projectIds: query.projectIds, limit: query.limit + 1, offset: query.offset || 0 } },
+    );
+
+    result.resultList = findData[0];
+    if (result.resultList.length < query.limit + 1) result.endOfList = true;
+    else result.resultList.pop();
+    const fillDataTaskList = await this.getMany({ taskIdList: result.resultList.map((task) => task.id) });
+    const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
+    result.resultList = result.resultList.map((task) => ({ ...taskMap[task.id], ...task })); // в task лежит consignedExecUser
 
     return result;
   }
