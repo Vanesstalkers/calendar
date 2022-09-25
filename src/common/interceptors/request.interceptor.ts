@@ -13,28 +13,18 @@ export class PostStatusInterceptor {
     const request = ctx.getRequest();
     const response = ctx.getResponse();
     const storage = await this.sessionService.getStorage(request.session);
-    
+
     if (request.isMultipart()) request.body = await this.utils.parseMultipart(request);
 
-    await this.logger.sendLog(
-      [
-        {
-          url: request.url,
-          request: {
-            ip: request.ip,
-            method: request.method,
-            protocol: request.protocol,
-            headers: request.headers,
-          },
-          storage,
-        },
-        { requestData: request.body || request.query },
-      ],
-      { request, startType: 'HTTP' },
-    );
+    // стартовая запись в лог с request-данными в access.decorators, но там может не быть сессии, данные о которой дополняем тут
+    await this.logger.sendLog([{ storage }]);
+
     return next.handle().pipe(
       map(async (value) => {
+        
+        // финализирующая запись в лог
         await this.logger.sendLog({ answerData: value }, { request, finalizeType: 'ok' });
+
         if (request.method === 'POST') {
           if (response.statusCode === nestjs.HttpStatus.CREATED) {
             response.status(nestjs.HttpStatus.OK);
