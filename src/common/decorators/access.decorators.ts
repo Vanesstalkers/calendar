@@ -23,25 +23,8 @@ export class isLoggedIn implements CanActivate {
   async canActivate(context: nestjs.ExecutionContext) {
     // const role = this.reflector.get<string>('role', context.getHandler());
     const request = context.switchToHttp().getRequest();
-    
-    // стартовая запись в лог
-    await this.logger.sendLog(
-      [
-        {
-          url: request.url,
-          request: {
-            ip: request.ip,
-            method: request.method,
-            protocol: request.protocol,
-            headers: request.headers,
-          },
-        },
-        { requestData: request.body || request.query },
-      ],
-      { request, startType: 'HTTP' },
-    );
-
     if ((await this.sessionService.isLoggedIn(request.session)) !== true) {
+      await this.logger.startLog(request); // запрос не попадет в interceptor, где происходит дефолтная стартовая запись в лог
       throw new nestjs.ForbiddenException({
         code: 'NEED_LOGIN',
         msg: 'Access denied (login first)',

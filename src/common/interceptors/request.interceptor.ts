@@ -12,16 +12,15 @@ export class PostStatusInterceptor {
     const ctx = context.switchToHttp();
     const request = ctx.getRequest();
     const response = ctx.getResponse();
-    const storage = await this.sessionService.getStorage(request.session);
 
     if (request.isMultipart()) request.body = await this.utils.parseMultipart(request);
 
-    // стартовая запись в лог с request-данными в access.decorators, но там может не быть сессии, данные о которой дополняем тут
+    await this.logger.startLog(request);
+    const storage = await this.sessionService.getStorage(request.session);
     await this.logger.sendLog([{ storage }]);
 
     return next.handle().pipe(
       map(async (value) => {
-        
         // финализирующая запись в лог
         await this.logger.sendLog({ answerData: value }, { request, finalizeType: 'ok' });
 
