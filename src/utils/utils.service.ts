@@ -1,5 +1,6 @@
 import * as nestjs from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
+import { Transaction } from 'sequelize/types';
 import axios from 'axios';
 import config from '../config';
 import { decorators, interfaces, models, types, exception } from '../globalImport';
@@ -72,8 +73,16 @@ export class UtilsService {
     return value;
   }
 
-  async queryDB(sql, options) {
-    this.logger.sendLog({ sql, replacements: options.replacements });
+  async queryDB(sql, options?) {
+    const startTime = Date.now();
+    options.logging = async (fullfilled_sql) => {
+      await this.logger.sendLog({
+        sql,
+        fullfilled_sql: fullfilled_sql.split('): ', 2)[1] || fullfilled_sql,
+        replacements: options.replacements,
+        execTime: (Date.now() - startTime) / 1000,
+      });
+    };
     return await this.sequelize.query(sql, options).catch(exception.dbErrorCatcher);
   }
 
@@ -84,13 +93,11 @@ export class UtilsService {
     for (const [key, value] of Object.entries(data)) {
       if (key === 'id') continue;
 
-      let replaceValue = value,
-        dbHandler = false;
+      let replaceValue = value;
       if (handlers[key]) {
         const handlerResult = (await handlers[key](value, transaction)) || {};
         if (handlerResult.preventDefault) continue;
         if (handlerResult.replaceValue) replaceValue = handlerResult.replaceValue;
-        //if (handlerResult.dbHandler) dbHandler = handlerResult.dbHandler;
       }
 
       if (jsonKeys.includes(key)) {
@@ -105,12 +112,29 @@ export class UtilsService {
     }
 
     if (setList.length) {
-      await this.sequelize
-        .query(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, {
-          replacements,
-          transaction,
-        })
-        .catch(exception.dbErrorCatcher);
+      setList.unshift(`"updateTime" = NOW()`);
+      await this.queryDB(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, {
+        replacements,
+        transaction,
+      });
+    }
+  }
+
+  async withDBTransaction<T>(
+    transaction: Transaction,
+    action: (transaction: Transaction) => Promise<void | T>,
+  ): Promise<void | T> {
+    try {
+      const createTransaction = !transaction;
+      if (createTransaction) transaction = await this.sequelize.transaction();
+
+      const actionResult = await action(transaction);
+
+      if (createTransaction) await transaction.commit();
+      return actionResult;
+    } catch (err) {
+      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
+      throw err;
     }
   }
 }

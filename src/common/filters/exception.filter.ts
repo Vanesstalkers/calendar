@@ -69,7 +69,7 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
       console.log('unknownException in UniversalExceptionFilter', { exception });
     }
 
-    this.logger.sendLog({ exception: responseBody }, { request });
+    await this.logger.sendLog({ exception: responseBody }, { request, finalizeType: 'error' });
     httpAdapter.reply(response, responseBody, responseStatus);
   }
 }

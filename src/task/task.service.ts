@@ -36,17 +36,11 @@ export class TaskService {
   ) {}
 
   async create(taskData: taskFullDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-      const createData = await this.sequelize
-        .query(
-          `
-          INSERT INTO task ("projectId", "addTime", "updateTime") VALUES (:projectId, NOW(), NOW()) RETURNING id;
-        `,
-          { type: QueryTypes.INSERT, replacements: { projectId: taskData.projectId }, transaction },
-        )
-        .catch(exception.dbErrorCatcher);
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const createData = await this.utils.queryDB(
+        `INSERT INTO task ("projectId", "addTime", "updateTime") VALUES (:projectId, NOW(), NOW()) RETURNING id`,
+        { type: QueryTypes.INSERT, replacements: { projectId: taskData.projectId }, transaction },
+      );
       const task = createData[0][0];
 
       await this.update(task.id, taskData, transaction);
@@ -54,19 +48,12 @@ export class TaskService {
         await this.cloneRegularTask(task.id, taskData, transaction);
       }
 
-      if (createTransaction) await transaction.commit();
       return task;
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
 
   async update(taskId: number, updateData: taskUpdateDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (updateData.groupId !== undefined) delete updateData.groupId;
 
       await this.utils.updateDB({
@@ -103,12 +90,7 @@ export class TaskService {
         },
         transaction,
       });
-
-      if (createTransaction) await transaction.commit();
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
 
   async getMany(replacements, config: types['getOneConfig'] = {}) {
@@ -117,68 +99,68 @@ export class TaskService {
     const where = [`task.id IN (:taskIdList)`];
     if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
 
-    const findData = await this.sequelize
-      .query(
-        `--sql
-                SELECT    task."id"
-                        , task."title"
-                        , task."info"
-                        , task."projectId"
-                        , task."groupId"
-                        , task."startTime"
-                        , task."endTime"
-                        , task."timeType"
-                        , task."require"
-                        , task."regular"
-                        , task."extDestination"
-                        , task."execEndTime"
-                        , task."execUserId"
-                        , task."deleteTime"
-                        , (
-                          ${sql.selectProjectToUserLink(
-                            { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
-                            { addUserData: true },
-                          )}
-                        ) AS "ownUser"
-                        , array(${sql.json(`--sql
-                            SELECT    t2u."id", t2u."role", t2u."userId", t2u."status", p2u.*
-                            FROM      "task_to_user" AS t2u, (
-                              (${sql.selectProjectToUserLink({}, { addUserData: true, jsonWrapper: false })})
-                            ) AS p2u
-                            WHERE     t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND
-                                      p2u."projectId" = task."projectId" AND p2u."userId" = t2u."userId"
-                        `)}) AS "userList"
-                        , array(${sql.json(`--sql
-                            SELECT    "id" AS "tickId", "text", "status"
-                            FROM      "tick"
-                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
-                        `)}) AS "tickList"
-                        , array(${sql.json(`--sql
-                            SELECT    id AS "commentId", "text"
-                                    , array(${sql.json(`--sql
-                                        SELECT    "id" AS "fileId", "fileType"
-                                        FROM      "file"
-                                        WHERE     "deleteTime" IS NULL AND "parentId" = comment.id AND "parentType" = 'comment'
-                                    `)}) AS "fileList"
-                            FROM      "comment" AS comment
-                            WHERE     "deleteTime" IS NULL AND "taskId" = task.id
-                          `)}) AS "commentList"
-                          , array(${sql.json(`--sql
-                              SELECT    id AS "hashtagId", "name"
-                              FROM      "hashtag"
-                              WHERE     "deleteTime" IS NULL AND "taskId" = task.id
-                          `)}) AS "hashtagList"
-                          , array(${sql.json(`--sql
-                              SELECT    id AS "fileId", "fileType"
-                              FROM      "file" AS taskFile
-                              WHERE     "deleteTime" IS NULL AND "parentId" = task.id AND "parentType" = 'task'
-                          `)}) AS "fileList"
-                FROM      "task" AS task
-                WHERE     ${where.join(' AND ')}
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    task."id"
+                , task."title"
+                , task."info"
+                , task."projectId"
+                , task."groupId"
+                , task."startTime"
+                , task."endTime"
+                , task."timeType"
+                , task."require"
+                , task."regular"
+                , task."extDestination"
+                , task."execEndTime"
+                , task."execUserId"
+                , task."deleteTime"
+                , (
+                  ${sql.selectProjectToUserLink(
+                    { projectId: 'task."projectId"', userId: 'task."ownUserId"' },
+                    { addUserData: true },
+                  )}
+                ) AS "ownUser"
+                , array(${sql.json(`--sql
+                    SELECT    t2u."id", t2u."role", t2u."userId", t2u."status", p2u.*
+                    FROM      "task_to_user" AS t2u, (
+                                (${sql.selectProjectToUserLink({}, { addUserData: true, jsonWrapper: false })})
+                              ) AS p2u
+                    WHERE     t2u."deleteTime" IS NULL
+                          AND t2u."taskId" = task.id
+                          AND p2u."projectId" = task."projectId"
+                          AND p2u."userId" = t2u."userId"
+                `)}) AS "userList"
+                , array(${sql.json(`--sql
+                    SELECT    "id" AS "tickId", "text", "status"
+                    FROM      "tick"
+                    WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                `)}) AS "tickList"
+                , array(${sql.json(`--sql
+                    SELECT    id AS "commentId", "text"
+                            , array(${sql.json(`--sql
+                                SELECT    "id" AS "fileId", "fileType"
+                                FROM      "file"
+                                WHERE     "deleteTime" IS NULL AND "parentId" = comment.id AND "parentType" = 'comment'
+                            `)}) AS "fileList"
+                    FROM      "comment" AS comment
+                    WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                  `)}) AS "commentList"
+                  , array(${sql.json(`--sql
+                      SELECT    id AS "hashtagId", "name"
+                      FROM      "hashtag"
+                      WHERE     "deleteTime" IS NULL AND "taskId" = task.id
+                  `)}) AS "hashtagList"
+                  , array(${sql.json(`--sql
+                      SELECT    id AS "fileId", "fileType"
+                      FROM      "file" AS taskFile
+                      WHERE     "deleteTime" IS NULL AND "parentId" = task.id AND "parentType" = 'task'
+                  `)}) AS "fileList"
+        FROM      "task" AS task
+        WHERE     ${where.join(' AND ')}
         `,
-        { type: QueryTypes.SELECT, replacements },
-      )
-      .catch(exception.dbErrorCatcher);
+      { type: QueryTypes.SELECT, replacements },
+    );
 
     return findData || null;
   }
@@ -188,22 +170,21 @@ export class TaskService {
     if (!config.canBeDeleted) where.push(`task."deleteTime" IS NULL`);
 
     if (config.attributes?.length) {
-      const findData = await this.sequelize
-        .query(
-          `--sql
-            SELECT ${config.attributes.join(',')} 
+      const findData = await this.utils.queryDB(
+        `--sql
+            SELECT    ${config.attributes.join(',')} 
             FROM      "task" AS task
-                      LEFT JOIN "task_to_user" AS t2u
-                        ON t2u."deleteTime" IS NULL AND t2u."taskId" = task.id AND t2u."userId" = :userId
+                      LEFT JOIN "task_to_user" AS t2u ON  t2u."deleteTime" IS NULL 
+                                                      AND t2u."taskId" = task.id
+                                                      AND t2u."userId" = :userId
             WHERE     ${where.join(' AND ')}
             LIMIT     1
           `,
-          {
-            type: QueryTypes.SELECT,
-            replacements: { id: data.id || null, userId: data.userId || null },
-          },
-        )
-        .catch(exception.dbErrorCatcher);
+        {
+          type: QueryTypes.SELECT,
+          replacements: { id: data.id || null, userId: data.userId || null },
+        },
+      );
 
       return findData[0] || null;
     } else {
@@ -213,113 +194,113 @@ export class TaskService {
   }
 
   async upsertLinkToUser(taskId: number, userId: number, linkData: taskUserLinkFullDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
-      const link = await this.taskToUserModel
-        .upsert({ taskId, userId }, { conflictFields: ['taskId', 'userId'], transaction })
-        .catch(exception.dbErrorCatcher);
-      await this.updateUserLink(link[0].id, linkData, transaction);
-
-      if (createTransaction) await transaction.commit();
-      return link[0];
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const upsertData = await this.utils.queryDB(
+        `--sql
+            INSERT INTO  "task_to_user" 
+                          ("taskId", "userId", "addTime", "updateTime") 
+                  VALUES  (:taskId, :userId, NOW(), NOW())
+            ON CONFLICT   ("taskId", "userId") 
+            DO UPDATE SET "taskId" = EXCLUDED."taskId"
+                        , "userId" = EXCLUDED."userId"
+                        , "updateTime" = EXCLUDED."updateTime" 
+            RETURNING     "id"
+        `,
+        {
+          type: QueryTypes.INSERT, // c QueryTypes.UPSERT не возвращает данные
+          replacements: { taskId, userId },
+          transaction,
+        },
+      );
+      const link = upsertData[0][0];
+      await this.updateUserLink(link.id, linkData, transaction);
+      return link;
+    });
   }
   async updateUserLink(linkId: number, updateData: taskUserLinkFullDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (!updateData.deleteTime) updateData.deleteTime = null;
       await this.utils.updateDB({ table: 'task_to_user', id: linkId, data: updateData, transaction });
-
-      if (createTransaction) await transaction.commit();
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
   async getUserLink(taskId: number, userId: number) {
-    const findData = await this.taskToUserModel
-      .findOne({ where: { taskId, userId }, attributes: ['id'] })
-      .catch(exception.dbErrorCatcher);
-    return findData || null;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    "id"
+        FROM      "task_to_user"
+        WHERE     "taskId" = :taskId AND "userId" = :userId AND "deleteTime" IS NULL
+        `,
+      { replacements: { taskId, userId }, type: QueryTypes.SELECT },
+    );
+    return findData[0] || null;
   }
 
   async upsertHashtag(taskId: number, name: string, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
-      const link = await this.hashtagModel
-        .upsert({ taskId, name, deleteTime: null }, { conflictFields: ['taskId', 'name'], transaction })
-        .catch(exception.dbErrorCatcher);
-      // await this.updateHashtag(link[0].id, hashtagData, transaction);
-
-      if (createTransaction) await transaction.commit();
-      return link[0];
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const upsertData = await this.utils.queryDB(
+        `--sql
+            INSERT INTO  "hashtag" 
+                          ("taskId", "name", "addTime", "updateTime") 
+                  VALUES  (:taskId, :name, NOW(), NOW())
+            ON CONFLICT   ("taskId", "name") 
+            DO UPDATE SET "taskId" = EXCLUDED."taskId"
+                        , "name" = EXCLUDED."name"
+                        , "updateTime" = EXCLUDED."updateTime" 
+            RETURNING     "id"
+        `,
+        {
+          type: QueryTypes.INSERT, // c QueryTypes.UPSERT не возвращает данные
+          replacements: { taskId, name },
+          transaction,
+        },
+      );
+      const hashtag = upsertData[0][0];
+      return hashtag;
+    });
   }
   async updateHashtag(id: number, data: taskHashtagDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
       await this.utils.updateDB({ table: 'hashtag', id, data, transaction });
-
-      if (createTransaction) await transaction.commit();
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
   async getHashtag(taskId: number, name: string) {
-    const findData = await this.hashtagModel
-      .findOne({ where: { taskId, name }, attributes: ['id'] })
-      .catch(exception.dbErrorCatcher);
-    return findData || null;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    "id"
+        FROM      "hashtag"
+        WHERE     "taskId" = :taskId AND "name" = :name AND "deleteTime" IS NULL
+        `,
+      { replacements: { taskId, name }, type: QueryTypes.SELECT },
+    );
+    return findData[0] || null;
   }
 
   async createTick(taskId: number, tickData: taskTickDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
-      const tick = await this.tickModel.create({ taskId }, { transaction }).catch(exception.dbErrorCatcher);
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const createData = await this.utils.queryDB(
+        `INSERT INTO tick ("taskId", "addTime", "updateTime") VALUES (:taskId, NOW(), NOW()) RETURNING id`,
+        { type: QueryTypes.INSERT, replacements: { taskId }, transaction },
+      );
+      const tick = createData[0][0];
       await this.updateTick(tick.id, tickData, transaction);
-
-      if (createTransaction) await transaction.commit();
       return tick;
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
   async updateTick(id: number, data: taskTickDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
       await this.utils.updateDB({ table: 'tick', id, data, transaction });
-
-      if (createTransaction) await transaction.commit();
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
   async getTick(taskId: number, id: number) {
-    const findData = await this.tickModel
-      .findOne({ where: { taskId, id }, attributes: ['id'] })
-      .catch(exception.dbErrorCatcher);
-    return findData || null;
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    "id"
+        FROM      "tick"
+        WHERE     "id" = :id AND "taskId" = :taskId AND "deleteTime" IS NULL
+        `,
+      { replacements: { taskId, id }, type: QueryTypes.SELECT },
+    );
+    return findData[0] || null;
   }
 
   async search(data: taskSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
@@ -335,35 +316,32 @@ export class TaskService {
       data.query = data.query.replace('#', '');
     }
 
-    const findIds = await this.sequelize
-      .query(
-        `--sql
-                SELECT  t.id
-                      , t.title                        
-                FROM    "task" t
-                        LEFT JOIN "task_to_user" AS t2u 
-                        ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
-                        ${hashTable}
-                WHERE   t."projectId" IN (
-                          SELECT :projectId
-                          UNION ALL
-                          ${sql.foreignPersonalProjectList()}
-                        ) AND 
-                        ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-                LIMIT   :limit
-                OFFSET  :offset
+    const findIds = await this.utils.queryDB(
+      `--sql
+        SELECT    t.id
+                , t.title                        
+        FROM      "task" t
+                  LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                  ${hashTable}
+        WHERE     t."projectId" IN (
+                    SELECT :projectId
+                    UNION ALL
+                    ${sql.foreignPersonalProjectList()}
+                  )
+              AND ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
+        LIMIT     :limit
+        OFFSET    :offset
         `,
-        {
-          replacements: {
-            query: `%${(data.query || '').trim()}%`,
-            userId: data.userId,
-            projectId: data.projectId,
-            limit: data.limit + 1,
-            offset: data.offset,
-          },
+      {
+        replacements: {
+          query: `%${(data.query || '').trim()}%`,
+          userId: data.userId,
+          projectId: data.projectId,
+          limit: data.limit + 1,
+          offset: data.offset,
         },
-      )
-      .catch(exception.dbErrorCatcher);
+      },
+    );
 
     const findData = await this.getMany({ taskIdList: (findIds[0] || []).map((item) => item.id) });
 
@@ -427,7 +405,7 @@ export class TaskService {
       select.inbox = `--sql
           SELECT    t.id, t.title
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                    LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
           GROUP BY  t.id, t.title
           LIMIT     :inboxLimit
@@ -455,8 +433,9 @@ export class TaskService {
         (
           SELECT    t.id, t.title, t.regular, t."startTime", t."endTime", t."addTime"
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u
-          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                    LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :myId
+                                                    AND t2u."taskId" = t.id 
+                                                    AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         )
       `;
@@ -482,8 +461,9 @@ export class TaskService {
         (
           SELECT    t.id, t.title, t.regular, t."startTime", t."endTime"
           FROM      "task" AS t
-          LEFT JOIN "task_to_user" AS t2u
-          ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                    LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :myId 
+                                                    AND t2u."taskId" = t.id 
+                                                    AND t2u."deleteTime" IS NULL
           WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
           LIMIT     :overdueLimit
           OFFSET    :overdueOffset
@@ -504,8 +484,9 @@ export class TaskService {
       select.later = `--sql
         SELECT    t.id, t.title
         FROM      "task" AS t
-        LEFT JOIN "task_to_user" AS t2u
-        ON t2u."userId" = :myId AND t2u."taskId" = t.id AND t2u."deleteTime" IS NULL
+                  LEFT JOIN "task_to_user" AS t2u ON  t2u."userId" = :myId
+                                                  AND t2u."taskId" = t.id 
+                                                  AND t2u."deleteTime" IS NULL
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
         LIMIT     :laterLimit
         OFFSET    :laterOffset
@@ -533,12 +514,19 @@ export class TaskService {
                   { addUserData: true },
                 )}) AS "consignedExecUserData"
         FROM      "task" AS t
-        LEFT JOIN "task_to_user" AS t2u ON t2u."taskId" = t.id AND t2u."deleteTime" IS NULL AND (t2u."userId" != t."ownUserId")
-        LEFT JOIN "task_to_user" AS _t2u ON _t2u."taskId" = t.id AND _t2u."deleteTime" IS NULL AND (_t2u."userId" != t2u."userId")
-        LEFT JOIN "project_to_user" as p2u ON p2u."userId" = t2u."userId" AND p2u."projectId" = t."projectId" AND p2u."deleteTime" IS NULL
-        LEFT JOIN "user" as u ON u."id" = t2u."userId"
+                  LEFT JOIN "task_to_user" AS t2u ON  t2u."taskId" = t.id
+                                                  AND t2u."deleteTime" IS NULL 
+                                                  AND t2u."userId" != t."ownUserId"
+                  LEFT JOIN "task_to_user" AS _t2u ON _t2u."taskId" = t.id
+                                                  AND _t2u."deleteTime" IS NULL
+                                                  AND _t2u."userId" != t2u."userId"
+                  LEFT JOIN "project_to_user" as p2u ON p2u."userId" = t2u."userId"
+                                                    AND p2u."projectId" = t."projectId"
+                                                    AND p2u."deleteTime" IS NULL
+                  LEFT JOIN "user" as u ON u."id" = t2u."userId"
         WHERE     ${sqlWhere.map((item) => `(${item})`).join(' AND ')}
-        ORDER BY  COALESCE(p2u."userName", u."name", u."id"::VARCHAR), t2u."userId"
+        ORDER BY  COALESCE(p2u."userName", u."name", u."id"::VARCHAR)
+                , t2u."userId"
         LIMIT     :executorsLimit
         OFFSET    :executorsOffset
       `;
@@ -549,15 +537,13 @@ export class TaskService {
     }
 
     replacements.projectIds = data.projectIds;
-    const findData = await this.sequelize
-      .query(
-        'SELECT ' +
-          Object.entries(select)
-            .map(([key, sql]) => `array(SELECT row_to_json(ROW) FROM (${sql}) AS ROW) AS "${key}"`)
-            .join(','),
-        { replacements },
-      )
-      .catch(exception.dbErrorCatcher);
+    const findData = await this.utils.queryDB(
+      'SELECT ' +
+        Object.entries(select)
+          .map(([key, sql]) => `array(SELECT row_to_json(ROW) FROM (${sql}) AS ROW) AS "${key}"`)
+          .join(','),
+      { replacements },
+    );
 
     let baseTaskList = findData[0][0];
     let taskIdList = [];
@@ -631,29 +617,26 @@ export class TaskService {
   //@Cron('0 * * * * *')
   async checkForDeleteFinished() {
     console.log('checkForDeleteFinished', new Date().toISOString());
-    await this.sequelize
-      .query(
-        `--sql
+    await this.utils.queryDB(
+      `--sql
         UPDATE task SET "deleteTime" = NOW() WHERE id IN (
-          SELECT t.id FROM "task" AS t, "user" AS u
-          WHERE u.id = t."ownUserId"
-            AND u.config ->> 'autoDeleteFinished' IS NOT NULL
-            AND t."execEndTime" + CONCAT(CAST(u.config ->> 'autoDeleteFinished' AS INTEGER), 'seconds')::interval < NOW()
-            AND t."deleteTime" IS NULL
+          SELECT    t.id
+          FROM      "task" AS t, "user" AS u
+          WHERE     u.id = t."ownUserId"
+                AND u.config ->> 'autoDeleteFinished' IS NOT NULL
+                AND t."execEndTime" + CONCAT(CAST(u.config ->> 'autoDeleteFinished' AS INTEGER), 'seconds')::interval < NOW()
+                AND t."deleteTime" IS NULL
         )
         `,
-      )
-      .catch(exception.dbErrorCatcher);
+    );
   }
 
   @Cron('0 0 3 * * *')
   async cronCreateRegularTaskClones() {
     const nowWithShift = `NOW() + interval '${REGULAR_TASK_SHIFT_DAYS_COUNT} days'`;
 
-    var findData = await this.sequelize
-      .query(
-        `
-          SELECT task.id
+    const findData = await this.utils.queryDB(`--sql
+      SELECT    task.id
                 , task."projectId"
                 , task.title
                 , task.info
@@ -667,49 +650,35 @@ export class TaskService {
                 , task."execEndTime"
                 , task."execUserId"
                 , task."ownUserId"
-                , array(
-                    SELECT    row_to_json(ROW)
-                      FROM      (
-                          SELECT    role
-                              , "userId"
-                              , status
-                          FROM      "task_to_user" AS t2u
-                          WHERE     t2u."deleteTime" IS NULL AND
-                                "taskId" = task.id
-                      ) AS ROW
-                ) AS "userList"
-                FROM "task" as task
-                WHERE  "deleteTime" IS NULL AND
-                regular @> '{"enabled":true}' AND 
-                  (
-                    ( 
+                , array(${sql.json(`--sql
+                  SELECT    role, "userId", status
+                  FROM      "task_to_user" AS t2u
+                  WHERE     t2u."deleteTime" IS NULL AND "taskId" = task.id
+                `)}) AS "userList"
+      FROM      "task" as task
+      WHERE     "deleteTime" IS NULL
+            AND regular @> '{"enabled":true}'
+            AND (
+              (
+                regular @> '{"rule":"day"}'
+              ) OR ( 
                       regular @> '{"rule":"weekdays"}' 
-                      AND regular -> 'weekdaysList' @> CAST( CAST((SELECT EXTRACT(ISODOW FROM ${nowWithShift})) AS text) as jsonb) 
-                    ) OR
-                    (
-                      regular @> '{"rule":"week"}' AND 
-                        (
-                          (
-                            "endTime" IS NULL  AND EXTRACT(ISODOW FROM "startTime") = EXTRACT(ISODOW FROM ${nowWithShift})
-                          ) OR 
-                          EXTRACT(ISODOW FROM "endTime") = EXTRACT(ISODOW FROM ${nowWithShift})                      
-                        )
-                    ) OR
-                    regular @> '{"rule":"day"}' OR
-                    (
-                      regular @> '{"rule":"month"}' AND
-                        (
-                          (
-                            "endTime" IS NULL  AND 
-                            EXTRACT(DAY FROM "startTime") = EXTRACT(DAY FROM ${nowWithShift})
-                          ) OR 
-                          EXTRACT(DAY FROM "endTime") = EXTRACT(DAY FROM ${nowWithShift})
-                        )
-                    )
-                  )
-        `,
-      )
-      .catch(exception.dbErrorCatcher);
+                  AND regular -> 'weekdaysList' @> CAST( CAST((SELECT EXTRACT(ISODOW FROM ${nowWithShift})) AS text) as jsonb) 
+              ) OR (
+                      regular @> '{"rule":"week"}' 
+                  AND (
+                            ("endTime" IS NULL AND EXTRACT(ISODOW FROM "startTime") = EXTRACT(ISODOW FROM ${nowWithShift}))
+                        OR  EXTRACT(ISODOW FROM "endTime") = EXTRACT(ISODOW FROM ${nowWithShift})                      
+                      )
+              ) OR (
+                      regular @> '{"rule":"month"}'
+                  AND (
+                            ("endTime" IS NULL  AND EXTRACT(DAY FROM "startTime") = EXTRACT(DAY FROM ${nowWithShift}))
+                        OR  EXTRACT(DAY FROM "endTime") = EXTRACT(DAY FROM ${nowWithShift})
+                      )
+              )
+            )
+    `);
     console.log('cronCreateRegularTaskClones', findData[0]);
     const tasksToClone = findData[0];
 
@@ -748,10 +717,7 @@ export class TaskService {
   }
 
   async cloneRegularTask(taskId: number, taskData: taskFullDTO, transaction?: Transaction) {
-    try {
-      const createTransaction = !transaction;
-      if (createTransaction) transaction = await this.sequelize.transaction();
-
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (taskData.regular.rule == 'month') return;
 
       const termDate = new Date(
@@ -783,11 +749,6 @@ export class TaskService {
         if (theStartDate !== null) theStartDate = new Date(theStartDate.getTime() + timeShift);
         if (theEndDate !== null) theEndDate = new Date(theEndDate.getTime() + timeShift);
       }
-
-      if (createTransaction) await transaction.commit();
-    } catch (err) {
-      if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-      throw err;
-    }
+    });
   }
 }

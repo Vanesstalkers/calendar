@@ -24,4 +24,7 @@ export class sessionStorageDTO {
   @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
   currentProjectId?: number;
   lastAuthAttempt?: Date;
+  authCode?: string;
+  authType?: string;
+  registrationData?: any;
 }

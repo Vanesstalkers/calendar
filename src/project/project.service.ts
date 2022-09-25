@@ -25,121 +25,138 @@ export class ProjectService {
 
   async create(
     projectData: projectCreateQueryDTO,
-    config: { transaction?: Transaction; personalProject?: boolean } = {},
+    config: { personalProject?: boolean } = {},
+    transaction?: Transaction,
   ) {
-    let transaction = config.transaction;
-    const createTransaction = !transaction;
-    if (createTransaction) config.transaction = transaction = await this.sequelize.transaction();
-
-    const project = await this.projectModel.create({}, { transaction }).catch(exception.dbErrorCatcher);
-    await this.update(project.id, projectData, config);
-
-    if (createTransaction) await transaction.commit();
-    return project;
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const createData = await this.utils.queryDB(
+        `INSERT INTO "project" ("addTime", "updateTime") VALUES (NOW(), NOW()) RETURNING id`,
+        {
+          type: QueryTypes.INSERT,
+          replacements: {},
+          transaction,
+        },
+      );
+      const project = createData[0][0];
+      await this.update(project.id, projectData, config, transaction);
+      return project;
+    });
   }
   async update(
     projectId: number,
     updateData: projectUpdateQueryDataDTO,
-    config: { transaction?: Transaction; personalProject?: boolean } = {},
+    config: { personalProject?: boolean } = {},
+    transaction?: Transaction,
   ) {
-    const transaction = config.transaction;
-
-    if (config.personalProject) updateData.personal = true;
-    await this.utils.updateDB({
-      table: 'project',
-      id: projectId,
-      data: updateData,
-      handlers: {
-        userList: async (value: any) => {
-          const arr: any[] = Array.from(value);
-          for (const link of arr) {
-            if (link.personal) delete link.personal;
-            if (config.personalProject) link.personal = true;
-            const userLink = await this.getUserLink(link.userId, projectId, { attributes: ['id'] });
-            if (!userLink) {
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      if (config.personalProject) updateData.personal = true;
+      await this.utils.updateDB({
+        table: 'project',
+        id: projectId,
+        data: updateData,
+        handlers: {
+          userList: async (value: any) => {
+            const arr: any[] = Array.from(value);
+            for (const link of arr) {
+              if (link.personal) delete link.personal;
+              if (config.personalProject) link.personal = true;
               await this.upsertLinkToUser(projectId, link.userId, link, transaction);
-            } else {
-              await this.updateUserLink(userLink.id, link, transaction);
             }
-          }
-          return { preventDefault: true };
+            return { preventDefault: true };
+          },
         },
-      },
-      transaction,
+        transaction,
+      });
     });
   }
 
   async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}) {
-    const findData = await this.sequelize
-      .query(
-        `--sql
-                SELECT    p.id
-                        , p.title
-                        , p.personal
-                        , (${sql.selectIcon('project', 'p')}) AS "iconFileId"
-                        , array(
-                          ${sql.selectProjectToUserLink({ projectId: ':id' }, { addUserData: true, showLinkConfig: true })}
-                          ) AS "userList"` +
-          `--sql
-                FROM      "project" AS p
-                WHERE     p.id = :id AND      
-                          p."deleteTime" IS NULL
-                LIMIT    
-                          1
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    p.id
+                , p.title
+                , p.personal
+                , (${sql.selectIcon('project', 'p')}) AS "iconFileId"
+                , array(
+                  ${sql.selectProjectToUserLink({ projectId: ':id' }, { addUserData: true, showLinkConfig: true })}
+                ) AS "userList"
+        FROM      "project" AS p
+        WHERE     p.id = :id
+              AND p."deleteTime" IS NULL
+        LIMIT     1
         `,
-        {
-          type: QueryTypes.SELECT,
-          replacements: { id: data.id || null, userId: data.userId },
-        },
-      )
-      .catch(exception.dbErrorCatcher);
+      {
+        type: QueryTypes.SELECT,
+        replacements: { id: data.id || null, userId: data.userId },
+      },
+    );
 
     return findData[0] || null;
   }
 
   async checkExists(id: number) {
-    const findData = await this.projectModel
-      .findOne({ where: { id }, attributes: ['id'] })
-      .catch(exception.dbErrorCatcher);
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    "id"
+        FROM      "project"
+        WHERE     "id" = :id AND "deleteTime" IS NULL
+        LIMIT     1
+        `,
+      { type: QueryTypes.SELECT, replacements: { id } },
+    );
     return findData ? true : false;
   }
 
   async upsertLinkToUser(projectId: number, userId: number, linkData: projectUserLinkDTO, transaction?: Transaction) {
-    const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
-
-    const link = await this.projectToUserModel
-      .upsert({ projectId, userId }, { conflictFields: ['projectId', 'userId'], transaction })
-      .catch(exception.dbErrorCatcher);
-    await this.updateUserLink(link[0].id, linkData, transaction);
-
-    if (createTransaction) await transaction.commit();
-    return link[0];
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const upsertData = await this.utils.queryDB(
+        `--sql
+          INSERT INTO  "project_to_user" 
+                        ("projectId", "userId", "addTime", "updateTime") 
+                VALUES  (:projectId, :userId, NOW(), NOW())
+          ON CONFLICT   ("projectId", "userId") 
+          DO UPDATE SET "projectId" = EXCLUDED."projectId"
+                      , "userId" = EXCLUDED."userId"
+                      , "updateTime" = EXCLUDED."updateTime" 
+          RETURNING     "id"
+      `,
+        {
+          type: QueryTypes.INSERT, // c QueryTypes.UPSERT не возвращает данные
+          replacements: { projectId, userId },
+          transaction,
+        },
+      );
+      const link = upsertData[0][0];
+      await this.updateUserLink(link.id, linkData, transaction);
+      return link;
+    });
   }
 
   async updateUserLink(linkId: number, updateData: projectUserLinkDTO, transaction?: Transaction) {
-    if (!updateData.deleteTime) updateData.deleteTime = null;
-    await this.utils.updateDB({
-      table: 'project_to_user',
-      id: linkId,
-      data: updateData,
-      jsonKeys: ['config'],
-      transaction,
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      if (!updateData.deleteTime) updateData.deleteTime = null;
+      await this.utils.updateDB({
+        table: 'project_to_user',
+        id: linkId,
+        data: updateData,
+        jsonKeys: ['config'],
+        transaction,
+      });
     });
   }
 
   async getUserLink(userId: number, projectId: number, config: types['getOneConfig'] = {}) {
     if (!config.attributes) config.attributes = ['*'];
-    const findData = await this.sequelize
-      .query(
-        `--sql
-        SELECT ${config.attributes.join(',')} 
-        FROM "project_to_user"
-        WHERE "userId" = :userId AND "projectId" = :projectId AND "deleteTime" IS NULL
+    const findData = await await this.utils.queryDB(
+      `--sql
+        SELECT    ${config.attributes.join(',')} 
+        FROM      "project_to_user"
+        WHERE     "userId" = :userId
+              AND "projectId" = :projectId
+              AND "deleteTime" IS NULL
       `,
-        { replacements: { userId, projectId }, type: QueryTypes.SELECT },
-      )
-      .catch(exception.dbErrorCatcher);
+      { replacements: { userId, projectId }, type: QueryTypes.SELECT },
+    );
     return findData[0] || null;
   }
 
@@ -149,16 +166,17 @@ export class ProjectService {
   }
 
   async getPersonalOwner(projectId: number) {
-    const findData = await this.sequelize
-      .query(
-        `--sql
-        SELECT "userId"
-        FROM "project_to_user"
-        WHERE "projectId" = :projectId AND "personal" = true AND "role" = 'owner' AND "deleteTime" IS NULL
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    "userId"
+        FROM      "project_to_user"
+        WHERE     "projectId" = :projectId
+              AND "personal" = true
+              AND "role" = 'owner'
+              AND "deleteTime" IS NULL
       `,
-        { replacements: { projectId }, type: QueryTypes.SELECT },
-      )
-      .catch(exception.dbErrorCatcher);
+      { replacements: { projectId }, type: QueryTypes.SELECT },
+    );
     return findData[0]?.userId || null;
   }
 }

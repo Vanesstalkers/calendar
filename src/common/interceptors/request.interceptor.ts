@@ -28,13 +28,13 @@ export class PostStatusInterceptor {
           },
           storage,
         },
-        { data: request.body || request.query },
+        { requestData: request.body || request.query },
       ],
-      { request },
+      { request, startType: 'HTTP' },
     );
     return next.handle().pipe(
       map(async (value) => {
-        await this.logger.sendLog({ data: value }, { request });
+        await this.logger.sendLog({ answerData: value }, { request, finalizeType: 'ok' });
         if (request.method === 'POST') {
           if (response.statusCode === nestjs.HttpStatus.CREATED) {
             response.status(nestjs.HttpStatus.OK);

@@ -1,6 +1,7 @@
 import * as nestjs from '@nestjs/common';
 import * as sequelize from '@nestjs/sequelize';
 import { Sequelize } from 'sequelize-typescript';
+import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
@@ -21,24 +22,34 @@ export class CommentService {
   ) {}
 
   async create(taskId: number, commentData: commentDTO, transaction?: Transaction) {
-    const createTransaction = !transaction;
-    if (createTransaction) transaction = await this.sequelize.transaction();
-
-    const comment = await this.commentModel.create({ taskId }, { transaction }).catch(exception.dbErrorCatcher);
-    await this.update(comment.id, commentData, transaction);
-
-    if (createTransaction) await transaction.commit();
-    return comment;
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const createData = await this.utils.queryDB(
+        `INSERT INTO "comment" ("taskId", "addTime", "updateTime") VALUES (:taskId, NOW(), NOW()) RETURNING id`,
+        { type: QueryTypes.INSERT, replacements: { taskId }, transaction },
+      );
+      const comment = createData[0][0];
+      await this.update(comment.id, commentData, transaction);
+      return comment;
+    });
   }
 
   async update(commentId: number, updateData: commentDTO, transaction?: Transaction) {
-    await this.utils.updateDB({ table: 'comment', id: commentId, data: updateData, transaction });
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      await this.utils.updateDB({ table: 'comment', id: commentId, data: updateData, transaction });
+    });
   }
 
   async getOne(data: { id: number }, config: types['getOneConfig'] = {}) {
-    const findData = await this.commentModel
-      .findOne({ where: { id: data.id }, attributes: config.attributes })
-      .catch(exception.dbErrorCatcher);
+    const findData = await this.utils.queryDB(
+      `--sql
+        SELECT    ${config.attributes.join(',')} 
+        FROM      "comment"
+        WHERE     "id" = :id
+              AND "deleteTime" IS NULL
+        LIMIT     1
+        `,
+      { type: QueryTypes.SELECT, replacements: { id: data.id || null } },
+    );
     return findData || null;
   }
 

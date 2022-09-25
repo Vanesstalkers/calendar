@@ -10,9 +10,7 @@ import * as crypto from 'crypto';
 
 @nestjs.Injectable()
 export class SessionService {
-  constructor(
-    @nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  constructor(@nestjs.Inject(nestjs.CACHE_MANAGER) private cacheManager: Cache) {}
 
   async getState(session: FastifySession) {
     const storage = (await this.getStorage(session)) ?? {};
@@ -56,11 +54,7 @@ export class SessionService {
 
   async updateStorageById(storageId: string, data: types['session']['storage']) {
     const storageData = JSON.parse(await this.cacheManager.get(storageId));
-    await this.cacheManager.set(
-      storageId,
-      JSON.stringify({ ...storageData, ...data }),
-      { ttl: 0 },
-    );
+    await this.cacheManager.set(storageId, JSON.stringify({ ...storageData, ...data }), { ttl: 0 });
   }
 
   async getUserId(session: FastifySession): Promise<number> {

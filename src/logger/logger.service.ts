@@ -15,33 +15,64 @@ export class LoggerService {
     @nestjs.Inject(REQUEST) private request: fastify.FastifyRequest,
     @nestjs.Inject('DATABASE_CONNECTION') private db: Db,
   ) {}
-  async sendLog(data: any, { request = null }: { request?: fastify.FastifyRequest } = {}) {
+  traceList = [];
+  getTraceList() {
+    return this.traceList;
+  }
+  async sendLog(
+    data: any,
+    {
+      request = null,
+      startType,
+      finalizeType,
+    }: { request?: fastify.FastifyRequest; startType?: string; finalizeType?: string } = {},
+  ) {
     try {
       const col = new Date().toLocaleString().split(',')[0];
       const processData = Array.isArray(data) ? data : [data];
       const insertData = [];
       for (const processItem of processData) {
-        insertData.push(await this.processTraceData(processItem, request));
+        insertData.push(await this.processTraceData(processItem, { request, startType, finalizeType }));
       }
-      await this.db.collection(col).insertMany(insertData);
+      this.traceList.push(...insertData);
+      if (finalizeType) {
+        const traceList = this.getTraceList();
+        const sqlLogs = traceList.filter((logItem) => logItem.sql);
+        const baseLog = traceList.filter((logItem) => !logItem.sql).reduce((acc, item) => ({ ...acc, ...item }), {});
+        await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
+        //await this.db.collection(col).insertMany(this.getTraceList().map((logItem) => ({ ...logItem, finalizeType })));
+      }
     } catch (err) {
       console.log('sendLog err', err);
     }
   }
-  async processTraceData(data: any, request: fastify.FastifyRequest) {
+  async processTraceData(
+    data: any,
+    {
+      request = null,
+      startType,
+      finalizeType,
+    }: { request?: fastify.FastifyRequest; startType?: string; finalizeType?: string } = {},
+  ) {
     const traceId = (this.request || request)?.[REQUEST_CONTEXT_ID]?.id;
     let resultItem = JSON.parse(JSON.stringify(data));
     const check = async (data: object) => {
       for (const [key, val] of Object.entries(data)) {
         if (val && typeof val === 'object') await check(val);
-        else if (['sql', 'fileContent'].includes(key) && typeof val === 'string' && val.length > 100)
+        else if (['sql', 'fileContent'].includes(key) && typeof val === 'string' && val.length > 500)
           data[key] = await this.putIntoLogFile(val, { traceId, key });
       }
     };
     if (typeof resultItem === 'object') {
       await check(resultItem);
       resultItem.traceId = traceId;
-      resultItem.time = new Date();
+      if (startType) {
+        resultItem.startTime = new Date();
+      } else if (finalizeType) {
+        resultItem.endTime = new Date();
+      } else {
+        resultItem.time = new Date();
+      }
     } else {
     }
     return resultItem;
