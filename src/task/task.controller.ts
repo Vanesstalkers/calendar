@@ -2,7 +2,7 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify-multipart';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, exception, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, exception, httpAnswer, interceptors } from '../globalImport';
 
 import {
   taskCreateQueryDTO,
@@ -164,9 +164,10 @@ export class TaskInstance {
         const endTime = data.endTime;
         const userTimeIsFree = await checkUser.timeIsFree(startTime, endTime);
         if (!userTimeIsFree) {
-          throw new nestjs.BadRequestException(
-            `Time from "${startTime}" to "${endTime}" for user (id=${checkUser.id}) is busy.`,
-          );
+          throw new nestjs.BadRequestException({
+            code: 'TIME_IS_BUSY',
+            msg: `Time from "${startTime}" to "${endTime}" for user (id=${checkUser.id}) is busy.`,
+          });
         }
       }
 
@@ -235,7 +236,7 @@ export class TaskController {
 
   @nestjs.Post('search')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.search({ model: taskSearchAnswerDTO }))
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
   async search(@nestjs.Body() data: taskSearchQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.query || data.query.length < 3) throw new nestjs.BadRequestException('Query is empty or too short');
     if (data.limit === undefined || data.offset === undefined)

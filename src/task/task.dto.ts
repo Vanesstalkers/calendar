@@ -1,200 +1,8 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { models, types } from '../globalImport';
 
 import { projectUserLinkDTO, projectToUserGetOneDTO, projectToUserConfigFiltersDTO } from '../project/project.dto';
 import { fileListItemDTO } from '../file/file.dto';
 import { commentListItemDTO } from '../comment/comment.dto';
-
-@sequelize.Table({ tableName: 'task' })
-export class Task extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.ForeignKey(() => models.project)
-  @sequelize.Column
-  projectId: number;
-  @sequelize.BelongsTo(() => models.project)
-  project: types['models']['project'];
-
-  @sequelize.Column({ defaultValue: false })
-  require: boolean;
-
-  @sequelize.Column({ allowNull: true })
-  execEndTime: Date;
-
-  @sequelize.ForeignKey(() => models.user)
-  @sequelize.Column
-  execUserId: number;
-  @sequelize.BelongsTo(() => models.user)
-  user: types['models']['user'];
-
-  @sequelize.Column
-  title: string;
-
-  @sequelize.Column(sequelize.DataType.TEXT)
-  info: string;
-
-  @sequelize.Column
-  date: Date;
-
-  @sequelize.Column
-  startTime: Date;
-
-  @sequelize.Column({ allowNull: true })
-  endTime: Date;
-
-  @sequelize.Column
-  timeType: string;
-
-  @sequelize.Column({ defaultValue: false })
-  regular: boolean;
-
-  @sequelize.Column
-  extSource: string;
-
-  @sequelize.Column
-  extDestination: string;
-
-  @sequelize.ForeignKey(() => models.taskgroup)
-  @sequelize.Column
-  groupId: number;
-  @sequelize.BelongsTo(() => models.taskgroup)
-  group: types['models']['taskgroup'];
-
-  @sequelize.HasMany(() => models.hashtag, 'taskId')
-  hashtagList: types['models']['hashtag'][];
-
-  @sequelize.HasMany(() => models.task2user, 'taskId')
-  userList: types['models']['task2user'][];
-
-  @sequelize.HasMany(() => models.tick, 'taskId')
-  tickList: types['models']['tick'][];
-
-  @sequelize.HasMany(() => models.comment, 'taskId')
-  commentList: types['models']['comment'][];
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
-
-@sequelize.Table({ tableName: 'task_to_user' })
-export class TaskToUser extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.ForeignKey(() => models.user)
-  @sequelize.Column
-  userId: number;
-  @sequelize.BelongsTo(() => models.user)
-  user: types['models']['user'];
-
-  @sequelize.ForeignKey(() => models.task)
-  @sequelize.Column
-  taskId: number;
-  @sequelize.BelongsTo(() => models.task)
-  task: types['models']['task'];
-
-  @sequelize.Column
-  role: string;
-
-  @sequelize.Column
-  status: string;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
-
-@sequelize.Table({ tableName: 'task_group' })
-export class TaskGroup extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.HasMany(() => models.task, 'groupId')
-  taskList: types['models']['task'][];
-
-  @sequelize.Column
-  name: string;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
-
-@sequelize.Table({ tableName: 'tick' })
-export class Tick extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.ForeignKey(() => models.task)
-  @sequelize.Column
-  taskId: number;
-  @sequelize.BelongsTo(() => models.task)
-  task: types['models']['task'];
-
-  @swagger.ApiProperty({ type: 'string', description: 'Описание пункта' })
-  @sequelize.Column
-  text: string;
-
-  @swagger.ApiPropertyOptional({
-    type: 'string',
-    example: 'ready',
-    enum: ['', 'ready'],
-    description: 'Статус выполнения',
-  })
-  @sequelize.Column({ defaultValue: '' })
-  status: string;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
-
-@sequelize.Table({ tableName: 'hashtag' })
-export class Hashtag extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.ForeignKey(() => models.task)
-  @sequelize.Column
-  taskId: number;
-  @sequelize.BelongsTo(() => models.task)
-  task: types['models']['task'];
-
-  @sequelize.Column
-  name: string;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
 
 export class taskUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID пользователя' })
@@ -278,10 +86,17 @@ class userRegularDTO {
     type: ['number'],
   })
   weekdaysList: [number];
+  @swagger.ApiPropertyOptional({
+    description: 'Ссылка на оригинальную задачу (для регулярных задач)',
+    example: 1,
+    type: 'number',
+  })
   origTaskId?: number;
 }
 
 export class taskDTO {
+  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
+  id?: number;
   @swagger.ApiPropertyOptional({ description: 'Заголовок задачи', type: 'string' })
   title?: string;
   @swagger.ApiPropertyOptional({ description: 'Описание задачи', type: 'string' })
@@ -489,6 +304,44 @@ export class taskGetAllQueryExecutorsDTO {
   offset?: number;
 }
 
+class taskBaseQueryDataDTO {
+  projectIds?: number[];
+  scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
+}
+
+export class taskInboxQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
+  filter?: string;
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskScheduleQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Период с', type: 'date | null', example: '2000-07-08' })
+  from: Date;
+  @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2032-07-10' })
+  to: Date;
+}
+export class taskOverdueQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskLaterQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+export class taskExecutorsQueryDataDTO extends taskBaseQueryDataDTO {
+  @swagger.ApiProperty({ description: 'Лимит на количество результатов в ответе', example: 50 })
+  limit?: number;
+  @swagger.ApiProperty({ description: 'Сдвиг для поиска', example: 0 })
+  offset?: number;
+}
+
 class taskGetAllQueryDataDTO {
   @swagger.ApiProperty({ description: 'Тип фильтра', example: 'new', enum: ['new', 'finished', 'toexec'] })
   filter?: string;
@@ -500,6 +353,8 @@ class taskGetAllQueryDataDTO {
   from: Date;
   @swagger.ApiProperty({ description: 'Период по (включительно)', type: 'date | null', example: '2032-07-10' })
   to: Date;
+  projectIds?: number[];
+  scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
 }
 
 export class taskGetAllQueryDTO {

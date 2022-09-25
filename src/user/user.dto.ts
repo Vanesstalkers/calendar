@@ -1,76 +1,7 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { interfaces, models, types } from '../globalImport';
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
-
-@sequelize.Table({ tableName: 'user' })
-export class User extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id: number;
-
-  @sequelize.Column
-  name: string;
-
-  @sequelize.Column
-  phone: string;
-
-  @sequelize.Column({ allowNull: true })
-  timezone: string;
-
-  @sequelize.Column({ type: sequelize.DataType.JSON, defaultValue: {} })
-  config: { currentProjectId: number; phoneCode: string };
-
-  @sequelize.HasMany(() => models.project2user, 'userId')
-  projectList: types['models']['project2user'][];
-
-  @sequelize.HasMany(() => models.task, 'execUserId')
-  execTaskList: types['models']['task'][];
-
-  @sequelize.HasMany(() => models.task2user, 'userId')
-  taskList: types['models']['task2user'][];
-
-  @sequelize.HasMany(() => models.user2user, 'userId')
-  contactList: types['models']['user2user'][];
-
-  @sequelize.HasMany(() => models.user2user, 'contactId')
-  relativeContactList: types['models']['user2user'][];
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
-
-@sequelize.Table({ tableName: 'user_to_user' })
-export class UserToUser extends sequelize.Model {
-  @sequelize.ForeignKey(() => models.user)
-  @sequelize.Column
-  userId: number;
-  @sequelize.BelongsTo(() => models.user)
-  user: types['models']['user'];
-
-  @sequelize.ForeignKey(() => models.user)
-  @sequelize.Column
-  contactId: number;
-  @sequelize.BelongsTo(() => models.user)
-  relUser: types['models']['user'];
-
-  @sequelize.Comment('приоритет')
-  @sequelize.Column
-  priority: number;
-
-  @sequelize.CreatedAt
-  addTime: Date;
-  @sequelize.UpdatedAt
-  updateTime: Date;
-  @sequelize.DeletedAt
-  deleteTime: Date;
-}
+import { fileDTO, fileUploadQueryFileDTO } from '../file/file.dto';
 
 export class userCodeQueryDTO {
   @swagger.ApiProperty({ description: 'Проверочный код из СМС', example: '4523' })
@@ -83,7 +14,7 @@ class userConfigDTO {
 }
 
 class userConfigUpdateDTO extends userConfigDTO {
-  @swagger.ApiPropertyOptional({ description: 'Проекты, отображаемые в личном', example: [10,31] })
+  @swagger.ApiPropertyOptional({ description: 'Проекты, отображаемые в личном', example: [10, 31] })
   showProjectsInPersonal: number[];
 }
 
@@ -109,7 +40,11 @@ export class userAuthQueryDTO {
   userData: userAuthQueryDataDTO;
   @swagger.ApiPropertyOptional({ description: 'Не отправлять СМС', type: 'boolean | null', example: true })
   preventSendSms: boolean;
-  @swagger.ApiPropertyOptional({ description: 'Отключить таймаут на вызов метода user/auth', type: 'boolean | null', example: true })
+  @swagger.ApiPropertyOptional({
+    description: 'Отключить таймаут на вызов метода user/auth',
+    type: 'boolean | null',
+    example: true,
+  })
   disableTimeout: boolean;
 }
 
@@ -198,6 +133,15 @@ export class userUpdateQueryDTO {
   userId: number;
   @swagger.ApiProperty({ description: 'schema: userUpdateQueryDataDTO', type: userUpdateQueryDataDTO })
   userData: userUpdateQueryDataDTO;
+  @swagger.ApiProperty({ type: fileUploadQueryFileDTO })
+  iconFile: fileUploadQueryFileDTO;
+}
+
+export class userUpdateWithFormdataQueryDTO {
+  @swagger.ApiProperty({ description: 'ID пользователя' })
+  userId: number;
+  @swagger.ApiProperty({ description: 'schema: userUpdateQueryDataDTO', type: userUpdateQueryDataDTO })
+  userData: userUpdateQueryDataDTO;
   @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
-  iconFile: types['models']['file'];
+  iconFile: fileDTO;
 }

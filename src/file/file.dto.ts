@@ -1,45 +1,4 @@
-import * as sequelize from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
-import { models, types } from '../globalImport';
-
-@sequelize.Table({ tableName: 'file' })
-export class File extends sequelize.Model {
-  @sequelize.PrimaryKey
-  @sequelize.AutoIncrement
-  @sequelize.Column
-  id?: number;
-
-  @sequelize.Column
-  link?: string;
-
-  @sequelize.Column
-  parentType?: string;
-
-  @sequelize.Column
-  parentId?: number;
-
-  @sequelize.Column
-  fileType?: string;
-
-  @sequelize.Column
-  fileName?: string;
-
-  @sequelize.Column
-  fileExtension?: string;
-
-  @sequelize.Column
-  fileMimetype?: string;
-
-  @sequelize.Column
-  fileSize?: string;
-
-  @sequelize.CreatedAt
-  addTime?: Date;
-  @sequelize.UpdatedAt
-  updateTime?: Date;
-  @sequelize.DeletedAt
-  deleteTime?: Date;
-}
 
 export class fileDTO {
   @swagger.ApiProperty({
@@ -87,10 +46,10 @@ export class fileListItemDTO {
   fileType: string;
 }
 
-class fileUploadQueryFileDTO {
+export class fileUploadQueryFileDTO {
   @swagger.ApiProperty({ description: 'Содержимое файла в base64', example: 'iVBORw0KGgoAAAANSUh...' })
   fileContent?: string;
-  @swagger.ApiProperty({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
+  @swagger.ApiPropertyOptional({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })
   fileMimetype?: string;
   @swagger.ApiPropertyOptional({ description: 'Имя файла', type: 'string', example: 'picture.jpg' })
   fileName?: string;

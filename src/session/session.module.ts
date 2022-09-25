@@ -1,14 +1,12 @@
-import { Module } from '@nestjs/common';
-import { SequelizeModule } from '@nestjs/sequelize';
-import { models } from '../globalImport';
+import * as nestjs from '@nestjs/common';
 
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';
-import { UtilsService } from '../utils/utils.service';
 
-@Module({
+@nestjs.Module({
   imports: [],
-  providers: [UtilsService, SessionService],
   controllers: [SessionController],
+  providers: [SessionService],
+  exports: [SessionService],
 })
 export class SessionModule {}

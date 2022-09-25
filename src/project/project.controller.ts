@@ -2,12 +2,15 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
+
+import * as fs from 'fs';
 
 import {
   projectCreateQueryDTO,
   projectUpdateQueryDTO,
   projectUpdateUserQueryDTO,
+  projectUpdateUserWithFormdataQueryDTO,
   projectTransferQueryDTO,
   projectGetOneQueryDTO,
   projectGetOneAnswerDTO,
@@ -17,9 +20,21 @@ import {
   projectGetOneAnswerUserDTO,
 } from './project.dto';
 
+import {
+  taskGetAllQueryDTO,
+  taskGetOneAnswerDTO,
+  taskGetAllQuerySwaggerI,
+  taskInboxQueryDataDTO,
+  taskScheduleQueryDataDTO,
+  taskOverdueQueryDataDTO,
+  taskLaterQueryDataDTO,
+  taskExecutorsQueryDataDTO,
+} from '../task/task.dto';
+
 import { ProjectService } from './project.service';
 import { ProjectTransferService } from './transfer.service';
 import { UserController, UserInstance } from '../user/user.controller';
+import { TaskService } from '../task/task.service';
 import { UserService } from '../user/user.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
@@ -61,6 +76,18 @@ export class ProjectInstance {
   getUserLink(userId: number) {
     return this.data.userList.find((link) => link.userId === userId);
   }
+  async fillGetTasksQuery(queryData, sessionData) {
+    const projectIds = [this.id];
+    if (this.id === sessionData.personalProjectId) {
+      const foreignProjectList = await this.ctx.userService.getForeignPersonalProjectList(this.consumer.id);
+      projectIds.push(...foreignProjectList.map((project: { id: number }) => project.id));
+    }
+
+    const sessionUserCurrentProjectLink = this.getUserLink(this.consumer.id);
+    const scheduleFilters = sessionUserCurrentProjectLink.config?.scheduleFilters;
+
+    return { ...queryData, projectIds, scheduleFilters };
+  }
 }
 
 @nestjs.Controller('project')
@@ -68,13 +95,14 @@ export class ProjectInstance {
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('project')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(models.project2user, models.user, projectGetOneAnswerDTO, projectDeleteUserAnswerDTO)
+@swagger.ApiExtraModels(projectGetOneAnswerDTO, projectDeleteUserAnswerDTO)
 export class ProjectController {
   constructor(
     public projectService: ProjectService,
     private transferService: ProjectTransferService,
     public userController: UserController,
-    private userService: UserService,
+    public userService: UserService,
+    private taskService: TaskService,
     private sessionService: SessionService,
     private fileService: FileService,
     private utils: UtilsService,
@@ -178,9 +206,53 @@ export class ProjectController {
 
   @nestjs.Post('updateUser')
   @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.success())
+  async updateUser(@nestjs.Body() data: projectUpdateUserQueryDTO) {
+    const projectId = data.projectId;
+    const userId = data.userId;
+    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
+    if (!userId) throw new nestjs.BadRequestException('User ID is empty');
+    const userLink = await this.validateUserLinkAndReturn(projectId, { userId });
+
+    if (data.iconFile) {
+      if (!data.iconFile?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
+      if (data.iconFile.fileContent.includes(';base64,')) {
+        const fileContent = data.iconFile.fileContent.split(';base64,');
+        data.iconFile.fileContent = fileContent[1];
+        if (!data.iconFile.fileMimetype) data.iconFile.fileMimetype = fileContent[0].replace('data:', '');
+      }
+      if (!data.iconFile.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
+    }
+
+    const updateData: { userId: number; userName?: string; position?: string } = { userId };
+    if (data.userName !== undefined) updateData.userName = data.userName;
+    if (data.position !== undefined) updateData.position = data.position;
+    await this.projectService.update(projectId, { userList: [updateData] });
+
+    if (data.iconFile) {
+      if (!data.iconFile.fileExtension) data.iconFile.fileExtension = (data.iconFile.fileName || '').split('.').pop();
+      if (!data.iconFile.fileName)
+        data.iconFile.fileName =
+          ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.iconFile.fileExtension;
+      data.iconFile.link = './uploads/' + data.iconFile.fileName;
+      await fs.promises.writeFile(data.iconFile.link, Buffer.from(data.iconFile.fileContent, 'base64'));
+
+      await this.fileService.create(
+        Object.assign(data.iconFile, {
+          parentType: 'project_to_user',
+          parentId: userLink.id,
+          fileType: 'icon',
+        }),
+      );
+    }
+    return httpAnswer.OK;
+  }
+
+  @nestjs.Post('updateUserWithFormdata')
+  @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
-  async updateUser(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserQueryDTO) {
+  async updateUserWithFormdata(@nestjs.Body() @decorators.Multipart() data: projectUpdateUserWithFormdataQueryDTO) {
     const projectId = data.projectId;
     const userId = data.userId;
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
@@ -249,5 +321,68 @@ export class ProjectController {
       await this.sessionService.updateStorageById(session.storageId, { currentProjectId: redirectProjectId });
       return { ...httpAnswer.OK, data: { redirectProjectId } };
     }
+  }
+
+  @nestjs.Post('getInboxTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getInboxTasks(@nestjs.Body() data: taskInboxQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.filter) throw new nestjs.BadRequestException('Attribute "filter" is empty');
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getInboxTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getScheduleTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getScheduleTasks(@nestjs.Body() data: taskScheduleQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    if (!data.from) throw new nestjs.BadRequestException('Attribute "from" is empty');
+    if (!data.to) throw new nestjs.BadRequestException('Attribute "to" is empty');
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getScheduleTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getOverdueTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getOverdueTasks(@nestjs.Body() data: taskOverdueQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getOverdueTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getLaterTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getLaterTasks(@nestjs.Body() data: taskLaterQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getLaterTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Post('getExecutorsTasks')
+  @nestjs.UseGuards(decorators.isLoggedIn)
+  @swagger.ApiResponse(new interfaces.response.search({ model: taskGetOneAnswerDTO }))
+  async getExecutorsTasks(@nestjs.Body() data: taskExecutorsQueryDataDTO, @nestjs.Session() session: FastifySession) {
+    const sessionData = await this.sessionService.getState(session);
+    const sessionUserId = sessionData.userId;
+    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const result = await this.taskService.getExecutorsTasks(sessionUserId, filledQuery);
+    return { ...httpAnswer.OK, data: result };
   }
 }

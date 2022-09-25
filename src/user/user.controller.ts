@@ -1,13 +1,13 @@
 import * as nestjs from '@nestjs/common';
-import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
+
+import * as fs from 'fs';
 
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
-import { AuthService } from '../auth/auth.service';
 import { ProjectService } from '../project/project.service';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
@@ -23,6 +23,7 @@ import {
   userChangeCurrentProjectQueryDTO,
   userAddContactQueryDTO,
   userUpdateQueryDTO,
+  userUpdateWithFormdataQueryDTO,
 } from './user.dto';
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
@@ -62,10 +63,8 @@ export class UserInstance {
 )
 export class UserController {
   constructor(
-    private sequelize: Sequelize,
     public userService: UserService,
     private sessionService: SessionService,
-    private authService: AuthService,
     private projectService: ProjectService,
     private fileService: FileService,
     private utils: UtilsService,
@@ -79,7 +78,7 @@ export class UserController {
   }
 
   // @nestjs.Post('create')
-  async create(@nestjs.Body() data: types['models']['user'], @nestjs.Session() session: FastifySession) {
+  async create(@nestjs.Body() data: userAuthQueryDataDTO, @nestjs.Session() session: FastifySession) {
     const createResult = await this.userService.create(data);
     return httpAnswer.OK;
   }
@@ -94,45 +93,14 @@ export class UserController {
     if (userExist) throw new nestjs.BadRequestException('Phone number already registred');
 
     await this.sessionService.updateStorage(session, { phone });
-    const sessionStorage = await this.sessionService.getStorage(session);
-    const sessionStorageId = session.storageId;
-    const code = await this.authService
-      .runAuthWithPhone(
-        phone,
-        async () => {
-          const transaction = await this.sequelize.transaction();
-          const user = await this.userService.create(data.userData, transaction);
-          await this.sessionService.updateStorage(session, { userId: user.id });
-
-          const personalProject = await this.projectService.create(
-            { title: `${user.id}th user's personal project`, userList: [{ userId: user.id, role: 'owner' }] },
-            { transaction, personalProject: true },
-          );
-          const workProject = await this.projectService.create(
-            { title: `${user.id}th user's work project`, userList: [{ userId: user.id, role: 'owner' }] },
-            { transaction },
-          );
-          await this.userService.update(
-            user.id,
-            {
-              config: { personalProjectId: personalProject.id, currentProjectId: personalProject.id },
-            },
-            transaction,
-          );
-          await transaction.commit();
-
-          await this.sessionService.updateStorageById(sessionStorageId, {
-            registration: true,
-            login: true,
-            personalProjectId: personalProject.id,
-            currentProjectId: personalProject.id,
-          });
-        },
-        data.preventSendSms,
-      )
-      .catch((err) => {
-        throw err;
-      });
+    const code = this.utils.randomCode();
+    if (!data.preventSendSms) await this.utils.sendSMS(phone, code);
+    await this.sessionService.updateStorage(session, {
+      phone,
+      authCode: code,
+      authType: 'registration',
+      registrationData: data.userData,
+    });
 
     return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } }; // !!! убрать code после отладки
   }
@@ -146,36 +114,11 @@ export class UserController {
     const userExist = await this.userService.getOne({ phone });
     if (!userExist) throw new nestjs.BadRequestException('Phone number not found (use `registration` method first)');
 
-    await this.sessionService.updateStorage(session, { phone });
-
-    const storageId = session.storageId;
-    const code = await this.authService
-      .runAuthWithPhone(
-        phone,
-        async () => {
-          const user = await this.userService.getOne({ phone });
-          await this.sessionService.updateStorageById(storageId, {
-            userId: user.id,
-            registration: true,
-            login: true,
-            personalProjectId: user.config.personalProjectId,
-            currentProjectId: user.config.currentProjectId,
-          });
-        },
-        data.preventSendSms,
-      )
-      .catch((err) => {
-        throw err;
-      });
+    const code = this.utils.randomCode();
+    if (!data.preventSendSms) await this.utils.sendSMS(phone, code);
+    await this.sessionService.updateStorage(session, { phone, authCode: code, authType: 'login' });
 
     return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } };
-  }
-
-  @nestjs.Post('logout')
-  async logout(@nestjs.Session() session: FastifySession) {
-    const storageId = session.storageId;
-    await this.sessionService.updateStorageById(storageId, { login: false });
-    return httpAnswer.OK;
   }
 
   @nestjs.Post('auth')
@@ -246,15 +189,44 @@ export class UserController {
   })
   async code(@nestjs.Body() data: userCodeQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data?.code) throw new nestjs.BadRequestException('Auth code is empty');
-
+    const sessionStorageId = session.storageId;
     const sessionStorage = await this.sessionService.getStorage(session);
-    const checkAuthCode = await this.authService.checkAuthCode(sessionStorage.phone, data.code).catch((err) => {
-      if (err.message === 'Auth session not found') throw new nestjs.ForbiddenException('Send auth request first');
-      else throw err;
+    if (data.code !== sessionStorage.authCode)
+      throw new nestjs.ForbiddenException({ code: 'WRONG_AUTH_CODE', msg: 'Wrong auth code' });
+    switch (sessionStorage.authType) {
+      case 'registration':
+        const registrationUser = await this.userService.registrate(sessionStorage.registrationData);
+        await this.sessionService.updateStorageById(sessionStorageId, {
+          userId: registrationUser.id,
+          registration: true,
+          login: true,
+          personalProjectId: registrationUser.config.personalProjectId,
+          currentProjectId: registrationUser.config.personalProjectId,
+        });
+        break;
+      case 'login':
+        const loginUser = await this.userService.getOne({ phone: sessionStorage.phone });
+        await this.sessionService.updateStorageById(sessionStorageId, {
+          userId: loginUser.id,
+          registration: true,
+          login: true,
+          personalProjectId: loginUser.config.personalProjectId,
+          currentProjectId: loginUser.config.currentProjectId,
+        });
+        break;
+    }
+    await this.sessionService.updateStorage(session, {
+      authCode: undefined,
+      authType: undefined,
+      registrationData: undefined,
     });
+    return httpAnswer.OK;
+  }
 
-    if (checkAuthCode === false) throw new nestjs.ForbiddenException('Wrong auth code');
-
+  @nestjs.Post('logout')
+  async logout(@nestjs.Session() session: FastifySession) {
+    const storageId = session.storageId;
+    await this.sessionService.updateStorageById(storageId, { login: false });
     return httpAnswer.OK;
   }
 
@@ -303,31 +275,51 @@ export class UserController {
     return { ...httpAnswer.OK, data: projectToUser };
   }
 
-  //@nestjs.Post('addContact')
+  @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
-  async addContact(@nestjs.Body() data: userAddContactQueryDTO, @nestjs.Session() session: FastifySession) {
-    const contactId = data?.contactId;
-    if (!contactId) throw new nestjs.BadRequestException('contactId is empty');
+  async update(@nestjs.Body() data: userUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
+    const userId = data.userId;
+    if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');
 
-    const contactUserExist = await this.userService.checkExists(contactId);
-    if (!contactUserExist) throw new nestjs.BadRequestException(`User (id=${contactId}) does not exist`);
+    if (data.iconFile) {
+      if (!data.iconFile?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
+      if (data.iconFile.fileContent.includes(';base64,')) {
+        const fileContent = data.iconFile.fileContent.split(';base64,');
+        data.iconFile.fileContent = fileContent[1];
+        if (!data.iconFile.fileMimetype) data.iconFile.fileMimetype = fileContent[0].replace('data:', '');
+      }
+      if (!data.iconFile.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
+    }
 
-    const userId = await this.sessionService.getUserId(session);
-    const contactExist = await this.userService.checkContactExists(userId, contactId);
-    if (contactExist) throw new nestjs.BadRequestException(`Contact (id=${contactId}) already exist`);
+    await this.userService.update(userId, data.userData);
 
-    await this.userService.addContact({ userId, contactId });
+    if (data.iconFile) {
+      if (!data.iconFile.fileExtension) data.iconFile.fileExtension = (data.iconFile.fileName || '').split('.').pop();
+      if (!data.iconFile.fileName)
+        data.iconFile.fileName =
+          ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.iconFile.fileExtension;
+      data.iconFile.link = './uploads/' + data.iconFile.fileName;
+      await fs.promises.writeFile(data.iconFile.link, Buffer.from(data.iconFile.fileContent, 'base64'));
+
+      await this.fileService.create(
+        Object.assign(data.iconFile, {
+          parentType: 'user',
+          parentId: userId,
+          fileType: 'icon',
+        }),
+      );
+    }
 
     return httpAnswer.OK;
   }
 
-  @nestjs.Post('update')
+  @nestjs.Post('updateWithFormdata')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
-  async update(
-    @nestjs.Body() @decorators.Multipart() data: userUpdateQueryDTO, // без @nestjs.Body() не будет работать swagger
+  async updateWithFormdata(
+    @nestjs.Body() @decorators.Multipart() data: userUpdateWithFormdataQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
     if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');
