@@ -9,7 +9,7 @@ import { LoggerService } from './logger.service';
       provide: 'DATABASE_CONNECTION',
       useFactory: async (): Promise<Db> => {
         try {
-          const client = await MongoClient.connect('mongodb://127.0.0.1');
+          const client = await MongoClient.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1');
           return client.db('calendar');
         } catch (e) {
           throw e;
