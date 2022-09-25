@@ -1,12 +1,8 @@
 import * as nestjs from '@nestjs/common';
-import * as sequelize from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
 import { Cron } from '@nestjs/schedule';
-import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
-
-import * as parser from 'cron-parser';
+import { decorators, interfaces, types, exception, sql } from '../globalImport';
 
 import {
   taskFullDTO,
@@ -24,16 +20,7 @@ const REGULAR_TASK_SHIFT_DAYS_COUNT = 14;
 
 @nestjs.Injectable()
 export class TaskService {
-  constructor(
-    private sequelize: Sequelize,
-    @sequelize.InjectModel(models.task) private taskModel: typeof models.task,
-    @sequelize.InjectModel(models.user) private userModel: typeof models.user,
-    @sequelize.InjectModel(models.task2user)
-    private taskToUserModel: typeof models.task2user,
-    @sequelize.InjectModel(models.tick) private tickModel: typeof models.tick,
-    @sequelize.InjectModel(models.hashtag) private hashtagModel: typeof models.hashtag,
-    private utils: UtilsService,
-  ) {}
+  constructor(private utils: UtilsService) {}
 
   async create(taskData: taskFullDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
@@ -631,11 +618,12 @@ export class TaskService {
     );
   }
 
-  @Cron('0 0 3 * * *')
-  async cronCreateRegularTaskClones() {
-    const nowWithShift = `NOW() + interval '${REGULAR_TASK_SHIFT_DAYS_COUNT} days'`;
+  // @Cron('0 0 3 * * *')
+  async cronCreateRegularTaskClones(transaction?: Transaction) {
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      const nowWithShift = `NOW() + interval '${REGULAR_TASK_SHIFT_DAYS_COUNT} days'`;
 
-    const findData = await this.utils.queryDB(`--sql
+      const findData = await this.utils.queryDB(`--sql
       SELECT    task.id
                 , task."projectId"
                 , task.title
@@ -679,12 +667,10 @@ export class TaskService {
               )
             )
     `);
-    console.log('cronCreateRegularTaskClones', findData[0]);
-    const tasksToClone = findData[0];
+      console.log('cronCreateRegularTaskClones', findData[0]);
+      const tasksToClone = findData[0];
 
-    if (tasksToClone.length) {
-      const transaction = await this.sequelize.transaction();
-      try {
+      if (tasksToClone.length) {
         const dateWithShift = new Date();
         dateWithShift.setDate(dateWithShift.getDate() + REGULAR_TASK_SHIFT_DAYS_COUNT);
 
@@ -706,14 +692,10 @@ export class TaskService {
             newObject.endTime = tempTime.toISOString();
           }
 
-          this.create(newObject, transaction).catch(exception.dbErrorCatcher);
+          this.create(newObject, transaction);
         }
-        await transaction.commit();
-      } catch (err) {
-        if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
-        throw err;
       }
-    }
+    });
   }
 
   async cloneRegularTask(taskId: number, taskData: taskFullDTO, transaction?: Transaction) {
@@ -741,7 +723,7 @@ export class TaskService {
         if (theEndDate !== null) taskData.endTime = theEndDate.toISOString();
 
         if (theDays === null || theDays.includes(theDate.getDay())) {
-          await this.create(taskData, transaction).catch(exception.dbErrorCatcher);
+          await this.create(taskData, transaction);
         }
 
         const timeShift = theStep * 24 * 60 * 60 * 1000;

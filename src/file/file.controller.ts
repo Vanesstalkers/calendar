@@ -3,7 +3,7 @@ import * as swagger from '@nestjs/swagger';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
 import * as fs from 'node:fs';
 import { join } from 'path';

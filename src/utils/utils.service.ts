@@ -3,7 +3,7 @@ import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
 import axios from 'axios';
 import config from '../config';
-import { decorators, interfaces, models, types, exception } from '../globalImport';
+import { decorators, interfaces, types, exception } from '../globalImport';
 
 import * as stream from 'stream';
 import * as fs from 'node:fs';

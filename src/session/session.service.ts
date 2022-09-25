@@ -1,10 +1,7 @@
 import * as nestjs from '@nestjs/common';
-import * as sequelize from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize-typescript';
-import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
+
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types } from '../globalImport';
+import { decorators, interfaces, types } from '../globalImport';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 

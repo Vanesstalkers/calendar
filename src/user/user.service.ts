@@ -1,9 +1,7 @@
 import * as nestjs from '@nestjs/common';
-import * as sequelize from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
-import { exception, models, types, sql } from '../globalImport';
+import { exception, types, sql } from '../globalImport';
 
 import { ProjectService } from '../project/project.service';
 import { UtilsService } from '../utils/utils.service';
@@ -11,23 +9,11 @@ import { userAuthQueryDataDTO, userSearchQueryDTO, userUpdateQueryDataDTO } from
 
 @nestjs.Injectable()
 export class UserService {
-  constructor(
-    private sequelize: Sequelize,
-    @sequelize.InjectModel(models.user) private userModel: typeof models.user,
-    @sequelize.InjectModel(models.user2user)
-    private userToUserModel: typeof models.user2user,
-    @sequelize.InjectModel(models.project)
-    private projectModel: typeof models.project,
-    @sequelize.InjectModel(models.project2user)
-    private projectToUserModel: typeof models.project2user,
-    private projectService: ProjectService,
-    private utils: UtilsService,
-  ) {}
+  constructor(private projectService: ProjectService, private utils: UtilsService) {}
 
   async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}) {
-    const findData = await this.utils
-      .queryDB(
-        `--sql
+    const findData = await this.utils.queryDB(
+      `--sql
           SELECT    u.id
                   , u.name
                   , u.phone
@@ -63,13 +49,11 @@ export class UserService {
                 AND u."deleteTime" IS NULL
           LIMIT     1
         `,
-        {
-          type: QueryTypes.SELECT,
-          replacements: { id: data.id || null, phone: data.phone || null },
-        },
-      )
-      .catch(exception.dbErrorCatcher);
-
+      {
+        type: QueryTypes.SELECT,
+        replacements: { id: data.id || null, phone: data.phone || null },
+      },
+    );
     return findData[0] || null;
   }
 

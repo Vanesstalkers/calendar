@@ -1,8 +1,9 @@
-import { Module, NestModule, DynamicModule, Global, CacheModule } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
+import * as nestjs from '@nestjs/common';
+import { NestModule } from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { ScheduleModule } from '@nestjs/schedule';
-import { models } from './globalImport';
+import { Logger } from './globalImport';
 
 import config from './config';
 import type { ClientOpts } from 'redis';
@@ -19,7 +20,7 @@ import { LoggerModule } from './logger/logger.module';
 
 import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
-var dbImport: DynamicModule, cacheImport: DynamicModule;
+var dbImport: nestjs.DynamicModule, cacheImport: nestjs.DynamicModule;
 
 try {
   dbImport = SequelizeModule.forRoot({
@@ -47,14 +48,14 @@ try {
       store: redisStore,
     };
   }
-  cacheImport = CacheModule.register<ClientOpts>(cacheImportOpts);
+  cacheImport = nestjs.CacheModule.register<ClientOpts>(cacheImportOpts);
 } catch (err) {
   // !!! не ловит
   console.log({ err });
 }
 
-@Global()
-@Module({
+@nestjs.Global()
+@nestjs.Module({
   imports: [
     dbImport,
     cacheImport,
@@ -67,25 +68,18 @@ try {
     FileModule,
     UtilsModule,
     ScheduleModule.forRoot(),
-    SequelizeModule.forFeature([
-      models.user,
-      models.project,
-      models.task,
-      models.project2user,
-      models.taskgroup,
-      models.hashtag,
-      models.task2user,
-      models.user2user,
-      models.comment,
-      models.tick,
-      models.file,
-    ]),
+    SequelizeModule.forFeature([Logger]), // тут фейковый класс, без которого не работают иньекции в PostStatusInterceptor
   ],
   providers: [
     {
       provide: APP_FILTER,
       useClass: UniversalExceptionFilter,
     },
+    // все равно так тоже не работает иньекция в PostStatusInterceptor
+    // {
+    //   provide: APP_INTERCEPTOR,
+    //   useClass: PostStatusInterceptor,
+    // },
   ],
   controllers: [],
   exports: [LoggerModule, UserModule, SessionModule, ProjectModule, TaskModule, CommentModule, FileModule, UtilsModule],

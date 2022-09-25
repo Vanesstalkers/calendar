@@ -1,6 +1,6 @@
 import * as nestjs from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { decorators, interfaces, models, types, httpAnswer } from '../../globalImport';
+import { decorators, interfaces, types, httpAnswer } from '../../globalImport';
 
 import { LoggerService } from '../../logger/logger.service';
 

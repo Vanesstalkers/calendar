@@ -1,11 +1,9 @@
 import * as nestjs from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import * as fastify from 'fastify';
-import * as sequelize from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import { REQUEST_CONTEXT_ID } from '@nestjs/core/router/request/request-constants';
 import { Db, ObjectID } from 'mongodb';
-import { decorators, interfaces, models, types, exception } from '../globalImport';
+import { decorators, interfaces, types, exception } from '../globalImport';
 import * as fs from 'node:fs';
 import * as crypto from 'node:crypto';
 
@@ -18,6 +16,23 @@ export class LoggerService {
   traceList = [];
   getTraceList() {
     return this.traceList;
+  }
+  async startLog(request) {
+    this.sendLog(
+      [
+        {
+          url: request.url,
+          request: {
+            ip: request.ip,
+            method: request.method,
+            protocol: request.protocol,
+            headers: request.headers,
+          },
+        },
+        { requestData: request.body || request.query },
+      ],
+      { request, startType: 'HTTP' },
+    );
   }
   async sendLog(
     data: any,

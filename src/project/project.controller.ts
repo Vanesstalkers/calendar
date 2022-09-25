@@ -2,7 +2,7 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
 import {
   projectCreateQueryDTO,
@@ -68,7 +68,7 @@ export class ProjectInstance {
 @nestjs.UseGuards(decorators.validateSession)
 @swagger.ApiTags('project')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(models.project2user, models.user, projectGetOneAnswerDTO, projectDeleteUserAnswerDTO)
+@swagger.ApiExtraModels(projectGetOneAnswerDTO, projectDeleteUserAnswerDTO)
 export class ProjectController {
   constructor(
     public projectService: ProjectService,

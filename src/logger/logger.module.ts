@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
+import * as nestjs from '@nestjs/common';
 import { MongoClient, Db } from 'mongodb';
 
 import { LoggerService } from './logger.service';
 
-@Module({
+@nestjs.Module({
   providers: [
     {
       provide: 'DATABASE_CONNECTION',

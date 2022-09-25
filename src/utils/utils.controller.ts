@@ -2,7 +2,7 @@ import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
 import * as lstPhoneCode from '../lst/phoneCode.json';
 import * as lstTimezone from '../lst/timezone.json';

@@ -1,14 +1,10 @@
-import { Module } from '@nestjs/common';
-import { SequelizeModule } from '@nestjs/sequelize';
-import { models } from '../globalImport';
+import * as nestjs from '@nestjs/common';
 
-import { SessionService } from '../session/session.service';
-import { UtilsService } from '../utils/utils.service';
 import { CommentController } from './comment.controller';
 import { CommentService } from './comment.service';
 
-@Module({
-  imports: [SequelizeModule.forFeature([models.comment])],
+@nestjs.Module({
+  imports: [],
   controllers: [CommentController],
   providers: [CommentService],
   exports: [CommentService],

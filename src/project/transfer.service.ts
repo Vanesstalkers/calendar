@@ -1,15 +1,13 @@
 import * as nestjs from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
-import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
 
 import { ProjectService } from './project.service';
 import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Injectable()
 export class ProjectTransferService {
-  constructor(private sequelize: Sequelize, private utils: UtilsService, private projectService: ProjectService) {}
+  constructor(private utils: UtilsService, private projectService: ProjectService) {}
 
   async execute({ projectId, toUserLink, fromUserLink }, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {

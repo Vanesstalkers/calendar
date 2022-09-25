@@ -1,30 +1,17 @@
 import * as nestjs from '@nestjs/common';
-import * as sequelize from '@nestjs/sequelize';
 import { QueryTypes } from 'sequelize';
-import { Sequelize } from 'sequelize-typescript';
-import fastify = require('fastify-multipart');
-import { decorators, interfaces, models, types, exception } from '../globalImport';
-import { LoggerService } from '../logger/logger.service';
+import { Transaction } from 'sequelize/types';
+import { decorators, interfaces, types, exception } from '../globalImport';
 
 import * as fs from 'fs';
 
+import { LoggerService } from '../logger/logger.service';
 import { UtilsService } from '../utils/utils.service';
 import { fileDTO, fileCreateDTO, fileDeleteQueryDTO } from './file.dto';
-import { Transaction } from 'sequelize/types';
 
 @nestjs.Injectable()
 export class FileService {
-  constructor(
-    private sequelize: Sequelize,
-    @sequelize.InjectModel(models.file) private modelFile: typeof models.file,
-    @sequelize.InjectModel(models.user) private modelUser: typeof models.user,
-    @sequelize.InjectModel(models.project)
-    private modelProject: typeof models.project,
-    @sequelize.InjectModel(models.project2user)
-    private modelProjectToUser: typeof models.project2user,
-    private utils: UtilsService,
-    private logger: LoggerService,
-  ) {}
+  constructor(private utils: UtilsService, private logger: LoggerService) {}
 
   async getOne(id: number, config: types['getOneConfig'] = {}) {
     if (!config.attributes) config.attributes = ['*'];
@@ -90,6 +77,6 @@ export class FileService {
   }
 
   async checkExists(id: number) {
-    return (await this.getOne(id, { attributes: ['id'] }).catch(exception.dbErrorCatcher)) ? true : false;
+    return (await this.getOne(id, { attributes: ['id'] })) ? true : false;
   }
 }

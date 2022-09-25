@@ -1,12 +1,7 @@
 import * as nestjs from '@nestjs/common';
-import * as sequelize from '@nestjs/sequelize';
-import { Sequelize } from 'sequelize-typescript';
 import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
-import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
-import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, exception, sql } from '../globalImport';
+import { decorators, interfaces, types, exception, sql } from '../globalImport';
 
 import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectUserLinkDTO } from './project.dto';
 
@@ -14,14 +9,7 @@ import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Injectable()
 export class ProjectService {
-  constructor(
-    private sequelize: Sequelize,
-    @sequelize.InjectModel(models.project)
-    private projectModel: typeof models.project,
-    @sequelize.InjectModel(models.project2user)
-    private projectToUserModel: typeof models.project2user,
-    private utils: UtilsService,
-  ) {}
+  constructor(private utils: UtilsService) {}
 
   async create(
     projectData: projectCreateQueryDTO,
@@ -161,8 +149,7 @@ export class ProjectService {
   }
 
   async checkUserLinkExists(userId: number, projectId: number) {
-    const link = await this.getUserLink(userId, projectId, { attributes: ['id'] }).catch(exception.dbErrorCatcher);
-    return link ? true : false;
+    return (await this.getUserLink(userId, projectId, { attributes: ['id'] })) ? true : false;
   }
 
   async getPersonalOwner(projectId: number) {

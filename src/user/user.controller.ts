@@ -1,9 +1,8 @@
 import * as nestjs from '@nestjs/common';
-import { Sequelize } from 'sequelize-typescript';
 import * as swagger from '@nestjs/swagger';
 import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
-import { decorators, interfaces, models, types, httpAnswer, interceptors } from '../globalImport';
+import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
@@ -61,7 +60,6 @@ export class UserInstance {
 )
 export class UserController {
   constructor(
-    private sequelize: Sequelize,
     public userService: UserService,
     private sessionService: SessionService,
     private projectService: ProjectService,
@@ -77,7 +75,7 @@ export class UserController {
   }
 
   // @nestjs.Post('create')
-  async create(@nestjs.Body() data: types['models']['user'], @nestjs.Session() session: FastifySession) {
+  async create(@nestjs.Body() data: userAuthQueryDataDTO, @nestjs.Session() session: FastifySession) {
     const createResult = await this.userService.create(data);
     return httpAnswer.OK;
   }
