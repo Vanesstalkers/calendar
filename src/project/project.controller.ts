@@ -32,63 +32,15 @@ import {
 } from '../task/task.dto';
 
 import { ProjectService } from './project.service';
+import { ProjectInstance } from './project.instance';
 import { ProjectTransferService } from './transfer.service';
-import { UserController, UserInstance } from '../user/user.controller';
+import { UserController } from '../user/user.controller';
 import { TaskService } from '../task/task.service';
 import { UserService } from '../user/user.service';
+import { UserInstance } from '../user/user.instance';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
 import { UtilsService } from '../utils/utils.service';
-
-export class ProjectInstance {
-  id: number;
-  ctx: ProjectController;
-  data: projectGetOneAnswerDTO;
-  consumer: UserInstance;
-  constructor(ctx: ProjectController) {
-    this.ctx = ctx;
-  }
-  async init(projectId: number, consumerId: number) {
-    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
-    this.id = projectId;
-    this.data = await this.ctx.projectService.getOne({ id: projectId });
-    if (!this.data) throw new nestjs.BadRequestException(`Project (id=${projectId}) does not exist`);
-
-    if (consumerId) {
-      if (!this.isMember(consumerId)) {
-        throw new nestjs.BadRequestException(`User (id=${consumerId}) is not a member of project (id=${this.id})`);
-      }
-      this.consumer = await new UserInstance(this.ctx.userController).init(consumerId);
-    }
-    return this;
-  }
-  isPersonal() {
-    return this.data.personal;
-  }
-  isMember(userId: number) {
-    return this.data.userList.find((userLink) => userLink.userId === userId) ? true : false;
-  }
-  isOwner(userId: number) {
-    return this.data.userList.find((userLink) => userLink.userId === userId && userLink.role === 'owner')
-      ? true
-      : false;
-  }
-  getUserLink(userId: number) {
-    return this.data.userList.find((link) => link.userId === userId);
-  }
-  async fillGetTasksQuery(queryData, sessionData) {
-    const projectIds = [this.id];
-    if (this.id === sessionData.personalProjectId) {
-      const foreignProjectList = await this.ctx.userService.getForeignPersonalProjectList(this.consumer.id);
-      projectIds.push(...foreignProjectList.map((project: { id: number }) => project.id));
-    }
-
-    const sessionUserCurrentProjectLink = this.getUserLink(this.consumer.id);
-    const scheduleFilters = sessionUserCurrentProjectLink.config?.scheduleFilters;
-
-    return { ...queryData, projectIds, scheduleFilters };
-  }
-}
 
 @nestjs.Controller('project')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
@@ -99,9 +51,11 @@ export class ProjectInstance {
 export class ProjectController {
   constructor(
     public projectService: ProjectService,
+    public projectInstance: ProjectInstance,
     private transferService: ProjectTransferService,
     public userController: UserController,
     public userService: UserService,
+    public userInstance: UserInstance,
     private taskService: TaskService,
     private sessionService: SessionService,
     private fileService: FileService,
@@ -330,8 +284,8 @@ export class ProjectController {
     if (!data.filter) throw new nestjs.BadRequestException('Attribute "filter" is empty');
     const sessionData = await this.sessionService.getState(session);
     const sessionUserId = sessionData.userId;
-    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
-    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const project = await this.projectInstance.init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await project.fillGetTasksQuery(data, sessionData);
     const result = await this.taskService.getInboxTasks(sessionUserId, filledQuery);
     return { ...httpAnswer.OK, data: result };
   }
@@ -344,8 +298,8 @@ export class ProjectController {
     if (!data.to) throw new nestjs.BadRequestException('Attribute "to" is empty');
     const sessionData = await this.sessionService.getState(session);
     const sessionUserId = sessionData.userId;
-    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
-    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const project = await this.projectInstance.init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await project.fillGetTasksQuery(data, sessionData);
     const result = await this.taskService.getScheduleTasks(sessionUserId, filledQuery);
     return { ...httpAnswer.OK, data: result };
   }
@@ -356,8 +310,8 @@ export class ProjectController {
   async getOverdueTasks(@nestjs.Body() data: taskOverdueQueryDataDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);
     const sessionUserId = sessionData.userId;
-    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
-    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const project = await this.projectInstance.init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await project.fillGetTasksQuery(data, sessionData);
     const result = await this.taskService.getOverdueTasks(sessionUserId, filledQuery);
     return { ...httpAnswer.OK, data: result };
   }
@@ -368,8 +322,8 @@ export class ProjectController {
   async getLaterTasks(@nestjs.Body() data: taskLaterQueryDataDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);
     const sessionUserId = sessionData.userId;
-    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
-    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const project = await this.projectInstance.init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await project.fillGetTasksQuery(data, sessionData);
     const result = await this.taskService.getLaterTasks(sessionUserId, filledQuery);
     return { ...httpAnswer.OK, data: result };
   }
@@ -380,8 +334,8 @@ export class ProjectController {
   async getExecutorsTasks(@nestjs.Body() data: taskExecutorsQueryDataDTO, @nestjs.Session() session: FastifySession) {
     const sessionData = await this.sessionService.getState(session);
     const sessionUserId = sessionData.userId;
-    const sessionUserCurrentProject = await new ProjectInstance(this).init(sessionData.currentProjectId, sessionUserId);
-    const filledQuery = await sessionUserCurrentProject.fillGetTasksQuery(data, sessionData);
+    const project = await this.projectInstance.init(sessionData.currentProjectId, sessionUserId);
+    const filledQuery = await project.fillGetTasksQuery(data, sessionData);
     const result = await this.taskService.getExecutorsTasks(sessionUserId, filledQuery);
     return { ...httpAnswer.OK, data: result };
   }
