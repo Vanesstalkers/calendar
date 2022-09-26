@@ -113,7 +113,7 @@ export class TaskService {
                     { addUserData: true },
                   )}
                 ) AS "ownUser"
-                , array(${sql.json(`--sql
+                , array(${sql.json(`--sql  --порядок p2u.* принципиален, т.к. в нем тоже есть "role"
                     SELECT    p2u.*, t2u."id", t2u."role", t2u."userId", t2u."status"
                     FROM      "task_to_user" AS t2u, (
                                 (${sql.selectProjectToUserLink({}, { addUserData: true, jsonWrapper: false })})

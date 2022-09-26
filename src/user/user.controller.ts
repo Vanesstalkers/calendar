@@ -28,27 +28,6 @@ import {
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
 
-export class UserInstance {
-  id: number;
-  ctx: UserController;
-  data: userGetOneAnswerDTO;
-  constructor(ctx: UserController) {
-    this.ctx = ctx;
-  }
-  async init(userId: number) {
-    if (!userId) throw new nestjs.BadRequestException('User ID is empty');
-    this.id = userId;
-    this.data = await this.ctx.userService.getOne({ id: userId });
-    return this;
-  }
-  hasContact(contactId: number) {
-    return this.data.contactList.find((contact) => contact.userId === contactId);
-  }
-  async timeIsFree(startTime: string, endTime: string) {
-    return await this.ctx.userService.checkFreeTime(this.id, startTime, endTime);
-  }
-}
-
 @nestjs.Controller('user')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @nestjs.UseGuards(decorators.validateSession)

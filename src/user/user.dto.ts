@@ -72,9 +72,9 @@ export class userGetOneAnswerDTO {
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone: string;
   @swagger.ApiProperty({ description: 'Конфиг пользователя', type: userConfigWithCurProjectDTO })
-  config: object;
+  config: userConfigWithCurProjectDTO;
   @swagger.ApiProperty({ description: 'Список проектов', type: [userGetOneAnswerProjectDTO] })
-  projectList: object;
+  projectList: userGetOneAnswerProjectDTO[];
   // @swagger.ApiProperty({ description: 'Список контактов', type: [userContactListDTO] })
   // contactList: object;
   @swagger.ApiProperty({ description: 'Список контактов', type: [userGetOneAnswerProjectDTO] })

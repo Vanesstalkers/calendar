@@ -73,7 +73,8 @@ export class UserService {
         WHERE     u.id != :userId 
               AND ( u.phone LIKE :query OR LOWER(u.name) LIKE LOWER(:query)) 
               ${customWhere.join(' AND ')}
-        ORDER BY  u."id" DESC
+        ORDER BY  u."id"
+                  DESC
         LIMIT     :limit
         OFFSET    :offset
     `,
@@ -180,13 +181,13 @@ export class UserService {
         FROM      "project_to_user" AS p2u_member
                 , "project_to_user" AS p2u_owner
         WHERE     p2u_member."projectId" = p2u_owner."projectId"
-                AND p2u_owner."personal" = true
-                AND p2u_owner."userId" = :ownUserId
-                AND p2u_owner."role" = 'owner'
-                AND p2u_owner."deleteTime" IS NULL
-                AND p2u_member."userId" = :relUserId
-                AND p2u_member."role" = 'member'
-                AND p2u_member."deleteTime" IS NULL
+              AND p2u_owner."personal" = true
+              AND p2u_owner."userId" = :ownUserId
+              AND p2u_owner."role" = 'owner'
+              AND p2u_owner."deleteTime" IS NULL
+              AND p2u_member."userId" = :relUserId
+              AND p2u_member."role" = 'member'
+              AND p2u_member."deleteTime" IS NULL
       `,
       { replacements: { ownUserId, relUserId }, type: QueryTypes.SELECT },
     );
