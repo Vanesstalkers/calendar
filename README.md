@@ -81,6 +81,7 @@ await this.logger.sendLog({ произвольные данные })
 Две "точки входа":
 - /src/common/interceptors/request.interceptor.ts (основная)
 - /src/common/decorators/access.decorators.ts (ловит запросы с code=NEED_LOGIN)
+
 Точки выхода (запросы с finalizeType):
 - /src/common/interceptors/request.interceptor.ts (основная)
 - /src/common/filters/exception.filter.ts (ловит ошибки)

@@ -351,6 +351,24 @@ export class TaskService {
   }
 
   async getAll(data: taskGetAllQueryDTO = {}, userId: number) {
+    data.queryData.projectIds = data.projectIds;
+    data.queryData.scheduleFilters = data.scheduleFilters;
+
+    switch (data.queryType) {
+      case 'inbox':
+        return await this.getInboxTasks(userId, data.queryData);
+      case 'schedule':
+        return await this.getScheduleTasks(userId, data.queryData);
+      case 'overdue':
+        return await this.getOverdueTasks(userId, data.queryData);
+      case 'later':
+        return await this.getLaterTasks(userId, data.queryData);
+      case 'executors':
+        return await this.getExecutorsTasks(userId, data.queryData);
+      default:
+        return { resultList: [], endOfList: true };
+    }
+
     const replacements: any = { myId: userId };
     let sqlWhere = [];
     const select: any = {};
@@ -610,7 +628,7 @@ export class TaskService {
   }
 
   async getInboxTasks(userId: number, query: taskInboxQueryDataDTO) {
-    const result = { resultList: [], endOfList: false };
+    const result = { resultList: [], endOfList: true };
     let sqlWhere = [];
     switch (query.filter) {
       case 'new':
@@ -671,7 +689,7 @@ export class TaskService {
   }
 
   async getScheduleTasks(userId: number, query: taskScheduleQueryDataDTO) {
-    const result = { resultList: [], endOfList: false };
+    const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't2u.id IS NOT NULL', // пользователь назначен исполнителем
       't."deleteTime" IS NULL', // НЕ удалена
@@ -729,7 +747,7 @@ export class TaskService {
   }
 
   async getOverdueTasks(userId: number, query: taskOverdueQueryDataDTO) {
-    const result = { resultList: [], endOfList: false };
+    const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't2u.id IS NOT NULL', // пользователь назначен исполнителем
       't."deleteTime" IS NULL', // НЕ удалена
@@ -765,7 +783,7 @@ export class TaskService {
   }
 
   async getLaterTasks(userId: number, query: taskLaterQueryDataDTO) {
-    const result = { resultList: [], endOfList: false };
+    const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't2u.id IS NOT NULL', // пользователь назначен исполнителем
       't."deleteTime" IS NULL', // НЕ удалена
@@ -799,7 +817,7 @@ export class TaskService {
   }
 
   async getExecutorsTasks(userId: number, query: taskExecutorsQueryDataDTO) {
-    const result = { resultList: [], endOfList: false };
+    const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't."deleteTime" IS NULL', // НЕ удалена
       't."projectId" IN (:projectIds)', // принадлежит проекту
