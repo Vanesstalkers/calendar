@@ -1,6 +1,5 @@
 import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
@@ -51,7 +50,7 @@ export class UserController {
 
   @nestjs.Get('session')
   @swagger.ApiResponse(new interfaces.response.success({ models: [interfaces.session.storage] }))
-  async session(@nestjs.Session() session: FastifySession): Promise<object> {
+  async session(@nestjs.Session() session: FastifySession) {
     const result = await this.sessionService.getState(session);
     return { ...httpAnswer.OK, data: result };
   }
@@ -118,16 +117,11 @@ export class UserController {
       },
     }),
   )
-  async auth(
-    @nestjs.Body() data: userAuthQueryDTO,
-    @nestjs.Session() session: FastifySession,
-    @nestjs.Res({ passthrough: true }) res: fastify.FastifyReply,
-  ) {
+  async auth(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
       throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
-    const storageId = session.storageId;
     const sessionStorage = await this.sessionService.getStorage(session);
     const timeout = new Date().getTime() - new Date(sessionStorage?.lastAuthAttempt || 0).getTime();
     const timeoutAmount = 60;
@@ -137,7 +131,7 @@ export class UserController {
         msg: `Wait ${timeoutAmount - Math.floor(timeout / 1000)} seconds before next attempt.`,
       });
 
-    await this.sessionService.updateStorageById(storageId, { lastAuthAttempt: new Date() });
+    await this.sessionService.updateStorageById(session.storageId, { lastAuthAttempt: new Date() });
 
     const userExist = await this.userService.getOne({ phone });
     if (userExist) {
@@ -175,6 +169,7 @@ export class UserController {
     switch (sessionStorage.authType) {
       case 'registration':
         const registrationUser = await this.userService.registrate(sessionStorage.registrationData);
+        session.userId = registrationUser.id;
         await this.sessionService.updateStorageById(sessionStorageId, {
           userId: registrationUser.id,
           registration: true,
@@ -185,6 +180,7 @@ export class UserController {
         break;
       case 'login':
         const loginUser = await this.userService.getOne({ phone: sessionStorage.phone });
+        session.userId = loginUser.id;
         await this.sessionService.updateStorageById(sessionStorageId, {
           userId: loginUser.id,
           registration: true,
@@ -199,6 +195,8 @@ export class UserController {
       authType: undefined,
       registrationData: undefined,
     });
+    await this.userService.update(session.userId, { config: { sessionStorageId } });
+
     return httpAnswer.OK;
   }
 

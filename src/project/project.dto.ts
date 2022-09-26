@@ -78,9 +78,9 @@ export class projectUpdateUserQueryDTO {
 }
 export class projectUpdateUserWithFormdataQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
-  projectId: number;
+  projectId: string;
   @swagger.ApiProperty({ description: 'ID пользователя' })
-  userId: number;
+  userId: string;
   @swagger.ApiPropertyOptional({ description: 'Имя пользователя в проекте', type: 'string | null', example: 'Коля' })
   userName: string;
   @swagger.ApiPropertyOptional({
@@ -122,6 +122,7 @@ export class projectUserLinkDTO {
   personal?: boolean;
   deleteTime?: Date;
   userId?: number;
+  id?: number;
 }
 export class userGetOneAnswerProjectDTO extends projectUserLinkDTO {
   @swagger.ApiProperty({ description: 'ID проекта', type: 'number', example: 0 })
