@@ -3,7 +3,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import secureSession from '@fastify/secure-session';
 
 export async function prepareApp(moduleFixture: TestingModule) {
-  const app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  const app: NestFastifyApplication = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   app.register(require('@fastify/multipart'), {
     fileSize: 1000000,
     //attachFieldsToBody: 'keyValues',
