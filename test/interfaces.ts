@@ -2,7 +2,7 @@ export interface userAuthQueryParamsI {
   disableTimeout?: boolean;
   preventSendSms?: boolean;
   phone?: string | null;
-  cookie?: string | undefined;
+  cookie?: string | null;
 }
 
 export interface authQueryUserDataI {

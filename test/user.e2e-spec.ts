@@ -10,7 +10,7 @@ function getUserAuthQuery({
   disableTimeout = true,
   preventSendSms = true,
   phone = '1234567890',
-  cookie = undefined,
+  cookie = null,
 }: userAuthQueryParamsI) {
   const userData: authQueryUserDataI = {
     name: 'Николай',
