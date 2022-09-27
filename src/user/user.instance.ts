@@ -9,8 +9,8 @@ export class UserInstance {
   data: userGetOneAnswerDTO;
   constructor(public userService: UserService, public sessionService: SessionService) {}
   /**
-   * @throws BadRequestException(`User ID is empty`);
-   * @throws BadRequestException(`User (id=${userId}) not exist`)
+   * @throws `User ID is empty`
+   * @throws `User (id=${userId}) not exist`
    */
   async init(userId: number) {
     if (!userId) throw new nestjs.BadRequestException('User ID is empty');

@@ -3,6 +3,7 @@ import { join } from 'path';
 
 import { FileController } from './file.controller';
 import { FileService } from './file.service';
+import { FileInstance } from './file.instance';
 
 @nestjs.Module({
   imports: [
@@ -14,7 +15,7 @@ import { FileService } from './file.service';
     // }),
   ],
   controllers: [FileController],
-  providers: [FileService],
-  exports: [FileService],
+  providers: [FileService, FileInstance],
+  exports: [FileService, FileInstance],
 })
 export class FileModule {}

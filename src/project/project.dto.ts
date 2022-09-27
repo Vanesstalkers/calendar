@@ -144,6 +144,7 @@ export class projectToUserGetOneDTO extends projectUserLinkDTO {
   baseUserName?: string;
   @swagger.ApiPropertyOptional({ description: 'ID основного файла-иконки', type: 'number | null', example: 0 })
   baseUserIconFileId?: number;
+  projectIconFileId?: number;
 }
 
 export class projectGetOneAnswerUserDTO extends projectToUserGetOneDTO {

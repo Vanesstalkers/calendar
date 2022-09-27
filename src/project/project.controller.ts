@@ -3,8 +3,6 @@ import * as swagger from '@nestjs/swagger';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
-import * as fs from 'fs';
-
 import {
   projectCreateQueryDTO,
   projectUpdateQueryDTO,
@@ -31,6 +29,8 @@ import {
   taskExecutorsQueryDataDTO,
 } from '../task/task.dto';
 
+import { fileDTO, fileUploadQueryFileDTO } from '../file/file.dto';
+
 import { ProjectService } from './project.service';
 import { ProjectInstance } from './project.instance';
 import { UserController } from '../user/user.controller';
@@ -39,6 +39,7 @@ import { UserService } from '../user/user.service';
 import { UserInstance } from '../user/user.instance';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
+import { FileInstance } from '../file/file.instance';
 import { UtilsService } from '../utils/utils.service';
 
 @nestjs.Controller('project')
@@ -57,18 +58,9 @@ export class ProjectController {
     private taskService: TaskService,
     private sessionService: SessionService,
     private fileService: FileService,
+    private fileInstance: FileInstance,
     private utils: UtilsService,
   ) {}
-
-  async validateUserLinkAndReturn(id: number, data: { userId?: number; session?: FastifySession }) {
-    if (!id) throw new nestjs.BadRequestException('Project ID is empty');
-    const userId = data.userId || (await this.sessionService.getUserId(data.session));
-    const userLink = await this.projectService.getUserLink(userId, id, {
-      attributes: ['id', 'role', '"userId"', 'personal'],
-    });
-    if (!userLink) throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${id}).`);
-    return userLink;
-  }
 
   @nestjs.Post('create')
   @nestjs.UseGuards(decorators.isLoggedIn)
@@ -105,6 +97,7 @@ export class ProjectController {
     const sessionUserId = await this.sessionService.getUserId(session);
     project.checkPersonalAccess(sessionUserId);
     project.validateDataForUpdate(data.projectData);
+
     await this.projectService.update(projectId, data.projectData);
     return httpAnswer.OK;
   }
@@ -151,37 +144,13 @@ export class ProjectController {
     const sessionUserId = await this.sessionService.getUserId(session);
     project.checkPersonalAccess(sessionUserId);
 
-    if (data.iconFile) {
-      if (!data.iconFile?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
-      if (data.iconFile.fileContent.includes(';base64,')) {
-        const fileContent = data.iconFile.fileContent.split(';base64,');
-        data.iconFile.fileContent = fileContent[1];
-        if (!data.iconFile.fileMimetype) data.iconFile.fileMimetype = fileContent[0].replace('data:', '');
-      }
-      if (!data.iconFile.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
-    }
-
-    const updateData: { userId: number; userName?: string; position?: string } = { userId };
+    const updateData: { userId?: number; userName?: string; position?: string; iconFile?: fileUploadQueryFileDTO } = {};
+    updateData.userId = userId;
     if (data.userName !== undefined) updateData.userName = data.userName;
     if (data.position !== undefined) updateData.position = data.position;
+    if (data.iconFile) updateData.iconFile = await this.fileInstance.uploadAndGetDataFromBase64(data.iconFile);
     await this.projectService.update(projectId, { userList: [updateData] });
 
-    if (data.iconFile) {
-      if (!data.iconFile.fileExtension) data.iconFile.fileExtension = (data.iconFile.fileName || '').split('.').pop();
-      if (!data.iconFile.fileName)
-        data.iconFile.fileName =
-          ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.iconFile.fileExtension;
-      data.iconFile.link = './uploads/' + data.iconFile.fileName;
-      await fs.promises.writeFile(data.iconFile.link, Buffer.from(data.iconFile.fileContent, 'base64'));
-
-      await this.fileService.create(
-        Object.assign(data.iconFile, {
-          parentType: 'project_to_user',
-          parentId: project.getUserLink(userId).projectToUserLinkId,
-          fileType: 'icon',
-        }),
-      );
-    }
     return httpAnswer.OK;
   }
 
@@ -200,16 +169,13 @@ export class ProjectController {
     const sessionUserId = await this.sessionService.getUserId(session);
     project.checkPersonalAccess(sessionUserId);
 
-    const updateData: { userId: number; userName?: string; position?: string } = { userId };
+    const updateData: { userId?: number; userName?: string; position?: string; iconFile?: fileDTO } = {};
+    updateData.userId = userId;
     if (data.userName !== undefined) updateData.userName = data.userName;
     if (data.position !== undefined) updateData.position = data.position;
+    updateData.iconFile = data.iconFile;
     await this.projectService.update(projectId, { userList: [updateData] });
-    if (data.iconFile) {
-      data.iconFile.parentType = 'project_to_user';
-      data.iconFile.parentId = project.getUserLink(userId).projectToUserLinkId;
-      data.iconFile.fileType = 'icon';
-      await this.fileService.create(data.iconFile);
-    }
+
     return httpAnswer.OK;
   }
 
@@ -227,6 +193,7 @@ export class ProjectController {
     const updateData: projectUserLinkDTO = { userId, position: data.position, userName: data.userName };
     if (!project.getUserLink(userId)) updateData.role = 'member';
     await this.projectService.update(projectId, { userList: [updateData] });
+    
     return httpAnswer.OK;
   }
 

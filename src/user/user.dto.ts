@@ -129,6 +129,7 @@ export class userUpdateQueryDataDTO {
   timezone?: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigUpdateDTO })
   config?: object;
+  iconFile?: fileDTO;
 }
 
 export class userUpdateQueryDTO {

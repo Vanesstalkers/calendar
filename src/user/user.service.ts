@@ -5,11 +5,13 @@ import { exception, types, sql } from '../globalImport';
 
 import { ProjectService } from '../project/project.service';
 import { UtilsService } from '../utils/utils.service';
+import { FileService } from '../file/file.service';
+
 import { userAuthQueryDataDTO, userSearchQueryDTO, userUpdateQueryDataDTO } from './user.dto';
 
 @nestjs.Injectable()
 export class UserService {
-  constructor(private projectService: ProjectService, private utils: UtilsService) {}
+  constructor(private projectService: ProjectService, private utils: UtilsService, private fileService: FileService) {}
 
   async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}) {
     const findData = await this.utils.queryDB(
@@ -152,6 +154,15 @@ export class UserService {
         id: userId,
         data: updateData,
         jsonKeys: ['config'],
+        handlers: {
+          iconFile: async (value: any) => {
+            await this.fileService.create(
+              Object.assign(value, { parentType: 'user', parentId: userId, fileType: 'icon' }),
+              transaction,
+            );
+            return { preventDefault: true };
+          },
+        },
         transaction,
       });
     });

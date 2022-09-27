@@ -6,10 +6,11 @@ import { decorators, interfaces, types, exception, sql } from '../globalImport';
 import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectUserLinkDTO } from './project.dto';
 
 import { UtilsService } from '../utils/utils.service';
+import { FileService } from '../file/file.service';
 
 @nestjs.Injectable()
 export class ProjectService {
-  constructor(private utils: UtilsService) {}
+  constructor(private utils: UtilsService, private fileService: FileService) {}
 
   async create(
     projectData: projectCreateQueryDTO,
@@ -135,6 +136,15 @@ export class ProjectService {
         id: linkId,
         data: updateData,
         jsonKeys: ['config'],
+        handlers: {
+          iconFile: async (value: any) => {
+            await this.fileService.create(
+              Object.assign(value, { parentType: 'project_to_user', parentId: linkId, fileType: 'icon' }),
+              transaction,
+            );
+            return { preventDefault: true };
+          },
+        },
         transaction,
       });
     });
