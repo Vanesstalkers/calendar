@@ -58,6 +58,16 @@ export class ProjectService {
     });
   }
 
+  async transfer({ projectId, fromUserId, toUserId, fromUserLinkId, toUserLinkId }, transaction?: Transaction) {
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      await this.updateUserLink(toUserLinkId, { role: 'owner' }, transaction);
+      await this.deleteUserWithTasks(
+        { projectId, userId: fromUserId, projectToUserLinkId: fromUserLinkId },
+        transaction,
+      );
+    });
+  }
+
   async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}) {
     const findData = await this.utils.queryDB(
       `--sql
@@ -127,6 +137,45 @@ export class ProjectService {
         jsonKeys: ['config'],
         transaction,
       });
+    });
+  }
+
+  async deleteUserWithTasks({ projectId, userId, projectToUserLinkId }, transaction?: Transaction) {
+    return await this.utils.withDBTransaction(transaction, async (transaction) => {
+      await this.updateUserLink(projectToUserLinkId, { deleteTime: new Date() }, transaction);
+      await this.utils.queryDB(
+        `--sql
+          WITH  owner     AS (
+                  SELECT    "userId" 
+                  FROM      project_to_user 
+                  WHERE     "projectId" = :projectId AND "role" = 'owner' AND "deleteTime" IS NULL
+                ),
+                taskList  AS (
+                  SELECT    t.id
+                  FROM      task t 
+                            LEFT JOIN task_to_user t2u ON t2u."taskId" = t."id" AND t2u."deleteTime" IS NULL
+                  WHERE     t."projectId" = :projectId
+                        AND (t."ownUserId" = :userId OR t2u."userId" = :userId) 
+                        AND t."deleteTime" IS NULL
+                )
+          UPDATE    "task"
+          SET       "ownUserId" = (SELECT "userId" FROM owner)
+                  , "startTime" = NULL
+                  , "endTime" = NULL
+                  , "updateTime" = NOW()
+          WHERE     "id" IN (SELECT "id" FROM taskList)
+                AND "deleteTime" IS NULL;
+
+          UPDATE    "task_to_user" as t2u
+          SET       "deleteTime" = NOW(), "updateTime" = NOW()
+          FROM      task as t
+          WHERE     t."id" = t2u."taskId"
+                AND t2u."userId" = :userId
+                AND t."projectId" = :projectId
+                AND t2u."deleteTime" IS NULL;
+        `,
+        { replacements: { userId, projectId }, type: QueryTypes.SELECT, transaction },
+      );
     });
   }
 

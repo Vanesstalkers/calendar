@@ -8,11 +8,15 @@ export class UserInstance {
   id: number;
   data: userGetOneAnswerDTO;
   constructor(public userService: UserService, public sessionService: SessionService) {}
+  /**
+   * @throws BadRequestException(`User ID is empty`);
+   * @throws BadRequestException(`User (id=${userId}) not exist`)
+   */
   async init(userId: number) {
     if (!userId) throw new nestjs.BadRequestException('User ID is empty');
     this.id = userId;
     this.data = await this.userService.getOne({ id: userId });
-    if (!this.data) throw new nestjs.BadRequestException(`User (id=${userId}) does not exist`);
+    if (!this.data) throw new nestjs.BadRequestException(`User (id=${userId}) not exist`);
     return this;
   }
   hasContact(contactId: number) {

@@ -9,11 +9,16 @@ export class ProjectInstance {
   data: projectGetOneAnswerDTO;
   consumer: UserInstance;
   constructor(public projectService: ProjectService, public userInstance: UserInstance) {}
+  /**
+   * @fires {@link UserInstance.init}
+   * @throws `Project ID is empty`
+   * @throws `Project (id=${projectId}) not exist`
+   */
   async init(projectId: number, consumerId?: number) {
     if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
     this.id = projectId;
     this.data = await this.projectService.getOne({ id: projectId });
-    if (!this.data) throw new nestjs.BadRequestException(`Project (id=${projectId}) does not exist`);
+    if (!this.data) throw new nestjs.BadRequestException(`Project (id=${projectId}) not exist`);
 
     if (consumerId) {
       this.checkIsMember(consumerId);
@@ -35,17 +40,27 @@ export class ProjectInstance {
   getUserLink(userId: number) {
     return this.data.userList.find((link) => link.userId === userId);
   }
+  /**
+   * @throws `User (id=${userId}) is not a member of project (id=${this.id})`
+   */
   checkIsMember(userId: number) {
     if (!this.isMember(userId)) {
       throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${this.id})`);
     }
   }
+  /**
+   * @fires {@link ProjectInstance.checkIsMember}
+   * @throws `User (id=${userId}) is not owner of personal project (id=${this.id}).`
+   */
   checkPersonalAccess(userId: number) {
     this.checkIsMember(userId);
     if (this.isPersonal() && !this.isOwner(userId)) {
       throw new nestjs.BadRequestException(`User (id=${userId}) is not owner of personal project (id=${this.id}).`);
     }
   }
+  /**
+   * @throws `Access denied to change key ("${key}") of personal project (id=${this.id}).`
+   */
   validateDataForUpdate(data: projectUpdateQueryDataDTO) {
     if (this.isPersonal()) {
       for (const key of Object.keys(data)) {
