@@ -2,10 +2,7 @@ import * as swagger from '@nestjs/swagger';
 
 export interface sessionDTO {
   storageId?: string;
-  /* 
-    добавить сюда userId мы не можем, так как процесс авторизации через СМС (в текущей реализации)
-    не позволяет записывать значения в сессию синхронно
-  */
+  userId?: string;
 }
 
 export class sessionStorageDTO {
@@ -25,4 +22,5 @@ export class sessionStorageDTO {
   authCode?: string;
   authType?: string;
   registrationData?: any;
+  sessionStorageId?: string; 
 }

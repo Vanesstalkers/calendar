@@ -9,7 +9,7 @@ export class validateSession implements CanActivate {
   constructor(private sessionService: SessionService) {}
   async canActivate(context: nestjs.ExecutionContext) {
     const request = context.switchToHttp().getRequest();
-    this.sessionService.validateSession(request.session);
+    await this.sessionService.validateSession(request.session);
     return true;
   }
 }
