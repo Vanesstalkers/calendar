@@ -8,7 +8,6 @@ describe('AppController (e2e)', () => {
   let moduleFixture: TestingModule;
 
   beforeAll(async () => {
-    // app = await bootstrap();
     moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
