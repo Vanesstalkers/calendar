@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../src/app.module';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import secureSession from '@fastify/secure-session';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { prepareApp } from './prepareApp';
 
 describe('UserController (e2e)', () => {
   let app: NestFastifyApplication;
@@ -13,20 +13,7 @@ describe('UserController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
-    app.register(require('@fastify/multipart'), {
-      fileSize: 1000000,
-    });
-
-    app.enableCors({ origin: true, credentials: true });
-    await app.register(secureSession, {
-      secret: 'averylogphrasebiggerthanthirtytwochars',
-      salt: 'mq9hDxBVDbspDR6n',
-      cookie: { path: '/', sameSite: 'none', secure: true, maxAge: 86400 },
-    });
-
-    await app.init();
-    await app.getHttpAdapter().getInstance().ready();
+    app = await prepareApp(moduleFixture);
   });
 
   it('/user/auth (POST) e', async () => {
