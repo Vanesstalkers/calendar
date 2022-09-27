@@ -23,6 +23,9 @@ class userConfigWithCurProjectDTO {
   phoneCode: string;
   @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
   currentProjectId?: number;
+  @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
+  personalProjectId?: number;
+  sessionStorageId?: string;
 }
 
 export class userAuthQueryDataDTO {
@@ -126,6 +129,7 @@ export class userUpdateQueryDataDTO {
   timezone?: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigUpdateDTO })
   config?: object;
+  iconFile?: fileDTO;
 }
 
 export class userUpdateQueryDTO {

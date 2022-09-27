@@ -641,7 +641,12 @@ export class TaskService {
           ]
             .map((item) => `(${item})`)
             .join(' OR '),
-          't2u."userId" = :userId', // пользователь назначен исполнителем
+          [
+            't2u."userId" = :userId', // пользователь назначен исполнителем
+            't."ownUserId" = :userId AND t2u."userId" IS NULL', // пользователь является создателем и исполнитель НЕ назначен
+          ]
+            .map((item) => `(${item})`)
+            .join(' OR '),
         ];
         break;
       case 'finished':

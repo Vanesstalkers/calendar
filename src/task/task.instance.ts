@@ -36,7 +36,15 @@ export class TaskInstance {
     );
     return taskHasSingleExecutor && taskExecutorsDiffersFromOwner;
   }
-
+  /**
+   * @fires {@link ProjectInstance.init}
+   * @throws `Task ID is empty`
+   * @throws `Task (id=${this.id}) not exist`
+   * @throws `Task (id=${this.id}) is deleted`
+   * @throws `Access denied for user (id=${consumerId}) to task (id=${this.id})`
+   * @throws `Task (id=${this.id}) not found for user (id=${consumerId})`
+   * @throws `User (id=${consumerId}) is not owner of task (id=${this.id})`
+   */
   async init(
     taskId: number,
     {
@@ -74,14 +82,24 @@ export class TaskInstance {
 
     return this;
   }
-
+  /**
+   * @fires {@link TaskInstance.validateDataForUpdate}
+   * @throws `User list is empty`
+   */
   async validateDataForCreate(taskData: taskFullDTO, consumerId: number) {
     if (!taskData.userList?.length) throw new nestjs.BadRequestException('User list is empty');
     if (consumerId) this.consumer = await this.userInstance.init(consumerId);
     this.project = await this.projectInstance.init(taskData.projectId, consumerId);
     await this.validateDataForUpdate(taskData);
   }
-
+  /**
+   * @throws `Task param "${param}" must be in the future tense.`
+   * @throws `Regular task must have "endTime" param.`
+   * @throws `User (id=${this.consumer.id}) is not owner of personal project (id=${this.project.id})`
+   * @throws `User (id=${checkUserId}) is not member of project (id=${this.project.id})`
+   * @throws `User (id=${this.consumer.id}) is not in user (id=${checkUserId}) contact list.`
+   * @throws `Time from "${startTime}" to "${endTime}" for user (id=${checkUser.id}) is busy.`
+   */
   async validateDataForUpdate(data: taskUpdateDTO) {
     if (!data.userList) data.userList = [];
 
