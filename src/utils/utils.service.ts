@@ -2,7 +2,6 @@ import * as nestjs from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
 import axios from 'axios';
-import config from '../config';
 import { decorators, interfaces, types, exception } from '../globalImport';
 
 import * as stream from 'stream';
@@ -10,6 +9,9 @@ import * as fs from 'node:fs';
 import * as util from 'node:util';
 
 import { LoggerService } from '../logger/logger.service';
+
+import { getConfig } from '../config';
+const config = getConfig();
 
 @nestjs.Injectable()
 export class UtilsService {

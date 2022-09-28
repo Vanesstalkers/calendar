@@ -1,7 +1,9 @@
 # Установка и запуск
 ## Установка
 ```bash
-$ npm install
+$ npm ci
+$ npx sequelize-cli init
+$ npm run build
 ```
 Далее, создаем БД:
 ```bash
@@ -16,14 +18,15 @@ $ npx sequelize-cli db:migrate
 // порт ноды
 process.env.PORT || 3000
 // postgres
-process.env.PG_HOST
-process.env.PG_USER
-process.env.PG_PASS
+process.env.PGHOST
+process.env.PGUSER
+process.env.PGPASSWORD
+process.env.PGDATABASE
 // redis
 process.env.REDIS_HOST
 process.env.REDIS_PORT
 // mongo (логи)
-process.env.MONGO_URI || 'mongodb://127.0.0.1'
+process.env.MONGO_URI
 // sms-провайдер
 process.env.GREENSMS_URL
 process.env.GREENSMS_USER
