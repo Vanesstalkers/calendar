@@ -10,7 +10,8 @@ export class userCodeQueryDTO {
 
 class userConfigDTO {
   @swagger.ApiPropertyOptional({ description: 'Код страны (без префикса "+")', example: '7' })
-  phoneCode: string;
+  phoneCode?: string;
+  fake?: boolean; // поле для тестов
 }
 
 class userConfigUpdateDTO extends userConfigDTO {
@@ -36,7 +37,7 @@ export class userAuthQueryDataDTO {
   @swagger.ApiPropertyOptional({ description: 'Таймзона пользователя', example: 'Europe/Saratov' })
   timezone: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigDTO })
-  config?: object;
+  config?: userConfigDTO;
 }
 export class userAuthQueryDTO {
   @swagger.ApiProperty({ description: 'schema: userAuthQueryDataDTO', type: userAuthQueryDataDTO })

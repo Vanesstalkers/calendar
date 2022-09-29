@@ -22,6 +22,10 @@ class projectToUserConfigDTO {
   scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
 }
 
+class projectConfigDTO {
+  fake?: boolean; // поле для тестов
+}
+
 export class projectToUserUpdateDTO {
   @swagger.ApiProperty({ description: 'ID пользователя', type: 'number', example: 0 })
   userId?: number;
@@ -49,6 +53,8 @@ export class projectUpdateQueryDataDTO {
   personal?: boolean;
   @swagger.ApiPropertyOptional({ description: 'Участники проекта', type: [projectToUserUpdateDTO] })
   userList?: projectToUserUpdateDTO[];
+  // в конфиге пока нет полей для внешнего пользования
+  config?: projectConfigDTO;
 }
 
 export class projectCreateQueryDTO extends projectUpdateQueryDataDTO {}

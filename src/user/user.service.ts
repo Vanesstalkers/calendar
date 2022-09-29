@@ -123,14 +123,15 @@ export class UserService {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const user = await this.create(userData, transaction);
       if (!user.config) user.config = {};
+      const isFake = userData?.config?.fake;
       const personalProject = await this.projectService.create(
         { title: `${user.id}th user's personal project`, userList: [{ userId: user.id, role: 'owner' }] },
-        { personalProject: true },
+        isFake ? { personalProject: true, fake: true } : { personalProject: true },
         transaction,
       );
       const workProject = await this.projectService.create(
         { title: `${user.id}th user's work project`, userList: [{ userId: user.id, role: 'owner' }] },
-        {},
+        isFake ? { fake: true } : {},
         transaction,
       );
       await this.update(
