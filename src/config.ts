@@ -39,6 +39,8 @@ export function getConfig() {
         }
       : process.env.MODE === 'PROD'
       ? pg?.production || {}
+      : process.env.MODE === 'TEST'
+      ? pg?.test || {}
       : pg?.development || {},
     redis: process.env.REDIS_HOST
       ? {
@@ -47,8 +49,15 @@ export function getConfig() {
         }
       : process.env.MODE === 'PROD'
       ? redis?.production || {}
+      : process.env.MODE === 'TEST'
+      ? redis?.test || {}
       : redis?.development || {},
-    mongo: process.env.MONGO_URI || process.env.MODE === 'PROD' ? mongo?.production : mongo?.development,
+    mongo:
+      process.env.MONGO_URI || process.env.MODE === 'PROD'
+        ? mongo?.production
+        : process.env.MODE === 'TEST'
+        ? mongo?.test
+        : mongo?.development,
     greensms: process.env.GREENSMS_URL
       ? {
           url: process.env.GREENSMS_URL,
