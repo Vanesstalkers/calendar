@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { prepareApp } from './prepareApp';
+import { prepareApp } from './helpers/prepareApp';
+// TODO
+// clearDB before and after all tests
 
 describe('AppController (e2e)', () => {
   let app: NestFastifyApplication;
