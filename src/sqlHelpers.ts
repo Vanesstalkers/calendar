@@ -7,37 +7,41 @@ export function json(sql: string) {
 
 export function selectIcon(table: string, tableSym: string, [baseTable, baseTableSym] = []) {
   return baseTable
-    ? `
-      SELECT id FROM (
-        ( SELECT    "id", 1 as "order"
-          FROM      "file"
-          WHERE     "deleteTime" IS NULL AND
-                    "parentId" = ${tableSym}.id AND      
-                    "parentType" = '${table}' AND  
-                    "fileType" = 'icon'
-          ORDER BY  "addTime" DESC
-          LIMIT     1)
-        UNION ALL
-        ( SELECT    "id", 2 as "order"
-          FROM      "file"
-          WHERE     "deleteTime" IS NULL AND
-                    "parentId" = ${baseTableSym}.id AND      
-                    "parentType" = '${baseTable}' AND  
-                    "fileType" = 'icon'
-          ORDER BY  "addTime" DESC
-          LIMIT     1)
-      ) as f
+    ? `--sql
+      SELECT    id
+      FROM      ((
+                  SELECT    "id", 1 as "order"
+                  FROM      "file"
+                  WHERE     "parentId" = ${tableSym}.id
+                        AND "parentType" = '${table}'
+                        AND "fileType" = 'icon'
+                        AND "deleteTime" IS NULL
+                  ORDER BY  "addTime"
+                            DESC
+                  LIMIT     1
+                ) UNION ALL (
+                  SELECT    "id", 2 as "order"
+                  FROM      "file"
+                  WHERE     "parentId" = ${baseTableSym}.id
+                        AND "parentType" = '${baseTable}' 
+                        AND "fileType" = 'icon'
+                        AND "deleteTime" IS NULL
+                  ORDER BY  "addTime"
+                            DESC
+                  LIMIT     1
+                )) as f
       ORDER BY "order"
       LIMIT 1
     `
     : `--sql
       SELECT    "id"
       FROM      "file"
-      WHERE     "deleteTime" IS NULL AND      
-                "parentId" = ${tableSym}.id AND      
-                "parentType" = '${table}' AND      
-                "fileType" = 'icon'
-      ORDER BY  "addTime" DESC
+      WHERE     "parentId" = ${tableSym}.id
+            AND "parentType" = '${table}' 
+            AND "fileType" = 'icon'
+            AND "deleteTime" IS NULL
+      ORDER BY  "addTime"
+                DESC
       LIMIT     1
     `;
 }
@@ -63,7 +67,7 @@ export function selectProjectToUserLink(
     '"userName"',
     `(${this.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"`,
   ];
-  if(config.showLinkConfig) select.push('p2u."config"');
+  if (config.showLinkConfig) select.push('p2u."config"');
   const where = ['p2u."deleteTime" IS NULL'];
 
   if (config.addUserData) {
@@ -92,24 +96,41 @@ export function selectProjectToUserLink(
     SELECT    ${select.join(',')}
     FROM      "project_to_user" AS p2u ${join.join(' ')}
     WHERE     ${where.join(' AND ')}
-    ORDER BY  p2u."personal" DESC
+    ORDER BY  p2u."personal"
+              DESC
   `;
 
   return config.jsonWrapper === false ? sql : this.json(sql);
 }
 
 export function foreignPersonalProjectList() {
-  return `
-          SELECT    p.id
-          FROM      "task_to_user" AS t2u
-                    LEFT JOIN "task" AS t ON t.id = t2u."taskId" AND t."deleteTime" IS NULL
-                    LEFT JOIN "project" AS p ON p.id = t."projectId" AND p."deleteTime" IS NULL
-                    LEFT JOIN "project_to_user" AS p2u 
-                    ON p2u."projectId" = t."projectId" AND p2u."userId" = t2u."userId" AND p2u."deleteTime" IS NULL
-          WHERE     t2u."userId" = :userId AND      
-                    t2u."deleteTime" IS NULL AND
-                    p.personal = true AND      
-                    p2u."role" = 'member'
-          GROUP BY  p.id
+  return `--sql
+    SELECT    p.id
+    FROM      "project_to_user" AS p2u
+              LEFT JOIN "project" AS p ON p.id = p2u."projectId"
+                                      AND p."deleteTime" IS NULL
+    WHERE     p2u."userId" = 1
+          AND p2u."role" = 'member'
+          AND p2u."deleteTime" IS NULL
+          AND p.personal = true
+    GROUP BY  p.id;
+    `;
+}
+export function foreignPersonalProjectListByTasks() {
+  return `--sql
+    SELECT    p.id
+    FROM      "task_to_user" AS t2u
+              LEFT JOIN "task" AS t ON  t.id = t2u."taskId"
+                                    AND t."deleteTime" IS NULL
+              LEFT JOIN "project" AS p ON p.id = t."projectId"
+                                      AND p."deleteTime" IS NULL
+              LEFT JOIN "project_to_user" AS p2u ON p2u."projectId" = t."projectId"
+                                                AND p2u."userId" = t2u."userId" 
+                                                AND p2u."deleteTime" IS NULL
+    WHERE     t2u."userId" = :userId
+          AND t2u."deleteTime" IS NULL
+          AND p.personal = true
+          AND p2u."role" = 'member'
+    GROUP BY  p.id
     `;
 }

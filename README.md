@@ -1,7 +1,9 @@
 # Установка и запуск
 ## Установка
 ```bash
-$ npm install
+$ npm ci
+$ npx sequelize-cli init
+$ npm run build
 ```
 Далее, создаем БД:
 ```bash
@@ -16,14 +18,15 @@ $ npx sequelize-cli db:migrate
 // порт ноды
 process.env.PORT || 3000
 // postgres
-process.env.PG_HOST
-process.env.PG_USER
-process.env.PG_PASS
+process.env.PGHOST
+process.env.PGUSER
+process.env.PGPASSWORD
+process.env.PGDATABASE
 // redis
 process.env.REDIS_HOST
 process.env.REDIS_PORT
 // mongo (логи)
-process.env.MONGO_URI || 'mongodb://127.0.0.1'
+process.env.MONGO_URI
 // sms-провайдер
 process.env.GREENSMS_URL
 process.env.GREENSMS_USER
@@ -67,7 +70,6 @@ await this.utils.queryDB([sql-запрос], [стандартные options о�
 - в контроллерах только валидация данных и вызовы сервисов
 - работа с БД только в сервисах
 - базовые методы для работы с БД для всех модулей лежат в /src/xxx/xxx.service.ts 
-- если в сервисе нужна транзакция (больше одного запроса к БД), то выделяем его в отдельных файл
 
 ## Логирование
 Данные хранятся в MongoDB. Вызов можно добавить в любом месте, где доступен logger.
@@ -81,6 +83,7 @@ await this.logger.sendLog({ произвольные данные })
 Две "точки входа":
 - /src/common/interceptors/request.interceptor.ts (основная)
 - /src/common/decorators/access.decorators.ts (ловит запросы с code=NEED_LOGIN)
+
 Точки выхода (запросы с finalizeType):
 - /src/common/interceptors/request.interceptor.ts (основная)
 - /src/common/filters/exception.filter.ts (ловит ошибки)

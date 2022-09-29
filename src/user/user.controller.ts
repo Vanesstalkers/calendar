@@ -1,6 +1,5 @@
 import * as nestjs from '@nestjs/common';
 import * as swagger from '@nestjs/swagger';
-import * as fastify from 'fastify';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
@@ -9,8 +8,10 @@ import * as fs from 'fs';
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
 import { ProjectService } from '../project/project.service';
+import { ProjectInstance } from '../project/project.instance';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
+import { FileInstance } from '../file/file.instance';
 
 import {
   userAuthQueryDTO,
@@ -27,27 +28,6 @@ import {
 } from './user.dto';
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
-
-export class UserInstance {
-  id: number;
-  ctx: UserController;
-  data: userGetOneAnswerDTO;
-  constructor(ctx: UserController) {
-    this.ctx = ctx;
-  }
-  async init(userId: number) {
-    if (!userId) throw new nestjs.BadRequestException('User ID is empty');
-    this.id = userId;
-    this.data = await this.ctx.userService.getOne({ id: userId });
-    return this;
-  }
-  hasContact(contactId: number) {
-    return this.data.contactList.find((contact) => contact.userId === contactId);
-  }
-  async timeIsFree(startTime: string, endTime: string) {
-    return await this.ctx.userService.checkFreeTime(this.id, startTime, endTime);
-  }
-}
 
 @nestjs.Controller('user')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
@@ -66,13 +46,15 @@ export class UserController {
     public userService: UserService,
     private sessionService: SessionService,
     private projectService: ProjectService,
+    public projectInstance: ProjectInstance,
     private fileService: FileService,
+    private fileInstance: FileInstance,
     private utils: UtilsService,
   ) {}
 
   @nestjs.Get('session')
   @swagger.ApiResponse(new interfaces.response.success({ models: [interfaces.session.storage] }))
-  async session(@nestjs.Session() session: FastifySession): Promise<object> {
+  async session(@nestjs.Session() session: FastifySession) {
     const result = await this.sessionService.getState(session);
     return { ...httpAnswer.OK, data: result };
   }
@@ -133,16 +115,11 @@ export class UserController {
       },
     }),
   )
-  async auth(
-    @nestjs.Body() data: userAuthQueryDTO,
-    @nestjs.Session() session: FastifySession,
-    @nestjs.Res({ passthrough: true }) res: fastify.FastifyReply,
-  ) {
+  async auth(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
       throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
-    const storageId = session.storageId;
     const sessionStorage = await this.sessionService.getStorage(session);
     const timeout = new Date().getTime() - new Date(sessionStorage?.lastAuthAttempt || 0).getTime();
     const timeoutAmount = 60;
@@ -152,7 +129,7 @@ export class UserController {
         msg: `Wait ${timeoutAmount - Math.floor(timeout / 1000)} seconds before next attempt.`,
       });
 
-    await this.sessionService.updateStorageById(storageId, { lastAuthAttempt: new Date() });
+    await this.sessionService.updateStorageById(session.storageId, { lastAuthAttempt: new Date() });
 
     const userExist = await this.userService.getOne({ phone });
     if (userExist) {
@@ -190,6 +167,7 @@ export class UserController {
     switch (sessionStorage.authType) {
       case 'registration':
         const registrationUser = await this.userService.registrate(sessionStorage.registrationData);
+        session.userId = registrationUser.id;
         await this.sessionService.updateStorageById(sessionStorageId, {
           userId: registrationUser.id,
           registration: true,
@@ -200,6 +178,7 @@ export class UserController {
         break;
       case 'login':
         const loginUser = await this.userService.getOne({ phone: sessionStorage.phone });
+        session.userId = loginUser.id;
         await this.sessionService.updateStorageById(sessionStorageId, {
           userId: loginUser.id,
           registration: true,
@@ -214,6 +193,8 @@ export class UserController {
       authType: undefined,
       registrationData: undefined,
     });
+    await this.userService.update(session.userId, { config: { sessionStorageId } });
+
     return httpAnswer.OK;
   }
 
@@ -250,22 +231,16 @@ export class UserController {
     @nestjs.Session() session: FastifySession,
   ) {
     const projectId = data.projectId;
-    if (!projectId) throw new nestjs.BadRequestException('Project ID is empty');
-
-    const userId = await this.sessionService.getUserId(session);
-    const userLink = await this.projectService.getUserLink(userId, projectId, { attributes: ['id'] });
-    if (!userLink)
-      throw new nestjs.BadRequestException(`User (id=${userId}) is not a member of project (id=${projectId}).`);
-
-    const project = await this.projectService.getOne({ id: projectId, userId });
+    const sessionUserId = await this.sessionService.getUserId(session);
+    const project = await this.projectInstance.init(projectId, sessionUserId);
     const currentProjectId = project.id;
-    await this.userService.update(userId, { config: { currentProjectId } });
+
+    await this.userService.update(sessionUserId, { config: { currentProjectId } });
     await this.sessionService.updateStorageById(session.storageId, { currentProjectId });
 
-    const projectToUser = project.userList.find((user) => user.userId === userId);
-    projectToUser.projectId = project.id;
-    projectToUser.projectIconFileId = project.iconFileId;
-    delete projectToUser.userId;
+    const projectToUser = project.getUserLink(sessionUserId);
+    projectToUser.projectIconFileId = project.data.iconFileId;
+    delete projectToUser.userId; // ??? не помню, зачем удаляем
     return { ...httpAnswer.OK, data: projectToUser };
   }
 
@@ -274,36 +249,11 @@ export class UserController {
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Body() data: userUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
     const userId = data.userId;
+    if (!data.userData) data.userData = {};
     if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');
 
-    if (data.iconFile) {
-      if (!data.iconFile?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
-      if (data.iconFile.fileContent.includes(';base64,')) {
-        const fileContent = data.iconFile.fileContent.split(';base64,');
-        data.iconFile.fileContent = fileContent[1];
-        if (!data.iconFile.fileMimetype) data.iconFile.fileMimetype = fileContent[0].replace('data:', '');
-      }
-      if (!data.iconFile.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
-    }
-
+    if (data.iconFile) data.userData.iconFile = await this.fileInstance.uploadAndGetDataFromBase64(data.iconFile);
     await this.userService.update(userId, data.userData);
-
-    if (data.iconFile) {
-      if (!data.iconFile.fileExtension) data.iconFile.fileExtension = (data.iconFile.fileName || '').split('.').pop();
-      if (!data.iconFile.fileName)
-        data.iconFile.fileName =
-          ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.iconFile.fileExtension;
-      data.iconFile.link = './uploads/' + data.iconFile.fileName;
-      await fs.promises.writeFile(data.iconFile.link, Buffer.from(data.iconFile.fileContent, 'base64'));
-
-      await this.fileService.create(
-        Object.assign(data.iconFile, {
-          parentType: 'user',
-          parentId: userId,
-          fileType: 'icon',
-        }),
-      );
-    }
 
     return httpAnswer.OK;
   }
@@ -313,19 +263,15 @@ export class UserController {
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.success())
   async updateWithFormdata(
-    @nestjs.Body() @decorators.Multipart() data: userUpdateWithFormdataQueryDTO, // без @nestjs.Body() не будет работать swagger
+    @nestjs.Body() data: userUpdateWithFormdataQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
   ) {
+    if (!data.userData) data.userData = {};
     if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');
 
     const userId = data.userId;
+    data.userData.iconFile = data.iconFile;
     await this.userService.update(userId, data.userData);
-    if (data.iconFile) {
-      data.iconFile.parentType = 'user';
-      data.iconFile.parentId = userId;
-      data.iconFile.fileType = 'icon';
-      await this.fileService.create(data.iconFile);
-    }
 
     return httpAnswer.OK;
   }

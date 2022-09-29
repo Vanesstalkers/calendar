@@ -5,7 +5,6 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Logger } from './globalImport';
 
-import config from './config';
 import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
 
@@ -19,6 +18,9 @@ import { UtilsModule } from './utils/utils.module';
 import { LoggerModule } from './logger/logger.module';
 
 import { UniversalExceptionFilter } from './common/filters/exception.filter';
+
+import { getConfig } from './config';
+const config = getConfig();
 
 var dbImport: nestjs.DynamicModule, cacheImport: nestjs.DynamicModule;
 

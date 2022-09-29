@@ -11,6 +11,7 @@ import { join } from 'path';
 import { fileUploadQueryDTO, fileUploadWithFormdataQueryDTO } from './file.dto';
 
 import { FileService } from './file.service';
+import { FileInstance } from '../file/file.instance';
 import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { LoggerService } from '../logger/logger.service';
@@ -25,6 +26,7 @@ import { fileDTO, fileDeleteQueryDTO, fileGetMetaAnswerDTO } from './file.dto';
 export class FileController {
   constructor(
     private service: FileService,
+    private fileInstance: FileInstance,
     private sessionService: SessionService,
     private utils: UtilsService,
     private logger: UtilsService,
@@ -89,21 +91,8 @@ export class FileController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.created())
   async uploadFile(@nestjs.Body() data: fileUploadQueryDTO) {
-    if (!data.file?.fileContent?.length) throw new nestjs.BadRequestException({ msg: 'File content is empty' });
-    if (data.file.fileContent.includes(';base64,')) {
-      const fileContent = data.file.fileContent.split(';base64,');
-      data.file.fileContent = fileContent[1];
-      if (!data.file.fileMimetype) data.file.fileMimetype = fileContent[0].replace('data:', '');
-    }
-    if (!data.file.fileMimetype) throw new nestjs.BadRequestException({ msg: 'File mime-type is empty' });
-
-    if (!data.file.fileExtension) data.file.fileExtension = (data.file.fileName || '').split('.').pop();
-    if (!data.file.fileName)
-      data.file.fileName = ((Date.now() % 10000000) + Math.random()).toString() + '.' + data.file.fileExtension;
-    data.file.link = './uploads/' + data.file.fileName;
-    fs.writeFileSync(data.file.link, Buffer.from(data.file.fileContent, 'base64'));
-
-    const file = await this.service.create(Object.assign(data.file, data.fileData));
+    const filledData = await this.fileInstance.uploadAndGetDataFromBase64(data.file);
+    const file = await this.service.create(Object.assign(filledData, data.fileData));
     return { ...httpAnswer.OK, data: { id: file.id } };
   }
 
@@ -111,7 +100,7 @@ export class FileController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
   @swagger.ApiResponse(new interfaces.response.created())
-  async uploadWithFormdata(@nestjs.Body() /* @decorators.Multipart() */ data: fileUploadWithFormdataQueryDTO) {
+  async uploadWithFormdata(@nestjs.Body() data: fileUploadWithFormdataQueryDTO) {
     const file = await this.service.create(Object.assign(data.file, data.fileData));
     return { ...httpAnswer.OK, data: { id: file.id } };
   }
