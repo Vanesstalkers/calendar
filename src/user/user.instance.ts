@@ -1,6 +1,6 @@
 import * as nestjs from '@nestjs/common';
 import { UserService } from './user.service';
-import { SessionService } from 'src/session/session.service';
+import { SessionService } from './../session/session.service';
 import { userGetOneAnswerDTO } from './user.dto';
 
 @nestjs.Injectable()
