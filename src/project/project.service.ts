@@ -14,7 +14,7 @@ export class ProjectService {
 
   async create(
     projectData: projectCreateQueryDTO,
-    config: { personalProject?: boolean; fake?: boolean } = {},
+    config: { personalProject?: boolean } = {},
     transaction?: Transaction,
   ) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
@@ -34,12 +34,11 @@ export class ProjectService {
   async update(
     projectId: number,
     updateData: projectUpdateQueryDataDTO,
-    config: { personalProject?: boolean; fake?: boolean } = {},
+    config: { personalProject?: boolean } = {},
     transaction?: Transaction,
   ) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (config.personalProject) updateData.personal = true;
-      updateData.config = config.fake ? { fake: true } : {};
       await this.utils.updateDB({
         table: 'project',
         id: projectId,

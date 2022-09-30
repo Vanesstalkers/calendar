@@ -18,9 +18,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "pretest:e2e": "node ./test/helpers/setupTests.mjs",
+    "testdataclear:e2e": "node ./test/helpers/setupTests.mjs",
+    "pretest:e2e": "npm run testdataclear:e2e",
     "test:e2e": "cross-env MODE=TEST jest --config ./test/jest-e2e.json --forceExit",
-    "posttest:e2e": "node ./test/helpers/setupTests.mjs"
+    "posttest:e2e": "npm run testdataclear:e2e"
   },
   "dependencies": {
     "@fastify/multipart": "^7.1.0",
