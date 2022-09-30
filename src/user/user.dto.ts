@@ -10,7 +10,7 @@ export class userCodeQueryDTO {
 
 class userConfigDTO {
   @swagger.ApiPropertyOptional({ description: 'Код страны (без префикса "+")', example: '7' })
-  phoneCode?: string;
+  phoneCode: string;
 }
 
 class userConfigUpdateDTO extends userConfigDTO {
