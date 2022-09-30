@@ -50,3 +50,30 @@ export function getUserCodeQuery({ code, cookie }: userCodeBuildParamsI) {
   if (cookie) query.headers.cookie = cookie;
   return query;
 }
+
+export function getUserSessionQuery({ cookie }: { cookie?: string }) {
+  const query: InjectOptions = {
+    method: 'GET',
+    url: '/user/session',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+  };
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
+
+export function getUserLogoutQuery({ cookie }: { cookie?: string }) {
+  const query: InjectOptions = {
+    method: 'POST',
+    url: '/user/logout',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    payload: {},
+  };
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
