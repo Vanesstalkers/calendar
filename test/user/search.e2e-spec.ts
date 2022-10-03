@@ -13,6 +13,11 @@ import {
 } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
+const phonesList = phones.slice(31, 40);
+function getPhone() {
+  return phonesList.shift();
+}
+
 describe('UserController /user/search (e2e)', () => {
   let app: NestFastifyApplication;
   let moduleFixture: TestingModule;
@@ -29,7 +34,7 @@ describe('UserController /user/search (e2e)', () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     // step 1: auth
     const name = 'test_user_name_003';
-    const phone = phones[16];
+    const phone = getPhone();
     const query1: InjectOptions = getUserAuthQuery({ phone, name });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
@@ -38,7 +43,7 @@ describe('UserController /user/search (e2e)', () => {
     const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
     await app.inject(query2);
     // step 3: auth
-    const query3: InjectOptions = getUserAuthQuery({ phone: phones[17] });
+    const query3: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result3 = await app.inject(query3);
     const cookie3 = result3.headers['set-cookie'].toString();
     const payload3 = JSON.parse(result3.payload);
@@ -52,24 +57,13 @@ describe('UserController /user/search (e2e)', () => {
     const payload5 = JSON.parse(result5.payload);
     expect(result5.statusCode).toEqual(200);
     expect(payload5.status).toEqual('ok');
-    expect(payload5.data.resultList).toEqual('ok');
     expect(payload5.data.resultList instanceof Array).toEqual(true);
     expect(payload5.data.resultList.length).toEqual(1);
     expect(payload5.data.endOfList).toEqual(true);
-    // {
-    //   status: "ok",
-    //   data: {
-    //     resultList: [
-    //       {
-    //         id: 574,
-    //         phone: "0000000017",
-    //         name: "test_user_name_003",
-    //         iconFileId: null,
-    //       },
-    //     ],
-    //     endOfList: true,
-    //   },
-    // }
+    expect(payload5.data.resultList[0].id).not.toBeNaN();
+    expect(payload5.data.resultList[0].phone).toEqual(phone);
+    expect(payload5.data.resultList[0].name).toEqual(name);
+    expect(payload5.data.resultList[0].iconFileId).toEqual(null);
   });
 
   afterAll(async () => {

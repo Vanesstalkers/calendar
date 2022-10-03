@@ -12,8 +12,7 @@ async function prepare() {
       }
       phonesArr.push(phone);
     }
-    writeFileSync('constants.json', JSON.stringify(phonesArr, null, 2));
-    const { phones } = JSON.parse(readFileSync('test/helpers/constants.json'));
+    writeFileSync('test/helpers/constants.json', JSON.stringify({ phones: phonesArr }, null, 2));
     const { test } = JSON.parse(readFileSync('config/database/postgres/config.json'));
     const sequelize = new Sequelize({
       ...test,
@@ -45,7 +44,7 @@ async function prepare() {
       DELETE FROM "user_to_user"
       WHERE config->>'fake' = 'true';
       DELETE FROM "user"
-      WHERE phone IN (${phones.map((phone) => `'${phone}'`).join(', ')});`;
+      WHERE phone IN (${phonesArr.map((phone) => `'${phone}'`).join(', ')});`;
     await sequelize.query(sql, {});
     await sequelize.close();
     console.log('DB clear finished');

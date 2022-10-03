@@ -1,7 +1,6 @@
 import { TestingModule } from '@nestjs/testing';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
-import { phones } from './../helpers/constants.json';
 
 export async function prepareApp(moduleFixture: TestingModule) {
   const app: NestFastifyApplication = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
@@ -19,11 +18,4 @@ export async function prepareApp(moduleFixture: TestingModule) {
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   return app;
-}
-
-let phonesCoursor = 0;
-export async function getPhone() {
-  const phone = phones[phonesCoursor];
-  phonesCoursor++;
-  return phone;
 }

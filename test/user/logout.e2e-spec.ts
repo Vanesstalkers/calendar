@@ -6,6 +6,11 @@ import { InjectOptions } from 'light-my-request';
 import { getUserAuthQuery, getUserCodeQuery, getUserLogoutQuery } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
+const phonesList = phones.slice(21, 30);
+function getPhone() {
+  return phonesList.shift();
+}
+
 describe('UserController /user/logout (e2e)', () => {
   let app: NestFastifyApplication;
   let moduleFixture: TestingModule;
@@ -21,7 +26,7 @@ describe('UserController /user/logout (e2e)', () => {
   it('/user/logout (POST) ok registered', async () => {
     // registration -> logout
     // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: phones[6] });
+    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -40,7 +45,8 @@ describe('UserController /user/logout (e2e)', () => {
   it('/user/logout (POST) ok logged in', async () => {
     // registration -> logout -> login -> logout
     // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: phones[7] });
+    const phone = getPhone();
+    const query1: InjectOptions = getUserAuthQuery({ phone });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -52,7 +58,7 @@ describe('UserController /user/logout (e2e)', () => {
     const query3: InjectOptions = getUserLogoutQuery({ cookie: cookie2 });
     await app.inject(query3);
     // step 4: auth
-    const query4: InjectOptions = getUserAuthQuery({ phone: phones[7] });
+    const query4: InjectOptions = getUserAuthQuery({ phone });
     const result4 = await app.inject(query4);
     const cookie4 = result4.headers['set-cookie'].toString();
     const payload4 = JSON.parse(result4.payload);

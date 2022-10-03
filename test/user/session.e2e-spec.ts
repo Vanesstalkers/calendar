@@ -11,6 +11,11 @@ import {
 } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
+const phonesList = phones.slice(41, 50);
+function getPhone() {
+  return phonesList.shift();
+}
+
 describe('UserController /user/session (e2e)', () => {
   let app: NestFastifyApplication;
   let moduleFixture: TestingModule;
@@ -25,7 +30,7 @@ describe('UserController /user/session (e2e)', () => {
 
   it('/user/session (GET) ok login true registration true', async () => {
     // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: phones[3] });
+    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -48,7 +53,7 @@ describe('UserController /user/session (e2e)', () => {
 
   it('/user/session (GET) ok login false registration false', async () => {
     // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: phones[4] });
+    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     // step 2: session
@@ -67,7 +72,7 @@ describe('UserController /user/session (e2e)', () => {
   it('/user/session (GET) ok login false registration true', async () => {
     // registration -> logout -> session
     // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: phones[5] });
+    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
