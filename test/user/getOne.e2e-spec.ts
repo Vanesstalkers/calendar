@@ -256,6 +256,68 @@ describe('UserController /user/getOne (e2e)', () => {
     expect(payload3.msg).toEqual('User ID is empty');
   });
 
+  it('/user/getOne (GET) err bad cookie', async () => {
+    // step 1: auth
+    const name = 'test_user_name_111';
+    const phone = phones[13];
+    const timezone = 'America/Montreal';
+    const phoneCode = '1';
+    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const result1 = await app.inject(query1);
+    const cookie1 = result1.headers['set-cookie'].toString();
+    const payload1 = JSON.parse(result1.payload);
+    // step 2: code
+    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
+    const result2 = await app.inject(query2);
+    const cookie2 = result2.headers['set-cookie'].toString();
+    // step 3: session
+    const query3: InjectOptions = getUserSessionQuery({ cookie: cookie2 });
+    const result3 = await app.inject(query3);
+    const payload3 = JSON.parse(result3.payload);
+    const userId = payload3.data.userId;
+    // step 4: getOne
+    const query4: InjectOptions = getUserGetOneQuery({ cookie: 'qwe', userId: userId.toString() });
+    const result4 = await app.inject(query4);
+    const payload4 = JSON.parse(result4.payload);
+    expect(result4.statusCode).toEqual(403);
+    expect(payload4.status).toEqual('err');
+    expect(payload4.timestamp).toBeDefined();
+    expect(payload4.path).toEqual(`/user/getOne?userId=${userId}`);
+    expect(payload4.msg).toEqual('Access denied (login first)');
+    expect(payload4.code).toEqual('NEED_LOGIN');
+  });
+
+  it('/user/getOne (GET) err missing cookie', async () => {
+    // step 1: auth
+    const name = 'test_user_name_111';
+    const phone = phones[14];
+    const timezone = 'America/Montreal';
+    const phoneCode = '1';
+    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const result1 = await app.inject(query1);
+    const cookie1 = result1.headers['set-cookie'].toString();
+    const payload1 = JSON.parse(result1.payload);
+    // step 2: code
+    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
+    const result2 = await app.inject(query2);
+    const cookie2 = result2.headers['set-cookie'].toString();
+    // step 3: session
+    const query3: InjectOptions = getUserSessionQuery({ cookie: cookie2 });
+    const result3 = await app.inject(query3);
+    const payload3 = JSON.parse(result3.payload);
+    const userId = payload3.data.userId;
+    // step 4: getOne
+    const query4: InjectOptions = getUserGetOneQuery({ userId: userId.toString() });
+    const result4 = await app.inject(query4);
+    const payload4 = JSON.parse(result4.payload);
+    expect(result4.statusCode).toEqual(403);
+    expect(payload4.status).toEqual('err');
+    expect(payload4.timestamp).toBeDefined();
+    expect(payload4.path).toEqual(`/user/getOne?userId=${userId}`);
+    expect(payload4.msg).toEqual('Access denied (login first)');
+    expect(payload4.code).toEqual('NEED_LOGIN');
+  });
+
   afterAll(async () => {
     await app.close();
     await moduleFixture.close();
