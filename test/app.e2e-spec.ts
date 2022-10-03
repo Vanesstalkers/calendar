@@ -1,24 +1,33 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { prepareApp } from './helpers/prepare';
+// TODO
+// clearDB before and after all tests
 
 describe('AppController (e2e)', () => {
-  let app: INestApplication;
+  let app: NestFastifyApplication;
+  let moduleFixture: TestingModule;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+  beforeAll(async () => {
+    moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = await prepareApp(moduleFixture);
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  it('/ (GET)', async () => {
+    const result = await app.inject({
+      method: 'GET',
+      url: '/',
+    });
+    expect(result.statusCode).toEqual(404);
+    expect(result.payload).toEqual('{"statusCode":404,"message":"Cannot GET /","error":"Not Found"}');
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
   });
 });

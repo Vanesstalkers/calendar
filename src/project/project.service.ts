@@ -43,6 +43,7 @@ export class ProjectService {
         table: 'project',
         id: projectId,
         data: updateData,
+        jsonKeys: ['config'],
         handlers: {
           userList: async (value: any) => {
             const arr: any[] = Array.from(value);

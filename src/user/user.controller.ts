@@ -71,9 +71,6 @@ export class UserController {
     if (this.utils.validatePhone(phone))
       throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
 
-    const userExist = await this.userService.getOne({ phone });
-    if (userExist) throw new nestjs.BadRequestException('Phone number already registred');
-
     await this.sessionService.updateStorage(session, { phone });
     const code = this.utils.randomCode();
     if (!data.preventSendSms) await this.utils.sendSMS(phone, code);
@@ -92,9 +89,6 @@ export class UserController {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
       throw new nestjs.BadRequestException({ code: 'BAD_PHONE_NUMBER', msg: 'Phone number is incorrect' });
-
-    const userExist = await this.userService.getOne({ phone });
-    if (!userExist) throw new nestjs.BadRequestException('Phone number not found (use `registration` method first)');
 
     const code = this.utils.randomCode();
     if (!data.preventSendSms) await this.utils.sendSMS(phone, code);

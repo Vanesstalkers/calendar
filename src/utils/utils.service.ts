@@ -21,7 +21,7 @@ export class UtilsService {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
   }
 
-  randomCode(symbols: string = '0123456789', length: number = 4) {
+  randomCode(symbols = '0123456789', length = 4) {
     const result = [];
     for (let i = 0; i < length; i++) result.push(symbols[Math.floor(Math.random() * symbols.length)]);
     return result.join('');
@@ -92,6 +92,14 @@ export class UtilsService {
     const setList = [];
     const replacements = { id };
 
+    if (jsonKeys.includes('config') && process.env.MODE === 'TEST') {
+      const fakeConfig = { fake: true };
+      if (data.config) {
+        data.config = { ...fakeConfig, ...data.config };
+      } else {
+        data.config = fakeConfig;
+      }
+    }
     for (const [key, value] of Object.entries(data)) {
       if (key === 'id') continue;
 
