@@ -10,7 +10,7 @@ async function clearDB() {
       dialect: 'postgres',
       autoLoadModels: true,
       synchronize: false, // если удалить или поставить в true, то начнет перетирать данные
-      // logging: false,
+      logging: false,
     });
     const sql = `
       --psql
@@ -38,6 +38,7 @@ async function clearDB() {
       WHERE phone IN (${phones.map((phone) => `'${phone}'`).join(', ')});`;
     await sequelize.query(sql, {});
     await sequelize.close();
+    console.log('DB clear finished');
   } catch (err) {
     console.log({ err });
   }

@@ -3,6 +3,9 @@ export interface userAuthBuildParamsI {
   preventSendSms?: boolean;
   phone?: string | null;
   cookie?: string | null;
+  name?: string;
+  timezone?: string;
+  phoneCode?: string;
 }
 
 export interface userCodeBuildParamsI {

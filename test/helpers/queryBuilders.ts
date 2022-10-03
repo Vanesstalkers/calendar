@@ -8,12 +8,15 @@ export function getUserAuthQuery({
   preventSendSms = true,
   phone = phones[0],
   cookie = null,
+  name = 'Test_User1',
+  timezone = 'Europe/Saratov',
+  phoneCode = '7',
 }: userAuthBuildParamsI) {
   const userData: authQueryUserDataI = {
-    name: 'Test_User1',
-    timezone: 'Europe/Saratov',
+    name,
+    timezone,
     config: {
-      phoneCode: '7',
+      phoneCode,
       fake: true,
     },
   };
@@ -88,6 +91,7 @@ export function getUserGetOneQuery({ cookie, userId }: { cookie?: string; userId
       'content-type': 'application/json',
     },
   };
+  if (!userId) delete query.query;
   if (cookie) query.headers.cookie = cookie;
   return query;
 }
