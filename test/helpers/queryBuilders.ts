@@ -10,7 +10,7 @@ export function getUserAuthQuery({
   cookie = null,
 }: userAuthBuildParamsI) {
   const userData: authQueryUserDataI = {
-    name: 'Николай',
+    name: 'Test_User1',
     timezone: 'Europe/Saratov',
     config: {
       phoneCode: '7',
@@ -73,6 +73,20 @@ export function getUserLogoutQuery({ cookie }: { cookie?: string }) {
       'content-type': 'application/json',
     },
     payload: {},
+  };
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
+
+export function getUserGetOneQuery({ cookie, userId }: { cookie?: string; userId?: string }) {
+  const query: InjectOptions = {
+    method: 'GET',
+    url: '/user/getOne',
+    query: { userId },
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
   };
   if (cookie) query.headers.cookie = cookie;
   return query;
