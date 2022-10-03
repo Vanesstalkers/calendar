@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { prepareApp } from './../helpers/prepareApp';
+import { prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
 import {
   getUserAuthQuery,
@@ -67,7 +67,7 @@ describe('UserController /user/session (e2e)', () => {
   it('/user/session (GET) ok login false registration true', async () => {
     // registration -> logout -> session
     // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: phones[3] });
+    const query1: InjectOptions = getUserAuthQuery({ phone: phones[5] });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);

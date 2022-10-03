@@ -22,3 +22,11 @@ export interface authQueryUserDataI {
     fake: boolean;
   };
 }
+
+export interface userSearchBuildParamsI {
+  queryStr?: string | null;
+  globalSearch?: boolean | null;
+  limit?: number | null;
+  offset?: number | null;
+  cookie?: string;
+}

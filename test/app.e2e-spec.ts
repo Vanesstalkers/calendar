@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { prepareApp } from './helpers/prepareApp';
+import { prepareApp } from './helpers/prepare';
 // TODO
 // clearDB before and after all tests
 

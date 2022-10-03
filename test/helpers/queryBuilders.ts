@@ -1,5 +1,5 @@
 import { InjectOptions, InjectPayload } from 'light-my-request';
-import { authQueryUserDataI, userAuthBuildParamsI, userCodeBuildParamsI } from './interfaces';
+import { authQueryUserDataI, userAuthBuildParamsI, userCodeBuildParamsI, userSearchBuildParamsI } from './interfaces';
 import { phones } from './constants.json';
 
 // injection query builders per route
@@ -92,6 +92,32 @@ export function getUserGetOneQuery({ cookie, userId }: { cookie?: string; userId
     },
   };
   if (!userId) delete query.query;
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
+
+export function getUserSearchQuery({
+  queryStr = 'Test_User1',
+  globalSearch = true,
+  limit = 50,
+  offset = 0,
+  cookie,
+}: userSearchBuildParamsI) {
+  const payload: InjectPayload = {
+    query: queryStr,
+    globalSearch,
+    limit,
+    offset,
+  };
+  const query: InjectOptions = {
+    method: 'POST',
+    url: '/user/search',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    payload,
+  };
   if (cookie) query.headers.cookie = cookie;
   return query;
 }

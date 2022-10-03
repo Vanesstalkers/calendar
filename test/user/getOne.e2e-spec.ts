@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { prepareApp } from './../helpers/prepareApp';
+import { prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
 import {
   getUserAuthQuery,
@@ -26,8 +26,8 @@ describe('UserController /user/getOne (e2e)', () => {
 
   it('/user/getOne (GET) ok register', async () => {
     // step 1: auth
-    const name = 'test_user_name_111';
-    const phone = phones[7];
+    const name = 'test_user_name_001';
+    const phone = phones[8];
     const timezone = 'America/Montreal';
     const phoneCode = '1';
     const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
@@ -85,8 +85,8 @@ describe('UserController /user/getOne (e2e)', () => {
   it('/user/getOne (GET) ok login', async () => {
     // registration -> logout -> login -> getOne
     // step 1: auth
-    const name = 'test_user_name_112';
-    const phone = phones[8];
+    const name = 'test_user_name_002';
+    const phone = phones[9];
     const timezone = 'Europe/Minsk';
     const phoneCode = '375';
     const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
@@ -101,7 +101,7 @@ describe('UserController /user/getOne (e2e)', () => {
     const query3: InjectOptions = getUserLogoutQuery({ cookie: cookie2 });
     await app.inject(query3);
     // step 4: auth
-    const query4: InjectOptions = getUserAuthQuery({ phone: phones[8] });
+    const query4: InjectOptions = getUserAuthQuery({ phone });
     const result4 = await app.inject(query4);
     const cookie4 = result4.headers['set-cookie'].toString();
     const payload4 = JSON.parse(result4.payload);
@@ -156,7 +156,7 @@ describe('UserController /user/getOne (e2e)', () => {
   it('/user/getOne (GET) ok bad userId 1', async () => {
     // step 1: auth
     const name = 'test_user_name_111';
-    const phone = phones[9];
+    const phone = phones[10];
     const timezone = 'America/Montreal';
     const phoneCode = '1';
     const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
@@ -179,11 +179,8 @@ describe('UserController /user/getOne (e2e)', () => {
 
   it('/user/getOne (GET) err bad userId 2', async () => {
     // step 1: auth
-    const name = 'test_user_name_111';
-    const phone = phones[10];
-    const timezone = 'America/Montreal';
-    const phoneCode = '1';
-    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const phone = phones[11];
+    const query1: InjectOptions = getUserAuthQuery({ phone });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -206,11 +203,8 @@ describe('UserController /user/getOne (e2e)', () => {
 
   it('/user/getOne (GET) err bad userId 3', async () => {
     // step 1: auth
-    const name = 'test_user_name_111';
-    const phone = phones[11];
-    const timezone = 'America/Montreal';
-    const phoneCode = '1';
-    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const phone = phones[12];
+    const query1: InjectOptions = getUserAuthQuery({ phone });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -233,11 +227,8 @@ describe('UserController /user/getOne (e2e)', () => {
 
   it('/user/getOne (GET) err missing userId', async () => {
     // step 1: auth
-    const name = 'test_user_name_111';
-    const phone = phones[12];
-    const timezone = 'America/Montreal';
-    const phoneCode = '1';
-    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const phone = phones[13];
+    const query1: InjectOptions = getUserAuthQuery({ phone });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -258,11 +249,8 @@ describe('UserController /user/getOne (e2e)', () => {
 
   it('/user/getOne (GET) err bad cookie', async () => {
     // step 1: auth
-    const name = 'test_user_name_111';
-    const phone = phones[13];
-    const timezone = 'America/Montreal';
-    const phoneCode = '1';
-    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const phone = phones[14];
+    const query1: InjectOptions = getUserAuthQuery({ phone });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
@@ -289,11 +277,8 @@ describe('UserController /user/getOne (e2e)', () => {
 
   it('/user/getOne (GET) err missing cookie', async () => {
     // step 1: auth
-    const name = 'test_user_name_111';
-    const phone = phones[14];
-    const timezone = 'America/Montreal';
-    const phoneCode = '1';
-    const query1: InjectOptions = getUserAuthQuery({ phone, name, timezone, phoneCode });
+    const phone = phones[15];
+    const query1: InjectOptions = getUserAuthQuery({ phone });
     const result1 = await app.inject(query1);
     const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
