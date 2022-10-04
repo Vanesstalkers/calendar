@@ -6,7 +6,7 @@ import { InjectOptions } from 'light-my-request';
 import { getUserAuthQuery, getUserCodeQuery, getUserLogoutQuery } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
-const phonesList = phones.slice(21, 30);
+const phonesList = phones.slice(20, 30);
 function getPhone() {
   return phonesList.shift();
 }

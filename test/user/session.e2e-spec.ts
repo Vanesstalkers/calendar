@@ -11,7 +11,7 @@ import {
 } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
-const phonesList = phones.slice(41, 50);
+const phonesList = phones.slice(30, 40);
 function getPhone() {
   return phonesList.shift();
 }

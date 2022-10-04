@@ -24,9 +24,9 @@ export interface authQueryUserDataI {
 }
 
 export interface userSearchBuildParamsI {
-  queryStr?: string | null;
-  globalSearch?: boolean | null;
-  limit?: number | null;
-  offset?: number | null;
+  queryStr?: any;
+  globalSearch?: any;
+  limit?: any;
+  offset?: any;
   cookie?: string;
 }

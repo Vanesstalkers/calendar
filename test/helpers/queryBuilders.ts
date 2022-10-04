@@ -103,12 +103,39 @@ export function getUserSearchQuery({
   offset = 0,
   cookie,
 }: userSearchBuildParamsI) {
-  const payload: InjectPayload = {
-    query: queryStr,
-    globalSearch,
-    limit,
-    offset,
-  };
+  let payload: InjectPayload;
+  if (queryStr === null) {
+    payload = {
+      globalSearch,
+      limit,
+      offset,
+    };
+  } else if (globalSearch === null) {
+    payload = {
+      query: queryStr,
+      limit,
+      offset,
+    };
+  } else if (limit === null) {
+    payload = {
+      query: queryStr,
+      globalSearch,
+      offset,
+    };
+  } else if (offset === null) {
+    payload = {
+      query: queryStr,
+      globalSearch,
+      limit,
+    };
+  } else {
+    payload = {
+      query: queryStr,
+      globalSearch,
+      limit,
+      offset,
+    };
+  }
   const query: InjectOptions = {
     method: 'POST',
     url: '/user/search',
