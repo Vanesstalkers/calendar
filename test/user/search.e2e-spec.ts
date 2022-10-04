@@ -30,6 +30,11 @@ describe('UserController /user/search (e2e)', () => {
     app = await prepareApp(moduleFixture);
   });
 
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
+  });
+
   it('/user/search (GET) ok', async () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     // step 1: auth
@@ -64,10 +69,5 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload5.data.resultList[0].phone).toEqual(phone);
     expect(payload5.data.resultList[0].name).toEqual(name);
     expect(payload5.data.resultList[0].iconFileId).toEqual(null);
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await moduleFixture.close();
   });
 });

@@ -29,6 +29,11 @@ describe('UserController /user/getOne (e2e)', () => {
     app = await prepareApp(moduleFixture);
   });
 
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
+  });
+
   it('/user/getOne (GET) ok register', async () => {
     // step 1: auth
     const name = 'test_user_name_001';
@@ -306,10 +311,5 @@ describe('UserController /user/getOne (e2e)', () => {
     expect(payload4.path).toEqual(`/user/getOne?userId=${userId}`);
     expect(payload4.msg).toEqual('Access denied (login first)');
     expect(payload4.code).toEqual('NEED_LOGIN');
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await moduleFixture.close();
   });
 });

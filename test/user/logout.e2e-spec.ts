@@ -23,6 +23,11 @@ describe('UserController /user/logout (e2e)', () => {
     app = await prepareApp(moduleFixture);
   });
 
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
+  });
+
   it('/user/logout (POST) ok registered', async () => {
     // registration -> logout
     // step 1: auth
@@ -81,10 +86,5 @@ describe('UserController /user/logout (e2e)', () => {
     const payload1 = JSON.parse(result1.payload);
     expect(result1.statusCode).toEqual(200);
     expect(payload1.status).toEqual('ok');
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await moduleFixture.close();
   });
 });

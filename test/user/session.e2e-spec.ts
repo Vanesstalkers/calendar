@@ -28,6 +28,11 @@ describe('UserController /user/session (e2e)', () => {
     app = await prepareApp(moduleFixture);
   });
 
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
+  });
+
   it('/user/session (GET) ok login true registration true', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
@@ -122,10 +127,5 @@ describe('UserController /user/session (e2e)', () => {
     expect(payload1.data.login).toEqual(false);
     expect(payload1.data.personalProjectId).toEqual(null);
     expect(payload1.data.currentProjectId).toEqual(null);
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await moduleFixture.close();
   });
 });
