@@ -148,3 +148,19 @@ export function getUserSearchQuery({
   if (cookie) query.headers.cookie = cookie;
   return query;
 }
+
+export function getUserChangeCurrentProjectQuery({ cookie, projectId }: { cookie?: string; projectId?: string }) {
+  const query: InjectOptions = {
+    method: 'POST',
+    url: '/user/changeCurrentProject',
+    query: { projectId },
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    payload: {},
+  };
+  if (!projectId) delete query.query;
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}

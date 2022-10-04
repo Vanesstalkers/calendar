@@ -3,14 +3,7 @@ import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
-import {
-  getUserAuthQuery,
-  getUserCodeQuery,
-  getUserGetOneQuery,
-  getUserLogoutQuery,
-  getUserSearchQuery,
-  getUserSessionQuery,
-} from './../helpers/queryBuilders';
+import { getUserAuthQuery, getUserCodeQuery, getUserSearchQuery } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
 const phonesList = phones.slice(40, 70);
@@ -35,7 +28,7 @@ describe('UserController /user/search (e2e)', () => {
     await moduleFixture.close();
   });
 
-  it('/user/search (GET) ok name', async () => {
+  it('/user/search (POST) ok name', async () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     // step 1: auth
     const name = 'test_user_search_001';
@@ -71,7 +64,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload5.data.resultList[0].iconFileId).toEqual(null);
   });
 
-  it('/user/search (GET) ok phone', async () => {
+  it('/user/search (POST) ok phone', async () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     // step 1: auth
     const name = 'test_user_search_002';
@@ -107,7 +100,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload5.data.resultList[0].iconFileId).toEqual(null);
   });
 
-  it('/user/search (GET) ok multiple', async () => {
+  it('/user/search (POST) ok multiple', async () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     const usersCount = 3;
     const name = 'test_user_search_003';
@@ -152,7 +145,7 @@ describe('UserController /user/search (e2e)', () => {
     }
   });
 
-  it('/user/search (GET) ok pagination', async () => {
+  it('/user/search (POST) ok pagination', async () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     const usersCount = 5;
     const name = 'test_user_search_004';
@@ -199,7 +192,7 @@ describe('UserController /user/search (e2e)', () => {
     }
   });
 
-  it('/user/search (GET) ok same user', async () => {
+  it('/user/search (POST) ok same user', async () => {
     // create user 1 -> user 1 search user 1
     // step 1: auth
     const phone = getPhone();
@@ -222,7 +215,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.data.endOfList).toEqual(true);
   });
 
-  it('/user/search (GET) ok globalSearch false u2u false', async () => {
+  it('/user/search (POST) ok globalSearch false u2u false', async () => {
     // create user 1 -> create user 2 -> user 2 search user 1
     // step 1: auth
     const phone = getPhone();
@@ -255,7 +248,7 @@ describe('UserController /user/search (e2e)', () => {
 
   // TODO: globalSearch false u2u true
 
-  it('/user/search (GET) ok bad query', async () => {
+  it('/user/search (POST) ok bad query', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -276,7 +269,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.data.endOfList).toEqual(true);
   });
 
-  it('/user/search (GET) ok missing query', async () => {
+  it('/user/search (POST) ok missing query', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -304,7 +297,7 @@ describe('UserController /user/search (e2e)', () => {
     }
   });
 
-  it('/user/search (GET) ok bad globalSearch', async () => {
+  it('/user/search (POST) ok bad globalSearch', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -332,7 +325,7 @@ describe('UserController /user/search (e2e)', () => {
     }
   });
 
-  it('/user/search (GET) ok missing globalSearch', async () => {
+  it('/user/search (POST) ok missing globalSearch', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -353,7 +346,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.data.endOfList).toEqual(true);
   });
 
-  it('/user/search (GET) err bad offset', async () => {
+  it('/user/search (POST) err bad offset', async () => {
     const badOffset = 'qqq';
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
@@ -376,7 +369,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.code).toEqual('DB_BAD_QUERY');
   });
 
-  it('/user/search (GET) err missing offset', async () => {
+  it('/user/search (POST) err missing offset', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -396,7 +389,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.path).toEqual('/user/search');
   });
 
-  it('/user/search (GET) err bad limit', async () => {
+  it('/user/search (POST) err bad limit', async () => {
     const badLimit = 'qqq';
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
@@ -419,7 +412,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.code).toEqual('DB_BAD_QUERY');
   });
 
-  it('/user/search (GET) err missing limit', async () => {
+  it('/user/search (POST) err missing limit', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -441,7 +434,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.code).toEqual('DB_BAD_QUERY');
   });
 
-  it('/user/search (GET) err bad cookie', async () => {
+  it('/user/search (POST) err bad cookie', async () => {
     const badCookie = 'qqq';
     // step 1: search
     const query1: InjectOptions = getUserSearchQuery({ cookie: badCookie, queryStr: '' });
@@ -455,7 +448,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload1.code).toEqual('NEED_LOGIN');
   });
 
-  it('/user/search (GET) err missing cookie', async () => {
+  it('/user/search (POST) err missing cookie', async () => {
     // step 1: search
     const query1: InjectOptions = getUserSearchQuery({ queryStr: '' });
     const result1 = await app.inject(query1);
