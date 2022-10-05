@@ -149,3 +149,8 @@ export class userUpdateWithFormdataQueryDTO {
   @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
   iconFile: fileDTO;
 }
+
+export class userLinkWsAnswerDTO {
+  @swagger.ApiProperty({ description: "Код для отправки в socket.emit('linkSession', [code])" })
+  linkCode: string;
+}

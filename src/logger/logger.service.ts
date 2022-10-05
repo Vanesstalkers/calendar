@@ -1,18 +1,16 @@
+import * as fs from 'node:fs';
+import * as crypto from 'node:crypto';
 import * as nestjs from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import * as fastify from 'fastify';
 import { REQUEST_CONTEXT_ID } from '@nestjs/core/router/request/request-constants';
 import { Db, ObjectID } from 'mongodb';
 import { decorators, interfaces, types, exception } from '../globalImport';
-import * as fs from 'node:fs';
-import * as crypto from 'node:crypto';
 
-@nestjs.Injectable()
-export class LoggerService {
-  constructor(
-    @nestjs.Inject(REQUEST) private request: fastify.FastifyRequest,
-    @nestjs.Inject('DATABASE_CONNECTION') private db: Db,
-  ) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class LoggerServiceSingleton {
+  request = null;
+  constructor(@nestjs.Inject('DATABASE_CONNECTION') public db: Db) {}
   traceList = [];
   finalized = false;
   getTraceList() {
@@ -57,7 +55,7 @@ export class LoggerService {
         const sqlLogs = traceList.filter((logItem) => logItem.sql);
         const baseLog = traceList.filter((logItem) => !logItem.sql).reduce((acc, item) => ({ ...acc, ...item }), {});
         await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
-        //await this.db.collection(col).insertMany(this.getTraceList().map((logItem) => ({ ...logItem, finalizeType })));
+        return traceList[0]?.traceId;
       } else if (this.finalized) {
         // сюда попадут части логов, которые записывались в файлы (в случае ошибки запроса к БД они отработают позже)
         await this.db.collection(col).insertMany([...insertData]);
@@ -111,5 +109,16 @@ export class LoggerService {
     await fs.promises.writeFile(fullPath, data).catch(exception.fsErrorCatcher);
 
     return fullPath;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST }) // это для наглядности, т.к. из-за @nestjs.Inject(REQUEST) все равно будет scope==REQUEST
+export class LoggerService extends LoggerServiceSingleton {
+  constructor(
+    @nestjs.Inject('DATABASE_CONNECTION') public db: Db,
+    @nestjs.Inject(REQUEST) public request: fastify.FastifyRequest,
+  ) {
+    super(db);
+    this.request = request;
   }
 }

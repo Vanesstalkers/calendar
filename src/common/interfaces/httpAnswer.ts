@@ -25,6 +25,7 @@ export class createdAnswerI {
               },
             },
           },
+          traceId: { type: 'string', example: '0.22316904468663523' },
         },
       },
     };
@@ -41,9 +42,10 @@ export class successAnswerI {
         properties: {
           status: { type: 'string', example: 'ok' },
           data: data.models?.length
-            ? { type: 'object', oneOf: data.models.map((ref) => ({ $ref: swagger.getSchemaPath(ref) })) }
-            : undefined,
+          ? { type: 'object', oneOf: data.models.map((ref) => ({ $ref: swagger.getSchemaPath(ref) })) }
+          : undefined,
           ...(data.props || {}),
+          traceId: { type: 'string', example: '0.22316904468663523' },
         },
       },
     };
@@ -74,6 +76,7 @@ export class searchAnswerI {
               ...(data.props || {}),
             },
           },
+          traceId: { type: 'string', example: '0.22316904468663523' },
         },
       },
     };
@@ -91,4 +94,5 @@ export class exceptonAnswerI {
   msg?: string;
   @swagger.ApiPropertyOptional({ description: 'Код ошибки' })
   code?: string;
+  //traceId: { type: 'string', example: '0.22316904468663523' },
 }

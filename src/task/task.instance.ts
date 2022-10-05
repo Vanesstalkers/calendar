@@ -1,19 +1,19 @@
 import * as nestjs from '@nestjs/common';
-import { TaskService } from './task.service';
-import { ProjectInstance } from '../project/project.instance';
-import { UserInstance } from '../user/user.instance';
+import { TaskService, TaskServiceSingleton } from './task.service';
+import { ProjectInstance, ProjectInstanceSingleton } from '../project/project.instance';
+import { UserInstance, UserInstanceSingleton } from '../user/user.instance';
 import { taskGetOneAnswerDTO, taskUserLinkFullDTO, taskFullDTO, taskUpdateDTO } from './task.dto';
 
-@nestjs.Injectable()
-export class TaskInstance {
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class TaskInstanceSingleton {
   id: number;
   data: taskGetOneAnswerDTO | taskFullDTO;
-  project: ProjectInstance;
-  consumer: UserInstance;
+  project: ProjectInstanceSingleton;
+  consumer: UserInstanceSingleton;
   constructor(
-    public taskService: TaskService,
-    public projectInstance: ProjectInstance,
-    public userInstance: UserInstance,
+    public taskService: TaskServiceSingleton,
+    public projectInstance: ProjectInstanceSingleton,
+    public userInstance: UserInstanceSingleton,
   ) {}
   isOwner(userId: number) {
     return userId === this.data.ownUser.userId;
@@ -160,5 +160,18 @@ export class TaskInstance {
     }
 
     return this;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class TaskInstance extends TaskInstanceSingleton {
+  project: ProjectInstance;
+  consumer: UserInstance;
+  constructor(
+    public taskService: TaskService,
+    public projectInstance: ProjectInstance,
+    public userInstance: UserInstance,
+  ) {
+    super(taskService, projectInstance, userInstance);
   }
 }
