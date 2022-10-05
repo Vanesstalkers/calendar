@@ -1,18 +1,13 @@
+import * as fs from 'node:fs';
 import * as nestjs from '@nestjs/common';
-import { FileService } from './file.service';
-// import { userGetOneAnswerDTO } from './user.dto';
-import * as fs from 'fs';
 
-@nestjs.Injectable()
-export class FileInstance {
+import { FileService, FileServiceSingleton } from './file.service';
+
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class FileInstanceSingleton {
   id: number;
-  // data: userGetOneAnswerDTO;
-  constructor(public fileService: FileService) {}
+  constructor(public fileService: FileServiceSingleton) {}
   async init(userId: number) {
-    // if (!userId) throw new nestjs.BadRequestException('User ID is empty');
-    // this.id = userId;
-    // this.data = await this.userService.getOne({ id: userId });
-    // if (!this.data) throw new nestjs.BadRequestException(`User (id=${userId}) not exist`);
     return this;
   }
   /**
@@ -34,5 +29,12 @@ export class FileInstance {
     await fs.promises.writeFile(data.link, Buffer.from(data.fileContent, 'base64'));
 
     return data;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class FileInstance extends FileInstanceSingleton {
+  constructor(public fileService: FileService) {
+    super(fileService);
   }
 }

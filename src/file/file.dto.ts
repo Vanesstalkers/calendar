@@ -28,7 +28,9 @@ export class fileCreateDTO extends fileDTO {
   link?: string;
 }
 
-export class fileGetMetaAnswerDTO {
+export class fileGetDataAnswerDTO {
+  @swagger.ApiProperty({ description: 'Содержимое файла в base64', example: 'data:image/jpeg;base64,iVBORw0KGgoAAAANSUh...' })
+  fileContent?: string;
   @swagger.ApiProperty({ description: 'Имя файла', example: 'picture.jpg' })
   fileName?: string;
   @swagger.ApiProperty({ description: 'Internet Media Type (MIME-type)', example: 'image/jpeg' })

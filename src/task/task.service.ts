@@ -19,13 +19,13 @@ import {
   taskExecutorsQueryDataDTO,
 } from './task.dto';
 
-import { UtilsService } from '../utils/utils.service';
+import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 
 const REGULAR_TASK_SHIFT_DAYS_COUNT = 14;
 
-@nestjs.Injectable()
-export class TaskService {
-  constructor(private utils: UtilsService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class TaskServiceSingleton {
+  constructor(public utils: UtilsServiceSingleton) {}
 
   async create(taskData: taskFullDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
@@ -1002,5 +1002,12 @@ export class TaskService {
         if (theEndDate !== null) theEndDate = new Date(theEndDate.getTime() + timeShift);
       }
     });
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class TaskService extends TaskServiceSingleton {
+  constructor(public utils: UtilsService) {
+    super(utils);
   }
 }

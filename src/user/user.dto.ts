@@ -113,7 +113,7 @@ export class userSearchAnswerDTO {
 
 export class userChangeCurrentProjectQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
-  projectId: number;
+  projectId: string;
 }
 
 export class userAddContactQueryDTO {
@@ -148,4 +148,9 @@ export class userUpdateWithFormdataQueryDTO {
   userData: userUpdateQueryDataDTO;
   @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
   iconFile: fileDTO;
+}
+
+export class userLinkWsAnswerDTO {
+  @swagger.ApiProperty({ description: "Код для отправки в socket.emit('linkSession', [code])" })
+  linkCode: string;
 }

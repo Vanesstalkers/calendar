@@ -1,14 +1,14 @@
 import * as nestjs from '@nestjs/common';
-import { ProjectService } from './project.service';
+import { ProjectService, ProjectServiceSingleton } from './project.service';
 import { projectGetOneAnswerDTO, projectUpdateQueryDataDTO } from './project.dto';
-import { UserInstance } from '../user/user.instance';
+import { UserInstance, UserInstanceSingleton } from '../user/user.instance';
 
-@nestjs.Injectable()
-export class ProjectInstance {
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class ProjectInstanceSingleton {
   id: number;
   data: projectGetOneAnswerDTO;
-  consumer: UserInstance;
-  constructor(public projectService: ProjectService, public userInstance: UserInstance) {}
+  consumer: UserInstanceSingleton;
+  constructor(public projectService: ProjectServiceSingleton, public userInstance: UserInstanceSingleton) {}
   /**
    * @fires {@link UserInstance.init}
    * @throws `Project ID is empty`
@@ -84,5 +84,13 @@ export class ProjectInstance {
     const scheduleFilters = sessionUserCurrentProjectLink.config?.scheduleFilters;
 
     return { ...queryData, projectIds, scheduleFilters };
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class ProjectInstance extends ProjectInstanceSingleton {
+  consumer: UserInstance;
+  constructor(public projectService: ProjectService, public userInstance: UserInstance) {
+    super(projectService, userInstance);
   }
 }

@@ -3,15 +3,19 @@ import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import { exception, types, sql } from '../globalImport';
 
-import { ProjectService } from '../project/project.service';
-import { UtilsService } from '../utils/utils.service';
-import { FileService } from '../file/file.service';
+import { ProjectService, ProjectServiceSingleton } from '../project/project.service';
+import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
+import { FileService, FileServiceSingleton } from '../file/file.service';
 
 import { userAuthQueryDataDTO, userSearchQueryDTO, userUpdateQueryDataDTO } from './user.dto';
 
-@nestjs.Injectable()
-export class UserService {
-  constructor(private projectService: ProjectService, private utils: UtilsService, private fileService: FileService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class UserServiceSingleton {
+  constructor(
+    public projectService: ProjectServiceSingleton,
+    public utils: UtilsServiceSingleton,
+    public fileService: FileServiceSingleton,
+  ) {}
 
   async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}) {
     const findData = await this.utils.queryDB(
@@ -220,5 +224,12 @@ export class UserService {
       { replacements: { userId, startTime, endTime }, type: QueryTypes.SELECT },
     );
     return findData[0] ? false : true;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class UserService extends UserServiceSingleton {
+  constructor(public projectService: ProjectService, public utils: UtilsService, public fileService: FileService) {
+    super(projectService, utils, fileService);
   }
 }

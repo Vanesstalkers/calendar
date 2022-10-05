@@ -8,20 +8,20 @@ import * as stream from 'stream';
 import * as fs from 'node:fs';
 import * as util from 'node:util';
 
-import { LoggerService } from '../logger/logger.service';
+import { LoggerService, LoggerServiceSingleton } from '../logger/logger.service';
 
 import { getConfig } from '../config';
 const config = getConfig();
 
-@nestjs.Injectable()
-export class UtilsService {
-  constructor(private sequelize: Sequelize, private logger: LoggerService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class UtilsServiceSingleton {
+  constructor(public sequelize: Sequelize, public logger: LoggerServiceSingleton) {}
 
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
   }
 
-  randomCode(symbols: string = '0123456789', length: number = 4) {
+  randomCode(symbols = '0123456789', length = 4) {
     const result = [];
     for (let i = 0; i < length; i++) result.push(symbols[Math.floor(Math.random() * symbols.length)]);
     return result.join('');
@@ -92,6 +92,14 @@ export class UtilsService {
     const setList = [];
     const replacements = { id };
 
+    if (jsonKeys.includes('config') && process.env.MODE === 'TEST') {
+      const fakeConfig = { fake: true };
+      if (data.config) {
+        data.config = { ...fakeConfig, ...data.config };
+      } else {
+        data.config = fakeConfig;
+      }
+    }
     for (const [key, value] of Object.entries(data)) {
       if (key === 'id') continue;
 
@@ -142,5 +150,12 @@ export class UtilsService {
       if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
       throw err;
     }
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class UtilsService extends UtilsServiceSingleton {
+  constructor(public sequelize: Sequelize, public logger: LoggerService) {
+    super(sequelize, logger);
   }
 }

@@ -1,13 +1,13 @@
 import * as nestjs from '@nestjs/common';
-import { UserService } from './user.service';
-import { SessionService } from 'src/session/session.service';
+import { UserService, UserServiceSingleton } from './user.service';
+import { SessionService, SessionServiceSingleton } from './../session/session.service';
 import { userGetOneAnswerDTO } from './user.dto';
 
-@nestjs.Injectable()
-export class UserInstance {
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class UserInstanceSingleton {
   id: number;
   data: userGetOneAnswerDTO;
-  constructor(public userService: UserService, public sessionService: SessionService) {}
+  constructor(public userService: UserServiceSingleton, public sessionService: SessionServiceSingleton) {}
   /**
    * @throws `User ID is empty`
    * @throws `User (id=${userId}) not exist`
@@ -35,5 +35,12 @@ export class UserInstance {
     await this.sessionService.updateStorageById(this.data.config.sessionStorageId, {
       currentProjectId: redirectProjectId,
     });
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class UserInstance extends UserInstanceSingleton {
+  constructor(public userService: UserService, public sessionService: SessionService) {
+    super(userService, sessionService);
   }
 }

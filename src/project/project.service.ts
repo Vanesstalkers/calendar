@@ -5,12 +5,12 @@ import { decorators, interfaces, types, exception, sql } from '../globalImport';
 
 import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectUserLinkDTO } from './project.dto';
 
-import { UtilsService } from '../utils/utils.service';
-import { FileService } from '../file/file.service';
+import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
+import { FileService, FileServiceSingleton } from '../file/file.service';
 
-@nestjs.Injectable()
-export class ProjectService {
-  constructor(private utils: UtilsService, private fileService: FileService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class ProjectServiceSingleton {
+  constructor(public utils: UtilsServiceSingleton, public fileService: FileServiceSingleton) {}
 
   async create(
     projectData: projectCreateQueryDTO,
@@ -43,6 +43,7 @@ export class ProjectService {
         table: 'project',
         id: projectId,
         data: updateData,
+        jsonKeys: ['config'],
         handlers: {
           userList: async (value: any) => {
             const arr: any[] = Array.from(value);
@@ -221,5 +222,12 @@ export class ProjectService {
       { replacements: { projectId }, type: QueryTypes.SELECT },
     );
     return findData[0]?.userId || null;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class ProjectService extends ProjectServiceSingleton {
+  constructor(public utils: UtilsService, public fileService: FileService) {
+    super(utils, fileService);
   }
 }

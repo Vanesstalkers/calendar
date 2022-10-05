@@ -1,12 +1,12 @@
 import * as nestjs from '@nestjs/common';
 import { MongoClient, Db } from 'mongodb';
 
-import { LoggerService } from './logger.service';
-
 import { getConfig } from '../config';
 const config = getConfig();
+import { LoggerService, LoggerServiceSingleton } from './logger.service';
 
 @nestjs.Module({
+  controllers: [],
   providers: [
     {
       provide: 'DATABASE_CONNECTION',
@@ -20,7 +20,8 @@ const config = getConfig();
       },
     },
     LoggerService,
+    LoggerServiceSingleton,
   ],
-  exports: ['DATABASE_CONNECTION', LoggerService],
+  exports: ['DATABASE_CONNECTION', LoggerService, LoggerServiceSingleton],
 })
 export class LoggerModule {}
