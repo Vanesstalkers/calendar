@@ -113,7 +113,7 @@ export class userSearchAnswerDTO {
 
 export class userChangeCurrentProjectQueryDTO {
   @swagger.ApiProperty({ description: 'ID проекта' })
-  projectId: number;
+  projectId: string;
 }
 
 export class userAddContactQueryDTO {

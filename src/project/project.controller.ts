@@ -68,6 +68,7 @@ export class ProjectController {
   async create(@nestjs.Body() projectData: projectCreateQueryDTO, @nestjs.Session() session: FastifySession) {
     const userId = await this.sessionService.getUserId(session);
     if (!projectData.userList) projectData.userList = [];
+    // !!! тут ошибка, если у item.userId === userId не указана role (надо перенести в projectInstance - добавить validateDataForCreate)
     if (!projectData.userList.find((item) => item.userId === userId)) {
       projectData.userList.push({ userId, role: 'owner' });
     }
@@ -193,7 +194,7 @@ export class ProjectController {
     const updateData: projectUserLinkDTO = { userId, position: data.position, userName: data.userName };
     if (!project.getUserLink(userId)) updateData.role = 'member';
     await this.projectService.update(projectId, { userList: [updateData] });
-    
+
     return httpAnswer.OK;
   }
 

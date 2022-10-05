@@ -16,13 +16,13 @@ import { UtilsService } from '../utils/utils.service';
 import { SessionService } from '../session/session.service';
 import { LoggerService } from '../logger/logger.service';
 
-import { fileDTO, fileDeleteQueryDTO, fileGetMetaAnswerDTO } from './file.dto';
+import { fileDTO, fileDeleteQueryDTO, fileGetDataAnswerDTO } from './file.dto';
 
 @nestjs.Controller('file')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
 @swagger.ApiTags('file')
 @swagger.ApiResponse({ status: 400, description: 'Формат ответа для всех ошибок', type: interfaces.response.exception })
-@swagger.ApiExtraModels(fileGetMetaAnswerDTO)
+@swagger.ApiExtraModels(fileGetDataAnswerDTO)
 export class FileController {
   constructor(
     private service: FileService,
@@ -44,47 +44,52 @@ export class FileController {
     const file = await this.service.getOne(parseInt(id));
 
     if (!file || !file.id) throw new nestjs.BadRequestException({ msg: 'File not found' });
-    if (!fs.existsSync('./uploads/' + file.link)) {
-      // !!! неправильный тип ошибки - нужно заменить
-      throw new nestjs.BadRequestException({ msg: 'File not found on disk' });
-    } else {
-      const fileStream = fs.createReadStream('./uploads/' + file.link);
-      res.headers({
-        'Content-Type': file.fileMimetype,
-        //'Content-Disposition': `filename="${file.fileName}"`, // не работает для имен на кириллице
-      });
-      return new nestjs.StreamableFile(fileStream);
-    }
+
+    await fs.promises.stat('./uploads/' + file.link).catch((err) => {
+      if (err.code === 'ENOENT') {
+        throw new nestjs.BadRequestException({ msg: 'File not found on disk' });
+      } else {
+        throw err;
+      }
+    });
+
+    const fileStream = fs.createReadStream('./uploads/' + file.link);
+    res.headers({
+      'Content-Type': file.fileMimetype,
+      //'Content-Disposition': `filename="${file.fileName}"`, // не работает для имен на кириллице
+    });
+    return new nestjs.StreamableFile(fileStream);
   }
 
-  @nestjs.Get('getMeta/:id')
+  @nestjs.Get('getData/:id')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.success({ models: [fileGetMetaAnswerDTO] }))
-  async getMeta(@nestjs.Param('id') id: 'string', @nestjs.Session() session: FastifySession) {
+  @swagger.ApiResponse(new interfaces.response.success({ models: [fileGetDataAnswerDTO] }))
+  async getData(@nestjs.Param('id') id: 'string') {
     if (!id) throw new nestjs.BadRequestException('File ID is empty');
 
     const file = await this.service.getOne(parseInt(id));
 
     if (!file || !file.id) throw new nestjs.BadRequestException({ msg: 'File not found' });
-    if (!fs.existsSync('./uploads/' + file.link)) {
-      // !!! неправильный тип ошибки - нужно заменить
-      throw new nestjs.BadRequestException({ msg: 'File not found on disk' });
-    } else {
-      if (!file.fileSize) {
-        // !!! убрать после MVP
-        const stats = fs.statSync('./uploads/' + file.link);
-        file.fileSize = stats.size;
+
+    const stats = await fs.promises.stat('./uploads/' + file.link).catch((err) => {
+      if (err.code === 'ENOENT') {
+        throw new nestjs.BadRequestException({ msg: 'File not found on disk' });
+      } else {
+        throw err;
       }
-      return {
-        ...httpAnswer.OK,
-        data: {
-          fileName: file.fileName,
-          fileMimetype: file.fileMimetype,
-          fileSize: file.fileSize,
-          fileUrl: `/file/get/${file.id}`,
-        },
-      };
-    }
+    });
+
+    const fileContent = await fs.promises.readFile('./uploads/' + file.link, { encoding: 'base64' });
+    return {
+      ...httpAnswer.OK,
+      data: {
+        fileContent: `data:${file.fileMimetype};base64,${fileContent}`,
+        fileName: file.fileName,
+        fileMimetype: file.fileMimetype,
+        fileSize: stats.size,
+        fileUrl: `/file/get/${file.id}`,
+      },
+    };
   }
 
   @nestjs.Post('upload')

@@ -3,8 +3,6 @@ import * as swagger from '@nestjs/swagger';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
-import * as fs from 'fs';
-
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
 import { ProjectService } from '../project/project.service';
@@ -230,7 +228,7 @@ export class UserController {
     @nestjs.Query() data: userChangeCurrentProjectQueryDTO,
     @nestjs.Session() session: FastifySession,
   ) {
-    const projectId = data.projectId;
+    const projectId = parseInt(data.projectId);
     const sessionUserId = await this.sessionService.getUserId(session);
     const project = await this.projectInstance.init(projectId, sessionUserId);
     const currentProjectId = project.id;
