@@ -1,17 +1,16 @@
+import * as fs from 'node:fs';
 import * as nestjs from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import { decorators, interfaces, types, exception } from '../globalImport';
 
-import * as fs from 'fs';
-
-import { LoggerService } from '../logger/logger.service';
-import { UtilsService } from '../utils/utils.service';
+import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
+import { LoggerService, LoggerServiceSingleton } from '../logger/logger.service';
 import { fileDTO, fileCreateDTO, fileDeleteQueryDTO } from './file.dto';
 
-@nestjs.Injectable()
-export class FileService {
-  constructor(private utils: UtilsService, private logger: LoggerService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class FileServiceSingleton {
+  constructor(public utils: UtilsServiceSingleton, public logger: LoggerServiceSingleton) {}
 
   async getOne(id: number, config: types['getOneConfig'] = {}) {
     if (!config.attributes) config.attributes = ['*'];
@@ -79,5 +78,12 @@ export class FileService {
 
   async checkExists(id: number) {
     return (await this.getOne(id, { attributes: ['id'] })) ? true : false;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class FileService extends FileServiceSingleton {
+  constructor(public utils: UtilsService, public logger: LoggerService) {
+    super(utils, logger);
   }
 }

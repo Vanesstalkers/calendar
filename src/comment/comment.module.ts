@@ -1,12 +1,12 @@
 import * as nestjs from '@nestjs/common';
 
 import { CommentController } from './comment.controller';
-import { CommentService } from './comment.service';
+import { CommentService, CommentServiceSingleton } from './comment.service';
 
 @nestjs.Module({
   imports: [],
   controllers: [CommentController],
-  providers: [CommentService],
-  exports: [CommentService],
+  providers: [CommentService, CommentServiceSingleton],
+  exports: [CommentService, CommentServiceSingleton],
 })
 export class CommentModule {}

@@ -8,14 +8,14 @@ import * as stream from 'stream';
 import * as fs from 'node:fs';
 import * as util from 'node:util';
 
-import { LoggerService } from '../logger/logger.service';
+import { LoggerService, LoggerServiceSingleton } from '../logger/logger.service';
 
 import { getConfig } from '../config';
 const config = getConfig();
 
-@nestjs.Injectable()
-export class UtilsService {
-  constructor(private sequelize: Sequelize, private logger: LoggerService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class UtilsServiceSingleton {
+  constructor(public sequelize: Sequelize, public logger: LoggerServiceSingleton) {}
 
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
@@ -150,5 +150,12 @@ export class UtilsService {
       if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
       throw err;
     }
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class UtilsService extends UtilsServiceSingleton {
+  constructor(public sequelize: Sequelize, public logger: LoggerService) {
+    super(sequelize, logger);
   }
 }

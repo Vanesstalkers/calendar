@@ -22,7 +22,7 @@ export class PostStatusInterceptor {
     return next.handle().pipe(
       map(async (value) => {
         // финализирующая запись в лог
-        await this.logger.sendLog({ answerData: value }, { request, finalizeType: 'ok' });
+        value.traceId = await this.logger.sendLog({ answerData: value }, { request, finalizeType: 'ok' });
 
         if (request.method === 'POST') {
           if (response.statusCode === nestjs.HttpStatus.CREATED) {

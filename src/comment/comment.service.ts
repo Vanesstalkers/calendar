@@ -5,11 +5,11 @@ import { decorators, interfaces, types, exception } from '../globalImport';
 
 import { commentDTO } from './comment.dto';
 
-import { UtilsService } from '../utils/utils.service';
+import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 
-@nestjs.Injectable()
-export class CommentService {
-  constructor(private utils: UtilsService) {}
+@nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
+export class CommentServiceSingleton {
+  constructor(public utils: UtilsServiceSingleton) {}
 
   async create(taskId: number, commentData: commentDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
@@ -45,5 +45,12 @@ export class CommentService {
 
   async checkExists(id: number) {
     return (await this.getOne({ id }, { attributes: ['id'] })) ? true : false;
+  }
+}
+
+@nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
+export class CommentService extends CommentServiceSingleton {
+  constructor(public utils: UtilsService) {
+    super(utils);
   }
 }

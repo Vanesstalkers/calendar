@@ -23,4 +23,5 @@ export class sessionStorageDTO {
   authType?: string;
   registrationData?: any;
   sessionStorageId?: string; 
+  eventsId?: string; 
 }

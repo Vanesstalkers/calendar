@@ -8,6 +8,7 @@ import { Logger } from './globalImport';
 import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
 
+import { AppServiceSingleton } from './app.service';
 import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
@@ -16,6 +17,7 @@ import { CommentModule } from './comment/comment.module';
 import { FileModule } from './file/file.module';
 import { UtilsModule } from './utils/utils.module';
 import { LoggerModule } from './logger/logger.module';
+import { EventsModule } from './events/events.module';
 
 import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
@@ -69,10 +71,12 @@ try {
     CommentModule,
     FileModule,
     UtilsModule,
+    EventsModule,
     ScheduleModule.forRoot(),
     SequelizeModule.forFeature([Logger]), // тут фейковый класс, без которого не работают иньекции в PostStatusInterceptor
   ],
   providers: [
+    AppServiceSingleton,
     {
       provide: APP_FILTER,
       useClass: UniversalExceptionFilter,
@@ -84,7 +88,18 @@ try {
     // },
   ],
   controllers: [],
-  exports: [LoggerModule, UserModule, SessionModule, ProjectModule, TaskModule, CommentModule, FileModule, UtilsModule],
+  exports: [
+    AppServiceSingleton,
+    LoggerModule,
+    UserModule,
+    SessionModule,
+    ProjectModule,
+    TaskModule,
+    CommentModule,
+    FileModule,
+    UtilsModule,
+    EventsModule,
+  ],
 })
 export class AppModule implements NestModule {
   configure() {}

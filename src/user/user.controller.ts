@@ -3,8 +3,6 @@ import * as swagger from '@nestjs/swagger';
 import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, types, httpAnswer, interceptors } from '../globalImport';
 
-import * as fs from 'fs';
-
 import { UserService } from './user.service';
 import { UtilsService } from '../utils/utils.service';
 import { ProjectService } from '../project/project.service';
@@ -12,6 +10,7 @@ import { ProjectInstance } from '../project/project.instance';
 import { SessionService } from '../session/session.service';
 import { FileService } from '../file/file.service';
 import { FileInstance } from '../file/file.instance';
+import { EventsGateway } from '../events/events.gateway';
 
 import {
   userAuthQueryDTO,
@@ -25,6 +24,7 @@ import {
   userAddContactQueryDTO,
   userUpdateQueryDTO,
   userUpdateWithFormdataQueryDTO,
+  userLinkWsAnswerDTO,
 } from './user.dto';
 
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
@@ -40,6 +40,7 @@ import { userGetOneAnswerProjectDTO } from '../project/project.dto';
   interfaces.session.storage,
   userSearchAnswerDTO,
   userGetOneAnswerDTO,
+  userLinkWsAnswerDTO,
 )
 export class UserController {
   constructor(
@@ -50,6 +51,7 @@ export class UserController {
     private fileService: FileService,
     private fileInstance: FileInstance,
     private utils: UtilsService,
+    private events: EventsGateway,
   ) {}
 
   @nestjs.Get('session')
@@ -57,6 +59,13 @@ export class UserController {
   async session(@nestjs.Session() session: FastifySession) {
     const result = await this.sessionService.getState(session);
     return { ...httpAnswer.OK, data: result };
+  }
+
+  @nestjs.Get('linkWs')
+  @swagger.ApiResponse(new interfaces.response.success({ models: [userLinkWsAnswerDTO] }))
+  async linkWs(@nestjs.Session() session: FastifySession) {
+    const linkCode = await this.sessionService.createWsLink(session);
+    return { ...httpAnswer.OK, data: { linkCode } };
   }
 
   // @nestjs.Post('create')
@@ -208,9 +217,13 @@ export class UserController {
   @nestjs.Get('getOne')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success({ models: [userGetOneAnswerDTO] }))
-  async getOne(@nestjs.Query() data: userGetOneQueryDTO) {
+  async getOne(@nestjs.Query() data: userGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.userId) throw new nestjs.BadRequestException('User ID is empty');
+    const sessionStorage = await this.sessionService.getStorage(session);
     const result = await this.userService.getOne({ id: data.userId });
+
+    const ws = this.events.server.of('/').sockets.get(sessionStorage.eventsId);
+    if(ws) ws.emit('message', JSON.stringify(result));
     return { ...httpAnswer.OK, data: result };
   }
 
@@ -230,7 +243,7 @@ export class UserController {
     @nestjs.Query() data: userChangeCurrentProjectQueryDTO,
     @nestjs.Session() session: FastifySession,
   ) {
-    const projectId = data.projectId;
+    const projectId = parseInt(data.projectId);
     const sessionUserId = await this.sessionService.getUserId(session);
     const project = await this.projectInstance.init(projectId, sessionUserId);
     const currentProjectId = project.id;
