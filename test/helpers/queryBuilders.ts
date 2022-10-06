@@ -158,7 +158,9 @@ export function getUserUpdateQuery({
   fileMimetype = null,
   fileName = null,
   fileExtension = null,
+  link = null,
   isIconFile = false,
+  withFormdata = false,
 }: userUpdateBuildParamsI) {
   const userData: updateQueryUserDataI = {
     name,
@@ -168,13 +170,13 @@ export function getUserUpdateQuery({
       fake: true,
     },
   };
-  const iconFile: updateQueryIconFileI = {
-    fileContent,
-    fileMimetype,
-    fileName,
-    fileExtension,
-  };
   if (phone) userData.phone = phone;
+  const iconFile: updateQueryIconFileI = {};
+  if (fileContent !== null) iconFile.fileContent = fileContent;
+  if (link !== null) iconFile.link = link;
+  if (fileMimetype !== null) iconFile.fileMimetype = fileMimetype;
+  if (fileName !== null) iconFile.fileName = fileName;
+  if (fileExtension !== null) iconFile.fileExtension = fileExtension;
   const payloadData = new Array<any>();
   payloadData.push(['userData', userData]);
   if (isIconFile) payloadData.push(['iconFile', iconFile]);
@@ -182,7 +184,7 @@ export function getUserUpdateQuery({
   const payload: InjectPayload = Object.fromEntries(payloadData);
   const query: InjectOptions = {
     method: 'POST',
-    url: '/user/update',
+    url: withFormdata ? '/user/updateWithFormdata' : '/user/update',
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',

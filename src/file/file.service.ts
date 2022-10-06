@@ -30,7 +30,7 @@ export class FileService {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const uploadDir = 'uploads';
       const now = new Date();
-      let path = [data.parentType, now.getFullYear(), now.getMonth() + 1, now.getDate()].join('/');
+      const path = [data.parentType, now.getFullYear(), now.getMonth() + 1, now.getDate()].join('/');
       const checkPath = uploadDir + '/' + path;
       if (!(await fs.promises.stat(checkPath).catch(() => false)))
         await fs.promises.mkdir(checkPath, { recursive: true });
@@ -52,14 +52,15 @@ export class FileService {
         parentType: data.parentType,
         parentId: data.parentId,
         fileType: data.fileType,
+        config: process.env.MODE === 'TEST' ? '{ "fake": true }' : '{}',
       };
       this.logger.sendLog({ fileData });
       const createData = await this.utils.queryDB(
         `--sql
           INSERT INTO "file"   ("link", "fileName", "fileExtension", "fileMimetype", "fileSize", 
-                                    "parentType", "parentId", "fileType", "addTime", "updateTime") 
-                          VALUES  (:link, :fileName, :fileExtension, :fileMimetype, :fileSize, 
-                                    :parentType, :parentId, :fileType, NOW(), NOW())
+                          "parentType", "parentId", "fileType", "addTime", "updateTime", "config") 
+                      VALUES  (:link, :fileName, :fileExtension, :fileMimetype, :fileSize, 
+                          :parentType, :parentId, :fileType, NOW(), NOW(), :config)
           RETURNING id
         `,
         { type: QueryTypes.INSERT, replacements: fileData, transaction },

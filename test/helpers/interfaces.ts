@@ -46,6 +46,7 @@ export interface updateQueryIconFileI {
   fileMimetype?: string | null;
   fileName?: string | null;
   fileExtension?: string | null;
+  link?: string | null;
 }
 
 export interface userUpdateBuildParamsI extends updateQueryIconFileI {
@@ -56,6 +57,7 @@ export interface userUpdateBuildParamsI extends updateQueryIconFileI {
   phoneCode?: string;
   isIconFile?: boolean;
   userId?: string | null;
+  withFormdata?: boolean;
 }
 
 export interface payloadArrItemI {
