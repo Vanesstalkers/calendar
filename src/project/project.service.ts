@@ -108,9 +108,9 @@ export class ProjectServiceSingleton {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const upsertData = await this.utils.queryDB(
         `--sql
-          INSERT INTO  "project_to_user" 
+          INSERT INTO   "project_to_user" 
                         ("projectId", "userId", "addTime", "updateTime") 
-                VALUES  (:projectId, :userId, NOW(), NOW())
+          VALUES        (:projectId, :userId, NOW(), NOW())
           ON CONFLICT   ("projectId", "userId") 
           DO UPDATE SET "projectId" = EXCLUDED."projectId"
                       , "userId" = EXCLUDED."userId"
@@ -155,7 +155,8 @@ export class ProjectServiceSingleton {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       await this.updateUserLink(projectToUserLinkId, { deleteTime: new Date() }, transaction);
       await this.utils.queryDB(
-        `--sql
+        [
+          `--sql
           WITH  owner     AS (
                   SELECT    "userId" 
                   FROM      project_to_user 
@@ -175,16 +176,18 @@ export class ProjectServiceSingleton {
                   , "endTime" = NULL
                   , "updateTime" = NOW()
           WHERE     "id" IN (SELECT "id" FROM taskList)
-                AND "deleteTime" IS NULL;
-
+                AND "deleteTime" IS NULL
+      `,
+          `--sql
           UPDATE    "task_to_user" as t2u
           SET       "deleteTime" = NOW(), "updateTime" = NOW()
           FROM      task as t
           WHERE     t."id" = t2u."taskId"
                 AND t2u."userId" = :userId
                 AND t."projectId" = :projectId
-                AND t2u."deleteTime" IS NULL;
+                AND t2u."deleteTime" IS NULL
         `,
+        ].join(';'),
         { replacements: { userId, projectId }, type: QueryTypes.SELECT, transaction },
       );
     });

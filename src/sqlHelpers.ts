@@ -65,7 +65,7 @@ export function selectProjectToUserLink(
     '"position"',
     'p2u."personal"',
     '"userName"',
-    `(${this.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"`,
+    `(${this.selectIcon('project_to_user', 'p2u', ['user', 'u'])}) AS "userIconFileId"`,
   ];
   if (config.showLinkConfig) select.push('p2u."config"');
   const where = ['p2u."deleteTime" IS NULL'];
@@ -113,7 +113,7 @@ export function foreignPersonalProjectList() {
           AND p2u."role" = 'member'
           AND p2u."deleteTime" IS NULL
           AND p.personal = true
-    GROUP BY  p.id;
+    GROUP BY  p.id
     `;
 }
 export function foreignPersonalProjectListByTasks() {

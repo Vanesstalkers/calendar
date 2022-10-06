@@ -68,13 +68,6 @@ export class UserController {
     return { ...httpAnswer.OK, data: { linkCode } };
   }
 
-  // @nestjs.Post('create')
-  async create(@nestjs.Body() data: userAuthQueryDataDTO, @nestjs.Session() session: FastifySession) {
-    const createResult = await this.userService.create(data);
-    return httpAnswer.OK;
-  }
-
-  //@nestjs.Post('registration')
   async registration(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
@@ -93,7 +86,6 @@ export class UserController {
     return { ...httpAnswer.OK, msg: 'wait for auth code', data: { code } }; // !!! убрать code после отладки
   }
 
-  //@nestjs.Post('login')
   async login(@nestjs.Body() data: userAuthQueryDTO, @nestjs.Session() session: FastifySession) {
     const phone = data.userData.phone;
     if (this.utils.validatePhone(phone))
@@ -231,7 +223,7 @@ export class UserController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.search({ model: userSearchAnswerDTO }))
   async search(@nestjs.Body() data: userSearchQueryDTO, @nestjs.Session() session: FastifySession) {
-    data.userId = await this.sessionService.getUserId(session);
+    data.userId = session.userId;
     const result = await this.userService.search(data);
     return { ...httpAnswer.OK, data: { resultList: result.data, endOfList: result.endOfList } };
   }
@@ -244,7 +236,7 @@ export class UserController {
     @nestjs.Session() session: FastifySession,
   ) {
     const projectId = parseInt(data.projectId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const project = await this.projectInstance.init(projectId, sessionUserId);
     const currentProjectId = project.id;
 

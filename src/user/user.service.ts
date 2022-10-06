@@ -44,7 +44,10 @@ export class UserServiceSingleton {
                                         , "position"
                                         , p2u."personal"
                                         , "userName"
-                                        , (${sql.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"
+                                        , (${sql.selectIcon('project_to_user', 'p2u', [
+                                          'user',
+                                          'u',
+                                        ])}) AS "userIconFileId"
                                 FROM      "project_to_user" p2u
                                 WHERE     p2u."projectId" = (u.config ->> 'personalProjectId')::integer 
                                       AND p2u."userId" != u.id

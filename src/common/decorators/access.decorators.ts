@@ -15,13 +15,8 @@ export class validateSession implements CanActivate {
 }
 @nestjs.Injectable()
 export class isLoggedIn implements CanActivate {
-  constructor(
-    //private reflector: Reflector
-    private sessionService: SessionService,
-    private logger: LoggerService,
-  ) {}
+  constructor(private sessionService: SessionService, private logger: LoggerService) {}
   async canActivate(context: nestjs.ExecutionContext) {
-    // const role = this.reflector.get<string>('role', context.getHandler());
     const request = context.switchToHttp().getRequest();
     if ((await this.sessionService.isLoggedIn(request.session)) !== true) {
       await this.logger.startLog(request); // запрос не попадет в interceptor, где происходит дефолтная стартовая запись в лог

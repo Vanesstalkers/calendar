@@ -66,7 +66,7 @@ export class ProjectController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() projectData: projectCreateQueryDTO, @nestjs.Session() session: FastifySession) {
-    const userId = await this.sessionService.getUserId(session);
+    const userId = session.userId;
     if (!projectData.userList) projectData.userList = [];
     // !!! тут ошибка, если у item.userId === userId не указана role (надо перенести в projectInstance - добавить validateDataForCreate)
     if (!projectData.userList.find((item) => item.userId === userId)) {
@@ -82,7 +82,7 @@ export class ProjectController {
   async getOne(@nestjs.Query() data: projectGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
     const project = await this.projectInstance.init(projectId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
 
     const result = await this.projectService.getOne({ id: projectId, userId: sessionUserId });
@@ -95,7 +95,7 @@ export class ProjectController {
   async update(@nestjs.Body() data: projectUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
     const projectId = data.projectId;
     const project = await this.projectInstance.init(projectId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
     project.validateDataForUpdate(data.projectData);
 
@@ -110,7 +110,7 @@ export class ProjectController {
     const projectId = data.projectId;
     const toUserId = data.userId;
     if (!toUserId) throw new nestjs.BadRequestException('User ID is empty');
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const project = await this.projectInstance.init(projectId, sessionUserId);
     if (project.isPersonal())
       throw new nestjs.BadRequestException(`Access denied to transfer personal project (id=${projectId})`);
@@ -142,7 +142,7 @@ export class ProjectController {
     const userId = data.userId;
     if (!userId) throw new nestjs.BadRequestException('User ID is empty');
     const project = await this.projectInstance.init(projectId, userId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
 
     const updateData: { userId?: number; userName?: string; position?: string; iconFile?: fileUploadQueryFileDTO } = {};
@@ -167,7 +167,7 @@ export class ProjectController {
     const userId = parseInt(data.userId);
     if (!userId) throw new nestjs.BadRequestException('User ID is empty');
     const project = await this.projectInstance.init(projectId, userId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
 
     const updateData: { userId?: number; userName?: string; position?: string; iconFile?: fileDTO } = {};
@@ -188,7 +188,7 @@ export class ProjectController {
     const userId = data.userId;
     await this.userInstance.init(userId);
     const project = await this.projectInstance.init(projectId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
 
     const updateData: projectUserLinkDTO = { userId, position: data.position, userName: data.userName };
@@ -206,7 +206,7 @@ export class ProjectController {
     const userId = data.userId;
     if (!userId) throw new nestjs.BadRequestException('User ID is empty');
     const project = await this.projectInstance.init(projectId, userId);
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
     if (project.isPersonal()) throw new nestjs.BadRequestException('Access denied to delete personal project');
     if (project.isOwner(userId))
