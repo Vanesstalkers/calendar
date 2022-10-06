@@ -1,5 +1,14 @@
 import { InjectOptions, InjectPayload } from 'light-my-request';
-import { authQueryUserDataI, userAuthBuildParamsI, userCodeBuildParamsI, userSearchBuildParamsI } from './interfaces';
+import {
+  authQueryUserDataI,
+  payloadArrItemI,
+  updateQueryIconFileI,
+  updateQueryUserDataI,
+  userAuthBuildParamsI,
+  userCodeBuildParamsI,
+  userSearchBuildParamsI,
+  userUpdateBuildParamsI,
+} from './interfaces';
 import { phones } from './constants.json';
 
 // injection query builders per route
@@ -97,45 +106,18 @@ export function getUserGetOneQuery({ cookie, userId }: { cookie?: string; userId
 }
 
 export function getUserSearchQuery({
-  queryStr = 'Test_User1',
+  queryStr = '',
   globalSearch = true,
   limit = 50,
   offset = 0,
   cookie,
 }: userSearchBuildParamsI) {
-  let payload: InjectPayload;
-  if (queryStr === null) {
-    payload = {
-      globalSearch,
-      limit,
-      offset,
-    };
-  } else if (globalSearch === null) {
-    payload = {
-      query: queryStr,
-      limit,
-      offset,
-    };
-  } else if (limit === null) {
-    payload = {
-      query: queryStr,
-      globalSearch,
-      offset,
-    };
-  } else if (offset === null) {
-    payload = {
-      query: queryStr,
-      globalSearch,
-      limit,
-    };
-  } else {
-    payload = {
-      query: queryStr,
-      globalSearch,
-      limit,
-      offset,
-    };
-  }
+  const payloadData = new Array<any>();
+  if (queryStr !== null) payloadData.push(['query', queryStr]);
+  if (globalSearch !== null) payloadData.push(['globalSearch', globalSearch]);
+  if (limit !== null) payloadData.push(['limit', limit]);
+  if (offset !== null) payloadData.push(['offset', offset]);
+  const payload: InjectPayload = Object.fromEntries(payloadData);
   const query: InjectOptions = {
     method: 'POST',
     url: '/user/search',
@@ -161,6 +143,52 @@ export function getUserChangeCurrentProjectQuery({ cookie, projectId }: { cookie
     payload: {},
   };
   if (!projectId) delete query.query;
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
+
+export function getUserUpdateQuery({
+  userId = null,
+  phone = null,
+  cookie = null,
+  name = 'Test_User1',
+  timezone = 'Europe/Saratov',
+  phoneCode = '7',
+  fileContent = null,
+  fileMimetype = null,
+  fileName = null,
+  fileExtension = null,
+  isIconFile = false,
+}: userUpdateBuildParamsI) {
+  const userData: updateQueryUserDataI = {
+    name,
+    timezone,
+    config: {
+      phoneCode,
+      fake: true,
+    },
+  };
+  const iconFile: updateQueryIconFileI = {
+    fileContent,
+    fileMimetype,
+    fileName,
+    fileExtension,
+  };
+  if (phone) userData.phone = phone;
+  const payloadData = new Array<any>();
+  payloadData.push(['userData', userData]);
+  if (isIconFile) payloadData.push(['iconFile', iconFile]);
+  if (userId !== null) payloadData.push(['userId', userId]);
+  const payload: InjectPayload = Object.fromEntries(payloadData);
+  const query: InjectOptions = {
+    method: 'POST',
+    url: '/user/update',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    payload,
+  };
   if (cookie) query.headers.cookie = cookie;
   return query;
 }

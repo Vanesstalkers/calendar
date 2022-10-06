@@ -8,8 +8,6 @@ import {
   getUserChangeCurrentProjectQuery,
   getUserCodeQuery,
   getUserGetOneQuery,
-  getUserLogoutQuery,
-  getUserSearchQuery,
   getUserSessionQuery,
 } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';

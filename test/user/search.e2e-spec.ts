@@ -293,7 +293,7 @@ describe('UserController /user/search (e2e)', () => {
       expect(resultItem.id).not.toBeNaN();
       expect(resultItem.phone).toBeDefined();
       expect(resultItem.name).toBeDefined();
-      expect(resultItem.iconFileId).toEqual(null);
+      expect(resultItem.iconFileId).toBeDefined();
     }
   });
 
@@ -308,7 +308,7 @@ describe('UserController /user/search (e2e)', () => {
     const result2 = await app.inject(query2);
     const cookie2 = result2.headers['set-cookie'].toString();
     // step 3: search
-    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, queryStr: '', globalSearch: 'qwe' });
+    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, globalSearch: 'qwe' });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
     expect(result3.statusCode).toEqual(200);
@@ -321,7 +321,7 @@ describe('UserController /user/search (e2e)', () => {
       expect(resultItem.id).not.toBeNaN();
       expect(resultItem.phone).toBeDefined();
       expect(resultItem.name).toBeDefined();
-      expect(resultItem.iconFileId).toEqual(null);
+      expect(resultItem.iconFileId).toBeDefined();
     }
   });
 
@@ -336,7 +336,7 @@ describe('UserController /user/search (e2e)', () => {
     const result2 = await app.inject(query2);
     const cookie2 = result2.headers['set-cookie'].toString();
     // step 3: search
-    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, queryStr: '', globalSearch: null });
+    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, globalSearch: null });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
     expect(result3.statusCode).toEqual(200);
@@ -358,7 +358,7 @@ describe('UserController /user/search (e2e)', () => {
     const result2 = await app.inject(query2);
     const cookie2 = result2.headers['set-cookie'].toString();
     // step 3: search
-    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, queryStr: '', offset: badOffset });
+    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, offset: badOffset });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
     expect(result3.statusCode).toEqual(400);
@@ -380,7 +380,7 @@ describe('UserController /user/search (e2e)', () => {
     const result2 = await app.inject(query2);
     const cookie2 = result2.headers['set-cookie'].toString();
     // step 3: search
-    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, queryStr: '', offset: null });
+    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, offset: null });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
     expect(result3.statusCode).toEqual(500);
@@ -401,7 +401,7 @@ describe('UserController /user/search (e2e)', () => {
     const result2 = await app.inject(query2);
     const cookie2 = result2.headers['set-cookie'].toString();
     // step 3: search
-    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, queryStr: '', limit: badLimit });
+    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, limit: badLimit });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
     expect(result3.statusCode).toEqual(400);
@@ -423,7 +423,7 @@ describe('UserController /user/search (e2e)', () => {
     const result2 = await app.inject(query2);
     const cookie2 = result2.headers['set-cookie'].toString();
     // step 3: search
-    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, queryStr: '', limit: null });
+    const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, limit: null });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
     expect(result3.statusCode).toEqual(400);
@@ -437,7 +437,7 @@ describe('UserController /user/search (e2e)', () => {
   it('/user/search (POST) err bad cookie', async () => {
     const badCookie = 'qqq';
     // step 1: search
-    const query1: InjectOptions = getUserSearchQuery({ cookie: badCookie, queryStr: '' });
+    const query1: InjectOptions = getUserSearchQuery({ cookie: badCookie });
     const result1 = await app.inject(query1);
     const payload1 = JSON.parse(result1.payload);
     expect(result1.statusCode).toEqual(403);
@@ -450,7 +450,7 @@ describe('UserController /user/search (e2e)', () => {
 
   it('/user/search (POST) err missing cookie', async () => {
     // step 1: search
-    const query1: InjectOptions = getUserSearchQuery({ queryStr: '' });
+    const query1: InjectOptions = getUserSearchQuery({});
     const result1 = await app.inject(query1);
     const payload1 = JSON.parse(result1.payload);
     expect(result1.statusCode).toEqual(403);
