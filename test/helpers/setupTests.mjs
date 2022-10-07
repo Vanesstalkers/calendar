@@ -1,6 +1,13 @@
 import { readFile, unlink, writeFile } from 'fs/promises';
 import { Sequelize } from 'sequelize';
 
+async function unlinkIfExists(path) {
+  try {
+    await stat(path);
+    await unlink(path);
+  } catch (error) {}
+}
+
 async function prepare() {
   try {
     const phonesArr = [];
@@ -29,7 +36,7 @@ async function prepare() {
     const filesListResult = await sequelize.query(filesListSql, {});
     const filesList = filesListResult[0].map((item) => item.link);
     for (let index = 0; index < filesList.length; index++) {
-      await unlink(`uploads/${filesList[index]}`);
+      await unlinkIfExists(`uploads/${filesList[index]}`);
     }
     // clear DB
     const deleteSql = `--psql
