@@ -28,12 +28,20 @@ describe('UserController /user/updateWithFormdata (e2e)', () => {
   const sourcePath = `test/assets/${fileName}`;
   const destPath = `uploads/${fileName}`;
 
+  async function unlinkIfExists(path: string) {
+    try {
+      await stat(path);
+      await unlink(path);
+    } catch (error) {}
+  }
+
   beforeAll(async () => {
     moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = await prepareApp(moduleFixture);
+    await unlinkIfExists(destPath);
   });
 
   afterAll(async () => {
@@ -46,10 +54,7 @@ describe('UserController /user/updateWithFormdata (e2e)', () => {
   });
 
   afterEach(async () => {
-    try {
-      await stat(destPath);
-      await unlink(destPath);
-    } catch (error) {}
+    await unlinkIfExists(destPath);
   });
 
   it('/user/updateWithFormdata (POST) ok', async () => {

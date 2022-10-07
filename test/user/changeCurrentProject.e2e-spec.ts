@@ -145,12 +145,11 @@ describe('UserController /user/changeCurrentProject (e2e)', () => {
     expect(payload3.status).toEqual('err');
     expect(payload3.timestamp).toBeDefined();
     expect(payload3.path).toEqual(`/user/changeCurrentProject?projectId=${badProjectId}`);
-    expect(payload3.msg).toEqual(`invalid input syntax for type integer: "${badProjectId}"`);
-    expect(payload3.code).toEqual('DB_BAD_QUERY');
+    expect(payload3.msg).toEqual('Project ID is empty');
   });
 
   it('/user/changeCurrentProject (POST) err bad projectId 2', async () => {
-    const badProjectId = '1';
+    const badProjectId = '999999999';
     // step 1: auth
     const phone = getPhone();
     const query1: InjectOptions = getUserAuthQuery({ phone });
