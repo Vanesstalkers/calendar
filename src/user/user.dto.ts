@@ -25,7 +25,6 @@ class userConfigWithCurProjectDTO {
   currentProjectId?: number;
   @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
   personalProjectId?: number;
-  sessionStorageId?: string;
 }
 
 export class userAuthQueryDataDTO {
@@ -76,6 +75,7 @@ export class userGetOneAnswerDTO {
   timezone: string;
   @swagger.ApiProperty({ description: 'Конфиг пользователя', type: userConfigWithCurProjectDTO })
   config: userConfigWithCurProjectDTO;
+  sessions: object;
   @swagger.ApiProperty({ description: 'Список проектов', type: [userGetOneAnswerProjectDTO] })
   projectList: userGetOneAnswerProjectDTO[];
   // @swagger.ApiProperty({ description: 'Список контактов', type: [userContactListDTO] })
@@ -129,6 +129,7 @@ export class userUpdateQueryDataDTO {
   timezone?: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigUpdateDTO })
   config?: object;
+  sessions?: object;
   iconFile?: fileDTO;
 }
 

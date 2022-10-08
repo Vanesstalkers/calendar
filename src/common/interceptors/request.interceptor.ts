@@ -16,8 +16,8 @@ export class PostStatusInterceptor {
     if (request.isMultipart()) request.body = await this.utils.parseMultipart(request);
 
     await this.logger.startLog(request);
-    const storage = await this.sessionService.getStorage(request.session);
-    await this.logger.sendLog([{ storage }]);
+    const sessionData = await this.sessionService.get(request.session.id);
+    await this.logger.sendLog([{ sessionData }]);
 
     return next.handle().pipe(
       map(async (value) => {

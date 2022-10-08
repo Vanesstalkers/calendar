@@ -80,7 +80,7 @@ export class TaskController {
     // !!! кейсы для тестирования: добавление задачи самому себе, добавление задачи самому себе в личный проект, добавление задачи исполнителю, добавление задачи исполнителю в личный проект
 
     if (!data.taskData) throw new nestjs.BadRequestException('Task data is empty');
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     data.taskData.projectId = data.projectId;
     data.taskData.ownUserId = sessionUserId;
     await this.taskInstance.validateDataForCreate(data.taskData, sessionUserId);
@@ -94,7 +94,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success({ models: [taskGetOneAnswerDTO] }))
   async getOne(@nestjs.Query() data: taskGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId });
 
     const result = await this.taskService.getOne({ id: taskId });
@@ -109,7 +109,7 @@ export class TaskController {
     if (data.limit === undefined || data.offset === undefined)
       throw new nestjs.BadRequestException('Limit and offset must be defined');
 
-    const sessionData = await this.sessionService.getState(session);
+    const sessionData = await this.sessionService.get(session.id);
     data.userId = sessionData.userId;
     data.projectId = sessionData.currentProjectId;
     const result = await this.taskService.search(data);
@@ -124,7 +124,7 @@ export class TaskController {
     if (!data.queryType) throw new nestjs.BadRequestException('Query type is empty');
     if (!data.queryData) throw new nestjs.BadRequestException('Query data is empty');
 
-    const sessionData = await this.sessionService.getState(session);
+    const sessionData = await this.sessionService.get(session.id);
     const sessionUserId = sessionData.userId;
     const sessionUserCurrentProject = await this.projectInstance.init(sessionData.currentProjectId, sessionUserId);
 
@@ -145,7 +145,7 @@ export class TaskController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success())
   async update(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskUpdateQueryDTO) {
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const taskId = data.taskId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId });
     await task.validateDataForUpdate(data.taskData);
@@ -179,7 +179,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async execute(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskExecuteQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId });
 
     const taskStatus = task.getStatus();
@@ -217,7 +217,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async updateUserStatus(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskUpdateUserStatusQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     if (!data.userId) data.userId = sessionUserId;
     const task = await this.taskInstance.init(taskId, { consumerId: data.userId, allowMemberOnly: true });
 
@@ -230,7 +230,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async delete(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskDeleteQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId, allowOwnerOnly: true });
 
     await this.taskService.update(taskId, { deleteTime: new Date() });
@@ -242,7 +242,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async restore(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskRestoreQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, {
       consumerId: sessionUserId,
       canBeDeleted: true,
@@ -258,7 +258,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async resetUserList(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskResetUsersQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
 
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId, allowOwnerOnly: true });
     await task.validateDataForUpdate(data.taskData);
@@ -278,7 +278,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteUser(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskDeleteUserQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId, allowOwnerOnly: true });
     if (!task.isMember(data.userId)) {
       throw new nestjs.BadRequestException(`Task (id=${taskId}) not found for user (id=${data.userId})`);
@@ -293,7 +293,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteTick(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskDeleteTickQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId, allowOwnerOnly: true });
     const tick = await this.taskService.getTick(taskId, data.tickId);
     if (!tick) throw new nestjs.BadRequestException(`Tick (id=${data.tickId}) not found for task (id=${taskId})`);
@@ -307,7 +307,7 @@ export class TaskController {
   @swagger.ApiResponse(new interfaces.response.success())
   async deleteHashtag(@nestjs.Session() session: FastifySession, @nestjs.Body() data: taskDeleteHashtagQueryDTO) {
     const taskId = data.taskId;
-    const sessionUserId = await this.sessionService.getUserId(session);
+    const sessionUserId = session.userId;
     const task = await this.taskInstance.init(taskId, { consumerId: sessionUserId, allowOwnerOnly: true });
     const hashtag = await this.taskService.getHashtag(taskId, data.name);
     if (!hashtag) throw new nestjs.BadRequestException(`Hashtag (name=${data.name}) not found for task (id=${taskId})`);

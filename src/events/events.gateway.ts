@@ -1,41 +1,57 @@
 import * as nestjs from '@nestjs/common';
 import * as ws from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-
-import { AppServiceSingleton } from '../app.service';
+import { httpAnswer } from '../globalImport';
 import { SessionServiceSingleton } from '../session/session.service';
+import { UtilsServiceSingleton } from '../utils/utils.service';
 
 @ws.WebSocketGateway({ cors: { origin: '*' } })
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class EventsGateway {
-  constructor(private appService: AppServiceSingleton, private sessionService: SessionServiceSingleton) {}
+  constructor(private sessionService: SessionServiceSingleton, private utils: UtilsServiceSingleton) {}
   @ws.WebSocketServer() server: Server;
 
   async handleDisconnect(socket: Socket) {}
 
   async handleConnection(socket: Socket) {
-    return { status: 'ok' };
+    return httpAnswer.OK;
+  }
+
+  async wsExceptionCatcher(fn) {
+    try {
+      const result = await fn();
+      return { ...httpAnswer.OK, data: result };
+    } catch (err) {
+      return { ...httpAnswer.ERR, msg: err.message };
+    }
   }
 
   @ws.SubscribeMessage('linkSession')
-  async handleLinkSession(@ws.MessageBody() data: string, @ws.ConnectedSocket() client: Socket) {
-    const storageId: string = await this.appService.getFromCache(data);
-    await this.appService.deleteFromCache(data);
-    await this.sessionService.updateStorageById(storageId, { eventsId: client.id });
+  async handleLinkSession(@ws.ConnectedSocket() client: Socket) {
+    return this.wsExceptionCatcher(async () => {
+      const cookie = client.handshake.headers.cookie;
+      if (!cookie) throw new nestjs.BadRequestException('HTTP session not found (send http-request first)');
+
+      const parsedCookie = this.utils.parseCookies(cookie);
+      const decodedCookie = await this.utils.decodedSecureString(parsedCookie.session);
+      const sessionId = decodedCookie.id;
+      const sessionIsAlive = await this.sessionService.get(sessionId);
+      if (!sessionIsAlive) throw new nestjs.BadRequestException('Unknown session');
+
+      await this.sessionService.update(sessionId, { eventsId: client.id });
+    });
   }
 
-  @ws.SubscribeMessage('message')
+  @ws.SubscribeMessage('call')
   async handleMessage(
-    @ws.MessageBody() data: { controller: string; method: string; requestData: any },
+    @ws.MessageBody() data: { controller: string; method: string; data: any },
     @ws.ConnectedSocket() client: Socket,
   ) {
-    // if (this[data.controller] && this[data.controller][data.method]) {
-    //   try {
-    //     return await this[data.controller][data.method](data.requestData);
-    //   } catch (err) {
-    //     return { status: 'error', err };
-    //   }
-    // }
-    return data;
+    return this.wsExceptionCatcher(async () => {
+      if (this[data.controller] && this[data.controller][data.method]) {
+        return await this[data.controller][data.method](data);
+      }
+      return data;
+    });
   }
 }

@@ -17,7 +17,10 @@ export class UserServiceSingleton {
     public fileService: FileServiceSingleton,
   ) {}
 
-  async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}) {
+  async getOne(
+    data: { id?: number; phone?: string },
+    config: { includeSessions: boolean } = { includeSessions: false },
+  ) {
     const findData = await this.utils.queryDB(
       `--sql
           SELECT    u.id
@@ -25,6 +28,7 @@ export class UserServiceSingleton {
                   , u.phone
                   , u.timezone
                   , u.config
+                  ${config.includeSessions ? ', u.sessions' : ''}
                   , array(
                     ${sql.selectProjectToUserLink(
                       { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
@@ -66,10 +70,12 @@ export class UserServiceSingleton {
     return findData[0] || null;
   }
 
-  async search(data: userSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
+  async search(data: userSearchQueryDTO) {
     const customWhere = ['', 'u."deleteTime" IS NULL'];
     if (!data.globalSearch) customWhere.push('u2u.id IS NOT NULL');
 
+    if (!data.limit) data.limit = 50;
+    if (!data.offset) data.offset = 0;
     const findData = await this.utils.queryDB(
       `--sql
         SELECT    u.id
@@ -160,7 +166,7 @@ export class UserServiceSingleton {
         table: 'user',
         id: userId,
         data: updateData,
-        jsonKeys: ['config'],
+        jsonKeys: ['config', 'sessions'],
         handlers: {
           iconFile: async (value: any) => {
             await this.fileService.create(

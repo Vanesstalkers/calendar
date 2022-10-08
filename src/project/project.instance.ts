@@ -10,7 +10,8 @@ export class ProjectInstanceSingleton {
   consumer: UserInstanceSingleton;
   constructor(public projectService: ProjectServiceSingleton, public userInstance: UserInstanceSingleton) {}
   /**
-   * @fires {@link UserInstance.init}
+   * @fires {@link UserInstanceSingleton.init}
+   * @fires {@link ProjectInstanceSingleton.checkIsMember}
    * @throws `Project ID is empty`
    * @throws `Project (id=${projectId}) not exist`
    */

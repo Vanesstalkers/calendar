@@ -63,10 +63,7 @@ export class ProjectServiceSingleton {
   async transfer({ projectId, fromUserId, toUserId, fromUserLinkId, toUserLinkId }, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       await this.updateUserLink(toUserLinkId, { role: 'owner' }, transaction);
-      await this.deleteUserWithTasks(
-        { projectId, userId: fromUserId, projectToUserLinkId: fromUserLinkId },
-        transaction,
-      );
+      await this.updateUserLink(fromUserLinkId, { role: 'member' }, transaction);
     });
   }
 
