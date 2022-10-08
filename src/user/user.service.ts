@@ -28,16 +28,14 @@ export class UserServiceSingleton {
                   , u.phone
                   , u.timezone
                   , u.config
-                  ${config.includeSessions ? ', u.sessions' : ''}
+                  , CAST(u.config ->> 'iconFileId' AS INTEGER) AS "iconFileId"
+                    ${config.includeSessions ? ', u.sessions' : ''}
                   , array(
-                    ${sql.selectProjectToUserLink(
-                      { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
-                      { addProjectData: true, showLinkConfig: true },
-                    )}
-                  ) AS "projectList"
-                  , (
-                    ${sql.selectIcon('user', 'u')}
-                  ) AS "iconFileId"
+                      ${sql.selectProjectToUserLink(
+                        { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
+                        { addProjectData: true, showLinkConfig: true },
+                      )}
+                    ) AS "projectList"
                   , array(
                     SELECT    row_to_json(ROW)
                     FROM      (
@@ -48,10 +46,14 @@ export class UserServiceSingleton {
                                         , "position"
                                         , p2u."personal"
                                         , "userName"
-                                        , (${sql.selectIcon('project_to_user', 'p2u', [
-                                          'user',
-                                          'u',
-                                        ])}) AS "userIconFileId"
+                                        , (CASE WHEN p2u.config ->> 'userIconFileId' IS NOT NULL
+                                            THEN CAST(p2u.config ->> 'userIconFileId' AS INTEGER)
+                                            ELSE (
+                                              SELECT "id" FROM "file"
+                                              WHERE "parentId" = p2u."userId" AND "parentType" = 'user' AND "fileType" = 'icon' AND "deleteTime" IS NULL
+                                              ORDER BY "addTime" DESC LIMIT 1
+                                            )  
+                                          END) AS "userIconFileId"
                                 FROM      "project_to_user" p2u
                                 WHERE     p2u."projectId" = (u.config ->> 'personalProjectId')::integer 
                                       AND p2u."userId" != u.id
@@ -81,7 +83,7 @@ export class UserServiceSingleton {
         SELECT    u.id
                 , u.phone
                 , u.name
-                , ( ${sql.selectIcon('user', 'u')} ) AS "iconFileId"
+                , CAST(u.config ->> 'iconFileId' AS INTEGER) AS "iconFileId"
         FROM      "user" u
                   LEFT JOIN "user_to_user" u2u ON u2u."userId" = :userId
                                               AND u2u."contactId" = u.id
@@ -162,22 +164,30 @@ export class UserServiceSingleton {
   async update(userId: number, updateData: userUpdateQueryDataDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (updateData.phone) delete updateData.phone; // менять номер телефона запрещено
+
+      let uploadedFile: { id?: number } = {};
+      if (updateData.iconFile !== undefined) {
+        if (!updateData.config) updateData.config = {};
+        if (updateData.iconFile === null) {
+          updateData.config.iconFileId = null;
+        } else {
+          uploadedFile = await this.fileService.create(
+            Object.assign(updateData.iconFile, { parentType: 'user', parentId: userId, fileType: 'icon' }),
+          );
+          updateData.config.iconFileId = uploadedFile.id;
+        }
+        delete updateData.iconFile;
+      }
+
       await this.utils.updateDB({
         table: 'user',
         id: userId,
         data: updateData,
         jsonKeys: ['config', 'sessions'],
-        handlers: {
-          iconFile: async (value: any) => {
-            await this.fileService.create(
-              Object.assign(value, { parentType: 'user', parentId: userId, fileType: 'icon' }),
-              transaction,
-            );
-            return { preventDefault: true };
-          },
-        },
         transaction,
       });
+
+      return { uploadedFile };
     });
   }
 

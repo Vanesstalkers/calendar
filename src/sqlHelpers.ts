@@ -5,47 +5,6 @@ export function json(sql: string) {
     `;
 }
 
-export function selectIcon(table: string, tableSym: string, [baseTable, baseTableSym] = []) {
-  return baseTable
-    ? `--sql
-      SELECT    id
-      FROM      ((
-                  SELECT    "id", 1 as "order"
-                  FROM      "file"
-                  WHERE     "parentId" = ${tableSym}.id
-                        AND "parentType" = '${table}'
-                        AND "fileType" = 'icon'
-                        AND "deleteTime" IS NULL
-                  ORDER BY  "addTime"
-                            DESC
-                  LIMIT     1
-                ) UNION ALL (
-                  SELECT    "id", 2 as "order"
-                  FROM      "file"
-                  WHERE     "parentId" = ${baseTableSym}.id
-                        AND "parentType" = '${baseTable}' 
-                        AND "fileType" = 'icon'
-                        AND "deleteTime" IS NULL
-                  ORDER BY  "addTime"
-                            DESC
-                  LIMIT     1
-                )) as f
-      ORDER BY "order"
-      LIMIT 1
-    `
-    : `--sql
-      SELECT    "id"
-      FROM      "file"
-      WHERE     "parentId" = ${tableSym}.id
-            AND "parentType" = '${table}' 
-            AND "fileType" = 'icon'
-            AND "deleteTime" IS NULL
-      ORDER BY  "addTime"
-                DESC
-      LIMIT     1
-    `;
-}
-
 export function selectProjectToUserLink(
   data: { projectId?: string; userId?: string },
   config: {
@@ -65,24 +24,38 @@ export function selectProjectToUserLink(
     '"position"',
     'p2u."personal"',
     '"userName"',
-    `(${this.selectIcon('project_to_user', 'p2u', ['user', 'u'])}) AS "userIconFileId"`,
+    `(CASE WHEN p2u.config ->> 'userIconFileId' IS NOT NULL
+        THEN CAST(p2u.config ->> 'userIconFileId' AS INTEGER)
+        ELSE (
+          SELECT "id" FROM "file"
+          WHERE "parentId" = u.id AND "parentType" = 'user' AND "fileType" = 'icon' AND "deleteTime" IS NULL
+          ORDER BY "addTime" DESC LIMIT 1
+        )  
+      END) AS "userIconFileId"`,
   ];
   if (config.showLinkConfig) select.push('p2u."config"');
   const where = ['p2u."deleteTime" IS NULL'];
 
   if (config.addUserData) {
     join.push('LEFT JOIN "user" AS u ON u.id = p2u."userId" AND u."deleteTime" IS NULL');
-    // select.push('u."name" AS "baseUserName"');
-    // select.push(`(${this.selectIcon('user', 'u')}) AS "baseUserIconFileId"`);
     select.push('(CASE WHEN "userName" IS NOT NULL THEN "userName" ELSE u."name" END) as "userName"');
-    select.push(`(${this.selectIcon('project_to_user', 'p2u', ['user', 'u'])}) AS "userIconFileId"`);
+    select.push(`
+      (CASE WHEN p2u.config ->> 'userIconFileId' IS NOT NULL
+        THEN CAST(p2u.config ->> 'userIconFileId' AS INTEGER)
+        ELSE (
+          SELECT "id" FROM "file"
+          WHERE "parentId" = u.id AND "parentType" = 'user' AND "fileType" = 'icon' AND "deleteTime" IS NULL
+          ORDER BY "addTime" DESC LIMIT 1
+        )  
+      END) AS "userIconFileId"
+    `);
   }
 
   if (config.skipForeignPersonalProject) config.addProjectData = true;
   if (config.addProjectData) {
     join.push('LEFT JOIN "project" as p ON p.id = p2u."projectId" AND u."deleteTime" IS NULL');
     select.push('p."title"');
-    select.push(`(${this.selectIcon('project', 'p')}) AS "projectIconFileId"`);
+    select.push(`CAST(p.config ->> 'iconFileId' AS INTEGER) AS "projectIconFileId"`);
 
     //if (config.skipForeignPersonalProject) {
     where.push(`(p2u."role" = 'owner' OR p.personal IS DISTINCT FROM true)`);

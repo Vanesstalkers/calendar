@@ -26,8 +26,8 @@ import {
   userUpdateWithFormdataQueryDTO,
   userLinkWsAnswerDTO,
 } from './user.dto';
-
 import { userGetOneAnswerProjectDTO } from '../project/project.dto';
+import { uploadedFileDTO } from '../file/file.dto';
 
 @nestjs.Controller('user')
 @nestjs.UseInterceptors(interceptors.PostStatusInterceptor)
@@ -247,22 +247,30 @@ export class UserController {
 
   @nestjs.Post('update')
   @nestjs.UseGuards(decorators.isLoggedIn)
-  @swagger.ApiResponse(new interfaces.response.success())
+  @swagger.ApiResponse(new interfaces.response.success({ models: [uploadedFileDTO] }))
   async update(@nestjs.Body() data: userUpdateQueryDTO, @nestjs.Session() session: FastifySession) {
     const userId = data.userId;
     if (!data.userData) data.userData = {};
     if (data.userData.phone) throw new nestjs.BadRequestException('Access denied to change phone number');
 
-    if (data.iconFile) data.userData.iconFile = await this.fileInstance.uploadAndGetDataFromBase64(data.iconFile);
-    await this.userService.update(userId, data.userData);
+    if (data.iconFile !== undefined) {
+      if (data.iconFile === null) {
+        data.userData.iconFile = null;
+      } else {
+        data.userData.iconFile = await this.fileInstance.uploadAndGetDataFromBase64(data.iconFile);
+      }
+    }
+    const {
+      uploadedFile: { id: uploadedFileId },
+    } = await this.userService.update(userId, data.userData);
 
-    return httpAnswer.OK;
+    return { ...httpAnswer.OK, data: { uploadedFileId } };
   }
 
   @nestjs.Post('updateWithFormdata')
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiConsumes('multipart/form-data')
-  @swagger.ApiResponse(new interfaces.response.success())
+  @swagger.ApiResponse(new interfaces.response.success({ models: [uploadedFileDTO] }))
   async updateWithFormdata(
     @nestjs.Body() data: userUpdateWithFormdataQueryDTO, // без @nestjs.Body() не будет работать swagger
     @nestjs.Session() session: FastifySession,
@@ -272,8 +280,10 @@ export class UserController {
 
     const userId = data.userId;
     data.userData.iconFile = data.iconFile;
-    await this.userService.update(userId, data.userData);
+    const {
+      uploadedFile: { id: uploadedFileId },
+    } = await this.userService.update(userId, data.userData);
 
-    return httpAnswer.OK;
+    return { ...httpAnswer.OK, data: { uploadedFileId } };
   }
 }

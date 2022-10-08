@@ -115,8 +115,8 @@ export class UtilsServiceSingleton {
           setList.push(`"${key}" = '{}'::jsonb`);
         } else {
           const keysToDelete = [];
-          for(const [key, value] of Object.entries(replaceValue)){
-            if(value === undefined){
+          for (const [key, value] of Object.entries(replaceValue)) {
+            if (value === undefined) {
               keysToDelete.push(`'${key}'`);
               delete replaceValue[key];
             }
@@ -141,10 +141,7 @@ export class UtilsServiceSingleton {
     }
   }
 
-  async withDBTransaction<T>(
-    transaction: Transaction,
-    action: (transaction: Transaction) => Promise<void | T>,
-  ): Promise<void | T> {
+  async withDBTransaction<T>(transaction: Transaction, action: (transaction: Transaction) => Promise<T>): Promise<T> {
     try {
       const createTransaction = !transaction;
       if (createTransaction) transaction = await this.sequelize.transaction();

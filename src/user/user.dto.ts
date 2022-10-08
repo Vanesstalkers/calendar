@@ -8,9 +8,12 @@ export class userCodeQueryDTO {
   code: string;
 }
 
-class userConfigDTO {
+export class userConfigDTO {
   @swagger.ApiPropertyOptional({ description: 'Код страны (без префикса "+")', example: '7' })
-  phoneCode: string;
+  phoneCode?: string;
+  iconFileId?: number;
+  personalProjectId?: number;
+  currentProjectId?: number;
 }
 
 class userConfigUpdateDTO extends userConfigDTO {
@@ -128,9 +131,9 @@ export class userUpdateQueryDataDTO {
   @swagger.ApiPropertyOptional({ description: 'Таймзона', example: 'Europe/Saratov' })
   timezone?: string;
   @swagger.ApiPropertyOptional({ description: 'Конфиг пользователя', type: userConfigUpdateDTO })
-  config?: object;
-  sessions?: object;
+  config?: userConfigDTO;
   iconFile?: fileDTO;
+  sessions?: object;
 }
 
 export class userUpdateQueryDTO {
