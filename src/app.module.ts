@@ -33,7 +33,7 @@ try {
     models: ['/models'],
     autoLoadModels: true,
     synchronize: false, // если удалить или поставить в true, то начнет перетирать данные
-    // logging: false,
+    logging: false,
   });
 } catch (err) {
   // !!! нужно пробросить корректную ошибку
