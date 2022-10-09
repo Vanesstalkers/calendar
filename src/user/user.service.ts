@@ -31,10 +31,7 @@ export class UserServiceSingleton {
                   , CAST(u.config ->> 'iconFileId' AS INTEGER) AS "iconFileId"
                     ${config.includeSessions ? ', u.sessions' : ''}
                   , array(
-                      ${sql.selectProjectToUserLink(
-                        { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
-                        { addProjectData: true, showLinkConfig: true },
-                      )}
+                      ${sql.selectProjectToUserLink({ userId: 'u.id' }, { addProjectData: true, showLinkConfig: true })}
                     ) AS "projectList"
                   , array(
                     SELECT    row_to_json(ROW)
@@ -137,7 +134,6 @@ export class UserServiceSingleton {
   async registrate(userData: userAuthQueryDataDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const user = await this.create(userData, transaction);
-      if (!user.config) user.config = {};
       const personalProject = await this.projectService.create(
         { title: `${user.id}th user's personal project`, userList: [{ userId: user.id, role: 'owner' }] },
         { personalProject: true },
@@ -156,6 +152,7 @@ export class UserServiceSingleton {
         transaction,
       );
 
+      if (!user.config) user.config = {};
       user.config.personalProjectId = personalProject.id;
       return user;
     });

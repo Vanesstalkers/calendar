@@ -8,10 +8,19 @@ import { UtilsServiceSingleton } from '../utils/utils.service';
 @ws.WebSocketGateway({ cors: { origin: '*' } })
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class EventsGateway {
-  constructor(private sessionService: SessionServiceSingleton, private utils: UtilsServiceSingleton) {}
+  eventsMap = {};
+  sessionsMap = {};
+  constructor(
+    @nestjs.Inject(nestjs.forwardRef(() => SessionServiceSingleton)) private sessionService: SessionServiceSingleton,
+    @nestjs.Inject(nestjs.forwardRef(() => UtilsServiceSingleton)) private utils: UtilsServiceSingleton,
+  ) {}
   @ws.WebSocketServer() server: Server;
 
-  async handleDisconnect(socket: Socket) {}
+  async handleDisconnect(client: Socket) {
+    const sessionId = this.eventsMap[client.id];
+    delete this.eventsMap[client.id];
+    delete this.sessionsMap[sessionId];
+  }
 
   async handleConnection(socket: Socket) {
     return httpAnswer.OK;
@@ -37,6 +46,9 @@ export class EventsGateway {
       const sessionId = decodedCookie.id;
       const sessionIsAlive = await this.sessionService.get(sessionId);
       if (!sessionIsAlive) throw new nestjs.BadRequestException('Unknown session');
+
+      this.eventsMap[client.id] = sessionId;
+      this.sessionsMap[sessionId] = client.id;
 
       await this.sessionService.update(sessionId, { eventsId: client.id });
     });

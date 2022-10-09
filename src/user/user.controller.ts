@@ -184,7 +184,7 @@ export class UserController {
 
     const updateSessions = {};
     updateSessions[session.id] = {};
-    for (const key of Object.keys(user.sessions)) {
+    for (const key of Object.keys(user.sessions || {})) {
       const sessionIsAlive = await this.sessionService.get(key);
       if (!sessionIsAlive) updateSessions[key] = undefined; // utils.updateDB удалит ключ у json-поля в БД
     }
