@@ -1,79 +1,63 @@
+import * as crypto from 'crypto';
 import * as nestjs from '@nestjs/common';
 import { Session as FastifySession } from '@fastify/secure-session';
+import { decorators, interfaces, types } from '../globalImport';
+
 import { AppServiceSingleton } from '../app.service';
 import { UserService, UserServiceSingleton } from '../user/user.service';
-import { decorators, interfaces, types } from '../globalImport';
-import * as crypto from 'crypto';
+import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class SessionServiceSingleton {
-  constructor(public appService: AppServiceSingleton, public userService: UserServiceSingleton) {}
+  constructor(
+    public appService: AppServiceSingleton,
+    public userService: UserServiceSingleton,
+    public utils: UtilsServiceSingleton,
+  ) {}
 
-  async getState(session: FastifySession) {
-    const storage = (await this.getStorage(session)) ?? {};
+  async getState(sessionId: string) {
+    const sessionData = (await this.get(sessionId)) ?? {};
     return {
-      userId: storage.userId ?? null,
-      registration: storage.registration === true,
-      login: storage.login === true,
-      personalProjectId: storage.personalProjectId ?? null,
-      currentProjectId: storage.currentProjectId ?? null,
-      eventsId: storage.eventsId ?? null,
+      userId: sessionData.userId ?? null,
+      phone: sessionData.phone ?? null,
+      registration: sessionData.registration === true,
+      login: sessionData.login === true,
+      personalProjectId: sessionData.personalProjectId ?? null,
+      currentProjectId: sessionData.currentProjectId ?? null,
+      eventsId: sessionData.eventsId ?? null,
     };
   }
 
-  async validateSession(session: FastifySession) {
-    if (!session.storageId) {
-      this.createStorage(session);
-    } else if (!(await this.appService.getFromCache(session.storageId))) {
-      // если пропали данные из redis-а
-      this.createStorage(session);
-    }
-  }
-
-  async createStorage(session: FastifySession) {
-    const storageId = crypto.randomUUID();
-    session.storageId = storageId;
-    await this.appService.addToCache(storageId, '{}', { ttl: 0 });
-    if (session.userId) await this.userService.update(session.userId, { config: { sessionStorageId: storageId } });
+  async create(sessionId?: string) {
+    if (!sessionId) sessionId = crypto.randomUUID();
+    await this.appService.addToCache(sessionId, JSON.stringify({ createTime: new Date() }), { ttl: 60 * 5 });
+    return sessionId;
   }
 
   async isLoggedIn(session: FastifySession) {
-    const storage = await this.getStorage(session);
-    return session.userId && storage && storage.login === true;
+    if (!session.id) return false;
+    const sessionData = await this.get(session.id);
+    return session.userId && sessionData && sessionData.login === true ? true : false;
   }
 
-  async getStorage(session: FastifySession) {
-    return JSON.parse(await this.appService.getFromCache(session.storageId));
+  async get(sessionId: string) {
+    return await this.appService.getJsonFromCache(sessionId);
   }
 
-  async updateStorage(session: FastifySession, data: types['session']['storage']) {
-    await this.updateStorageById(session.storageId, data);
-  }
-
-  async updateStorageById(storageId: string, data: types['session']['storage']) {
+  async update(sessionId: string, data: types['session']['storage']) {
     try {
-      const storageData = JSON.parse(await this.appService.getFromCache(storageId));
-      await this.appService.addToCache(storageId, JSON.stringify({ ...storageData, ...data }), { ttl: 0 });
+      const sessionData = await this.appService.getJsonFromCache(sessionId);
+      const ttl = 60 * 60 * 24; // при каждом обновлении продлеаем сессию
+      await this.appService.addToCache(sessionId, JSON.stringify({ ...sessionData, ...data }), { ttl });
     } catch (err) {
-      console.log('updateStorageById err', { storageId, data });
+      console.log('ERROR sessionService.update', { sessionId, data });
     }
-  }
-
-  async getUserId(session: FastifySession) {
-    const storage = await this.getStorage(session);
-    return storage.userId;
-  }
-
-  async createWsLink(session: FastifySession) {
-    const wsLink = Math.random().toString();
-    await this.appService.addToCache(wsLink, session.storageId, { ttl: 0 });
-    return wsLink;
   }
 }
 
 @nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class SessionService extends SessionServiceSingleton {
-  constructor(public appService: AppServiceSingleton, public userService: UserService) {
-    super(appService, userService);
+  constructor(public appService: AppServiceSingleton, public userService: UserService, public utils: UtilsService) {
+    super(appService, userService, utils);
   }
 }

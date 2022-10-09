@@ -70,8 +70,8 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
     }
 
     httpAdapter.reply(response, responseBody, responseStatus);
-    
-    // если вызвать логгер раньше, то reply почему то не отработает
+
+    // если вызвать логгер раньше, то reply не отработает (https://stackoverflow.com/questions/63812764/nestjs-async-operation-inside-error-filter)
     await this.logger.sendLog({ exception: responseBody }, { request, finalizeType: 'error' });
   }
 }

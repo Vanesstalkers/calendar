@@ -20,6 +20,7 @@ export class projectToUserConfigFiltersDTO {
 class projectToUserConfigDTO {
   @swagger.ApiPropertyOptional({ type: { '[ID проекта]': { type: projectToUserConfigFiltersDTO } } })
   scheduleFilters?: { [key: string]: projectToUserConfigFiltersDTO };
+  userIconFileId?: number;
 }
 
 export class projectToUserUpdateDTO {
@@ -41,12 +42,20 @@ export class projectToUserUpdateDTO {
   })
   config?: projectToUserConfigDTO;
   deleteTime?: Date;
+  userIconFile?: fileDTO;
+}
+
+export class projectConfigDTO {
+  iconFileId?: number;
 }
 
 export class projectUpdateQueryDataDTO {
   @swagger.ApiPropertyOptional({ description: 'Название проекта', type: 'string | null', example: 'Проект №1' })
   title?: string;
   personal?: boolean;
+  @swagger.ApiPropertyOptional({ description: 'Конфиг проекта', type: projectConfigDTO })
+  config?: projectConfigDTO;
+  iconFile?: fileDTO;
   @swagger.ApiPropertyOptional({ description: 'Участники проекта', type: [projectToUserUpdateDTO] })
   userList?: projectToUserUpdateDTO[];
 }
@@ -58,6 +67,17 @@ export class projectUpdateQueryDTO {
   projectId: number;
   @swagger.ApiProperty({ type: projectUpdateQueryDataDTO, description: 'schema: projectUpdateQueryDataDTO' })
   projectData: projectUpdateQueryDataDTO;
+  @swagger.ApiProperty({ type: fileUploadQueryFileDTO })
+  iconFile: fileUploadQueryFileDTO;
+}
+
+export class projectUpdateWithFormdataQueryDTO {
+  @swagger.ApiProperty({ description: 'ID проекта' })
+  projectId: number;
+  @swagger.ApiProperty({ type: projectUpdateQueryDataDTO, description: 'schema: projectUpdateQueryDataDTO' })
+  projectData: projectUpdateQueryDataDTO;
+  @swagger.ApiPropertyOptional({ description: 'Файл иконки', type: 'string', format: 'binary' })
+  iconFile: fileDTO;
 }
 
 export class projectUpdateUserQueryDTO {

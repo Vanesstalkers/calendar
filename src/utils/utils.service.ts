@@ -1,12 +1,12 @@
+import * as fs from 'node:fs';
+import * as util from 'node:util';
+import * as stream from 'stream';
+import * as sodium from 'sodium-native';
+import axios from 'axios';
 import * as nestjs from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
-import axios from 'axios';
 import { decorators, interfaces, types, exception } from '../globalImport';
-
-import * as stream from 'stream';
-import * as fs from 'node:fs';
-import * as util from 'node:util';
 
 import { LoggerService, LoggerServiceSingleton } from '../logger/logger.service';
 
@@ -114,7 +114,14 @@ export class UtilsServiceSingleton {
         if (replaceValue === null) {
           setList.push(`"${key}" = '{}'::jsonb`);
         } else {
-          setList.push(`"${key}" = "${key}"::jsonb || :${key}::jsonb`);
+          const keysToDelete = [];
+          for (const [key, value] of Object.entries(replaceValue)) {
+            if (value === undefined) {
+              keysToDelete.push(`'${key}'`);
+              delete replaceValue[key];
+            }
+          }
+          setList.push(`"${key}" = ("${key}"::jsonb || :${key}::jsonb) - ${["''", ...keysToDelete].join(' - ')}`);
           replacements[key] = JSON.stringify(replaceValue);
         }
       } else {
@@ -134,10 +141,7 @@ export class UtilsServiceSingleton {
     }
   }
 
-  async withDBTransaction<T>(
-    transaction: Transaction,
-    action: (transaction: Transaction) => Promise<void | T>,
-  ): Promise<void | T> {
+  async withDBTransaction<T>(transaction: Transaction, action: (transaction: Transaction) => Promise<T>): Promise<T> {
     try {
       const createTransaction = !transaction;
       if (createTransaction) transaction = await this.sequelize.transaction();
@@ -150,6 +154,40 @@ export class UtilsServiceSingleton {
       if (transaction && !transaction.hasOwnProperty('finished')) await transaction.rollback();
       throw err;
     }
+  }
+
+  parseCookies(cookies: string) {
+    return Object.fromEntries(
+      cookies.split(';').map((item) => item.split('=').map((item) => decodeURIComponent(item))),
+    );
+  }
+
+  async decodedSecureString(str: string) {
+    let _secret = 'averylogphrasebiggerthanthirtytwochars';
+    let _salt = 'mq9hDxBVDbspDR6n';
+    let key;
+    if (_secret) {
+      key = Buffer.allocUnsafe(sodium.crypto_secretbox_KEYBYTES);
+      let salt = Buffer.isBuffer(_salt) ? _salt : Buffer.from(_salt, 'ascii');
+      sodium.crypto_pwhash(
+        key,
+        Buffer.from(_secret),
+        salt,
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_DEFAULT,
+      );
+    }
+    const split = str.split(';');
+    const cyphertextB64 = split[0];
+    const nonceB64 = split[1];
+    const cipher = Buffer.from(cyphertextB64, 'base64');
+    const nonce = Buffer.from(nonceB64, 'base64');
+    const msg = Buffer.allocUnsafe(cipher.length - sodium.crypto_secretbox_MACBYTES);
+    [key].some((k, i) => {
+      sodium.crypto_secretbox_open_easy(msg, cipher, nonce, k);
+    });
+    return JSON.parse(msg.toString());
   }
 }
 

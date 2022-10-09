@@ -72,7 +72,7 @@ export class LoggerServiceSingleton {
       finalizeType,
     }: { request?: fastify.FastifyRequest; startType?: string; finalizeType?: string } = {},
   ) {
-    const traceId = (this.request || request)?.[REQUEST_CONTEXT_ID]?.id;
+    const traceId = (this.request || request)?.[REQUEST_CONTEXT_ID]?.id?.toString();
     let resultItem = JSON.parse(JSON.stringify(data));
     const check = async (data: object) => {
       for (const [key, val] of Object.entries(data)) {
