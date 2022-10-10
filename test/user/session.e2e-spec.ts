@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { prepareApp } from './../helpers/prepare';
+import { createOrGetUser, prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
 import {
   getUserAuthQuery,
@@ -34,26 +34,20 @@ describe('UserController /user/session (e2e)', () => {
   });
 
   it('/user/session (GET) ok login true registration true', async () => {
-    // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
+    // step 1: create user
+    const phone = getPhone();
+    const { cookie: cookie1 } = await createOrGetUser({ phone, app });
+    // step 1: session
+    const query1: InjectOptions = getUserSessionQuery({ cookie: cookie1 });
     const result1 = await app.inject(query1);
-    const cookie1 = result1.headers['set-cookie'].toString();
     const payload1 = JSON.parse(result1.payload);
-    // step 2: code
-    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
-    const result2 = await app.inject(query2);
-    const cookie2 = result2.headers['set-cookie'].toString();
-    // step 3: session
-    const query3: InjectOptions = getUserSessionQuery({ cookie: cookie2 });
-    const result3 = await app.inject(query3);
-    const payload3 = JSON.parse(result3.payload);
-    expect(result3.statusCode).toEqual(200);
-    expect(payload3.status).toEqual('ok');
-    expect(payload3.data.userId).not.toBeNaN();
-    expect(payload3.data.registration).toEqual(true);
-    expect(payload3.data.login).toEqual(true);
-    expect(payload3.data.personalProjectId).not.toBeNaN();
-    expect(payload3.data.currentProjectId).not.toBeNaN();
+    expect(result1.statusCode).toEqual(200);
+    expect(payload1.status).toEqual('ok');
+    expect(payload1.data.userId).not.toBeNaN();
+    expect(payload1.data.registration).toEqual(true);
+    expect(payload1.data.login).toEqual(true);
+    expect(payload1.data.personalProjectId).not.toBeNaN();
+    expect(payload1.data.currentProjectId).not.toBeNaN();
   });
 
   it('/user/session (GET) ok login false registration false', async () => {
@@ -76,29 +70,23 @@ describe('UserController /user/session (e2e)', () => {
 
   it('/user/session (GET) ok login false registration true', async () => {
     // registration -> logout -> session
-    // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
-    const result1 = await app.inject(query1);
-    const cookie1 = result1.headers['set-cookie'].toString();
-    const payload1 = JSON.parse(result1.payload);
-    // step 2: code
-    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
-    const result2 = await app.inject(query2);
-    const cookie2 = result2.headers['set-cookie'].toString();
-    // step 3: logout
-    const query3: InjectOptions = getUserLogoutQuery({ cookie: cookie2 });
-    await app.inject(query3);
-    // step 4: session
-    const query4: InjectOptions = getUserSessionQuery({ cookie: cookie2 });
-    const result4 = await app.inject(query4);
-    const payload4 = JSON.parse(result4.payload);
-    expect(result4.statusCode).toEqual(200);
-    expect(payload4.status).toEqual('ok');
-    expect(payload4.data.userId).not.toBeNaN();
-    expect(payload4.data.registration).toEqual(true);
-    expect(payload4.data.login).toEqual(false);
-    expect(payload4.data.personalProjectId).not.toBeNaN();
-    expect(payload4.data.currentProjectId).not.toBeNaN();
+    // step 1: create user
+    const phone = getPhone();
+    const { cookie: cookie1 } = await createOrGetUser({ phone, app });
+    // step 2: logout
+    const query2: InjectOptions = getUserLogoutQuery({ cookie: cookie1 });
+    await app.inject(query2);
+    // step 3: session
+    const query3: InjectOptions = getUserSessionQuery({ cookie: cookie1 });
+    const result3 = await app.inject(query3);
+    const payload3 = JSON.parse(result3.payload);
+    expect(result3.statusCode).toEqual(200);
+    expect(payload3.status).toEqual('ok');
+    expect(payload3.data.userId).not.toBeNaN();
+    expect(payload3.data.registration).toEqual(true);
+    expect(payload3.data.login).toEqual(false);
+    expect(payload3.data.personalProjectId).not.toBeNaN();
+    expect(payload3.data.currentProjectId).not.toBeNaN();
   });
 
   it('/user/session (GET) ok missing cookie', async () => {

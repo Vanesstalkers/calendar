@@ -1,3 +1,5 @@
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+
 export interface userAuthBuildParamsI {
   disableTimeout?: boolean;
   preventSendSms?: boolean;
@@ -65,4 +67,8 @@ export interface payloadArrItemI {
   [index: number]: {
     [index: number]: string | null | updateQueryUserDataI | updateQueryIconFileI;
   };
+}
+
+export interface creteOrGetUserI extends userAuthBuildParamsI {
+  app: NestFastifyApplication;
 }

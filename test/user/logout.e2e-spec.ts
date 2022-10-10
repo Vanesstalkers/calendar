@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { prepareApp } from './../helpers/prepare';
+import { createOrGetUser, prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
-import { getUserAuthQuery, getUserCodeQuery, getUserLogoutQuery } from './../helpers/queryBuilders';
+import { getUserLogoutQuery } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
 const phonesList = phones.slice(20, 30);
@@ -30,53 +30,33 @@ describe('UserController /user/logout (e2e)', () => {
 
   it('/user/logout (POST) ok registered', async () => {
     // registration -> logout
-    // step 1: auth
-    const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
-    const result1 = await app.inject(query1);
-    const cookie1 = result1.headers['set-cookie'].toString();
-    const payload1 = JSON.parse(result1.payload);
-    // step 2: code
-    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
+    // step 1: registration
+    const phone = getPhone();
+    const { cookie: cookie1 } = await createOrGetUser({ phone, app });
+    // step 2: logout
+    const query2: InjectOptions = getUserLogoutQuery({ cookie: cookie1 });
     const result2 = await app.inject(query2);
-    const cookie2 = result2.headers['set-cookie'].toString();
-    // step 3: logout
-    const query3: InjectOptions = getUserLogoutQuery({ cookie: cookie2 });
-    const result3 = await app.inject(query3);
-    const payload3 = JSON.parse(result3.payload);
-    expect(result3.statusCode).toEqual(200);
-    expect(payload3.status).toEqual('ok');
+    const payload2 = JSON.parse(result2.payload);
+    expect(result2.statusCode).toEqual(200);
+    expect(payload2.status).toEqual('ok');
   });
 
   it('/user/logout (POST) ok logged in', async () => {
     // registration -> logout -> login -> logout
-    // step 1: auth
+    // step 1: registration
     const phone = getPhone();
-    const query1: InjectOptions = getUserAuthQuery({ phone });
-    const result1 = await app.inject(query1);
-    const cookie1 = result1.headers['set-cookie'].toString();
-    const payload1 = JSON.parse(result1.payload);
-    // step 2: code
-    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
-    const result2 = await app.inject(query2);
-    const cookie2 = result2.headers['set-cookie'].toString();
-    // step 3: logout
-    const query3: InjectOptions = getUserLogoutQuery({ cookie: cookie2 });
-    await app.inject(query3);
-    // step 4: auth
-    const query4: InjectOptions = getUserAuthQuery({ phone });
+    const { cookie: cookie1 } = await createOrGetUser({ phone, app });
+    // step 2: logout
+    const query2: InjectOptions = getUserLogoutQuery({ cookie: cookie1 });
+    await app.inject(query2);
+    // step 3: login
+    const { cookie: cookie3 } = await createOrGetUser({ phone, app });
+    // step 4: logout
+    const query4: InjectOptions = getUserLogoutQuery({ cookie: cookie3 });
     const result4 = await app.inject(query4);
-    const cookie4 = result4.headers['set-cookie'].toString();
     const payload4 = JSON.parse(result4.payload);
-    // step 5: code
-    const query5: InjectOptions = getUserCodeQuery({ code: payload4.data.code, cookie: cookie4 });
-    const result5 = await app.inject(query5);
-    const cookie5 = result5.headers['set-cookie'].toString();
-    // step 6: logout
-    const query6: InjectOptions = getUserLogoutQuery({ cookie: cookie5 });
-    const result6 = await app.inject(query6);
-    const payload6 = JSON.parse(result6.payload);
-    expect(result6.statusCode).toEqual(200);
-    expect(payload6.status).toEqual('ok');
+    expect(result4.statusCode).toEqual(200);
+    expect(payload4.status).toEqual('ok');
   });
 
   it('/user/logout (POST) ok bad cookie', async () => {
