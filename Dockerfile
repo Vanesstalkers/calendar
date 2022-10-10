@@ -12,11 +12,9 @@ COPY package.json ./
 COPY package-lock.json ./
 COPY tsconfig.build.json ./
 RUN npm ci
-RUN npx sequelize-cli init
-RUN npm run build
 
 # Добавляем все файлы в контейнер
 COPY . .
 
-CMD ["sh", "-c", "node -v; npm -v; npx sequelize-cli db:migrate; npm run start:prod"]
+CMD ["sh", "-c", "node -v; npm -v; npx sequelize-cli init; npm run build; npx sequelize-cli db:migrate; npm run start:prod"]
 
