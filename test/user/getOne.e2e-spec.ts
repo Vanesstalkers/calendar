@@ -65,7 +65,6 @@ describe('UserController /user/getOne (e2e)', () => {
     expect(payload4.data.timezone).toEqual(timezone);
     expect(payload4.data.config.fake).toEqual(true);
     expect(payload4.data.config.phoneCode).toEqual(phoneCode);
-    expect(payload4.data.config.sessionStorageId).toBeDefined();
     expect(payload4.data.config.currentProjectId).not.toBeNaN();
     expect(payload4.data.config.personalProjectId).not.toBeNaN();
     expect(payload4.data.config.personalProjectId).toEqual(payload4.data.config.currentProjectId);
@@ -136,7 +135,6 @@ describe('UserController /user/getOne (e2e)', () => {
     expect(payload7.data.timezone).toEqual(timezone);
     expect(payload7.data.config.fake).toEqual(true);
     expect(payload7.data.config.phoneCode).toEqual(phoneCode);
-    expect(payload7.data.config.sessionStorageId).toBeDefined();
     expect(payload7.data.config.currentProjectId).not.toBeNaN();
     expect(payload7.data.config.personalProjectId).not.toBeNaN();
     expect(payload7.data.config.personalProjectId).toEqual(payload7.data.config.currentProjectId);

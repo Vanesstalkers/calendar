@@ -5,7 +5,7 @@ import { decorators, interfaces, types, httpAnswer } from '../../globalImport';
 import { LoggerService } from '../../logger/logger.service';
 
 export function fsErrorCatcher(err: any): any {
-  console.log('fsErrorCatcher', { err });
+  if (process.env.MODE !== 'TEST') console.log('fsErrorCatcher', { err });
   if (err.code === 'ENOENT') {
     throw new nestjs.InternalServerErrorException({
       code: 'ENOENT',
@@ -18,7 +18,7 @@ export function fsErrorCatcher(err: any): any {
 }
 
 export function dbErrorCatcher(err: any): any {
-  console.log('dbErrorCatcher', { err });
+  if (process.env.MODE !== 'TEST') console.log('dbErrorCatcher', { err });
   if (err.name === 'SequelizeForeignKeyConstraintError') {
     throw new nestjs.BadRequestException({
       code: 'DB_BAD_QUERY',
@@ -70,8 +70,8 @@ export class UniversalExceptionFilter implements nestjs.ExceptionFilter {
     }
 
     httpAdapter.reply(response, responseBody, responseStatus);
-    
-    // если вызвать логгер раньше, то reply почему то не отработает
+
+    // если вызвать логгер раньше, то reply не отработает (https://stackoverflow.com/questions/63812764/nestjs-async-operation-inside-error-filter)
     await this.logger.sendLog({ exception: responseBody }, { request, finalizeType: 'error' });
   }
 }

@@ -7,9 +7,11 @@ export class AppServiceSingleton {
   async addToCache(key: string, item: string, options: CachingConfig) {
     await this.cacheManager.set(key, item, options);
   }
-  async getFromCache(key: string) {
-    const value: string = await this.cacheManager.get(key);
-    return value;
+  async getFromCache(key: string): Promise<string> {
+    return await this.cacheManager.get(key);
+  }
+  async getJsonFromCache(key: string): Promise<any> {
+    return JSON.parse(await this.cacheManager.get(key));
   }
   async deleteFromCache(key: string) {
     await this.cacheManager.del(key);

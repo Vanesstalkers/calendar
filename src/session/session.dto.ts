@@ -1,8 +1,8 @@
 import * as swagger from '@nestjs/swagger';
 
 export interface sessionDTO {
-  storageId?: string;
-  userId?: string;
+  id?: string;
+  userId?: number;
 }
 
 export class sessionStorageDTO {
@@ -18,10 +18,11 @@ export class sessionStorageDTO {
   personalProjectId?: number;
   @swagger.ApiProperty({ description: 'ID текущего проекта', example: 0 })
   currentProjectId?: number;
+  @swagger.ApiProperty({ description: 'ID websocket-сессии', example: 'uu1OMN1uemk6vK5QAAAB' })
+  eventsId?: string;
+  createTime?: Date;
   lastAuthAttempt?: Date;
   authCode?: string;
   authType?: string;
   registrationData?: any;
-  sessionStorageId?: string; 
-  eventsId?: string; 
 }

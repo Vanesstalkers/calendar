@@ -17,7 +17,10 @@ export class UserServiceSingleton {
     public fileService: FileServiceSingleton,
   ) {}
 
-  async getOne(data: { id?: number; phone?: string }, config: types['getOneConfig'] = {}) {
+  async getOne(
+    data: { id?: number; phone?: string },
+    config: { includeSessions: boolean } = { includeSessions: false },
+  ) {
     const findData = await this.utils.queryDB(
       `--sql
           SELECT    u.id
@@ -25,15 +28,11 @@ export class UserServiceSingleton {
                   , u.phone
                   , u.timezone
                   , u.config
+                  , CAST(u.config ->> 'iconFileId' AS INTEGER) AS "iconFileId"
+                    ${config.includeSessions ? ', u.sessions' : ''}
                   , array(
-                    ${sql.selectProjectToUserLink(
-                      { userId: ':id' }, // если поставить "u.id", то почему то в выборку попадают лишние проекты
-                      { addProjectData: true, showLinkConfig: true },
-                    )}
-                  ) AS "projectList"
-                  , (
-                    ${sql.selectIcon('user', 'u')}
-                  ) AS "iconFileId"
+                      ${sql.selectProjectToUserLink({ userId: 'u.id' }, { addProjectData: true, showLinkConfig: true })}
+                    ) AS "projectList"
                   , array(
                     SELECT    row_to_json(ROW)
                     FROM      (
@@ -44,7 +43,10 @@ export class UserServiceSingleton {
                                         , "position"
                                         , p2u."personal"
                                         , "userName"
-                                        , (${sql.selectIcon('project_to_user', 'p2u')}) AS "userIconFileId"
+                                        , (CASE WHEN p2u.config ->> 'userIconFileId' IS NOT NULL
+                                            THEN CAST(p2u.config ->> 'userIconFileId' AS INTEGER)
+                                            ELSE (SELECT CAST(config ->> 'iconFileId' AS INTEGER) FROM "user" WHERE "id" = p2u."userId")  
+                                          END) AS "userIconFileId"
                                 FROM      "project_to_user" p2u
                                 WHERE     p2u."projectId" = (u.config ->> 'personalProjectId')::integer 
                                       AND p2u."userId" != u.id
@@ -63,16 +65,18 @@ export class UserServiceSingleton {
     return findData[0] || null;
   }
 
-  async search(data: userSearchQueryDTO = { query: '', limit: 50, offset: 0 }) {
+  async search(data: userSearchQueryDTO) {
     const customWhere = ['', 'u."deleteTime" IS NULL'];
     if (!data.globalSearch) customWhere.push('u2u.id IS NOT NULL');
 
+    if (!data.limit) data.limit = 50;
+    if (!data.offset) data.offset = 0;
     const findData = await this.utils.queryDB(
       `--sql
         SELECT    u.id
                 , u.phone
                 , u.name
-                , ( ${sql.selectIcon('user', 'u')} ) AS "iconFileId"
+                , CAST(u.config ->> 'iconFileId' AS INTEGER) AS "iconFileId"
         FROM      "user" u
                   LEFT JOIN "user_to_user" u2u ON u2u."userId" = :userId
                                               AND u2u."contactId" = u.id
@@ -126,7 +130,6 @@ export class UserServiceSingleton {
   async registrate(userData: userAuthQueryDataDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const user = await this.create(userData, transaction);
-      if (!user.config) user.config = {};
       const personalProject = await this.projectService.create(
         { title: `${user.id}th user's personal project`, userList: [{ userId: user.id, role: 'owner' }] },
         { personalProject: true },
@@ -145,6 +148,7 @@ export class UserServiceSingleton {
         transaction,
       );
 
+      if (!user.config) user.config = {};
       user.config.personalProjectId = personalProject.id;
       return user;
     });
@@ -153,22 +157,30 @@ export class UserServiceSingleton {
   async update(userId: number, updateData: userUpdateQueryDataDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (updateData.phone) delete updateData.phone; // менять номер телефона запрещено
+
+      let uploadedFile: { id?: number } = {};
+      if (updateData.iconFile !== undefined) {
+        if (!updateData.config) updateData.config = {};
+        if (updateData.iconFile === null) {
+          updateData.config.iconFileId = null;
+        } else {
+          uploadedFile = await this.fileService.create(
+            Object.assign(updateData.iconFile, { parentType: 'user', parentId: userId, fileType: 'icon' }),
+          );
+          updateData.config.iconFileId = uploadedFile.id;
+        }
+        delete updateData.iconFile;
+      }
+
       await this.utils.updateDB({
         table: 'user',
         id: userId,
         data: updateData,
-        jsonKeys: ['config'],
-        handlers: {
-          iconFile: async (value: any) => {
-            await this.fileService.create(
-              Object.assign(value, { parentType: 'user', parentId: userId, fileType: 'icon' }),
-              transaction,
-            );
-            return { preventDefault: true };
-          },
-        },
+        jsonKeys: ['config', 'sessions'],
         transaction,
       });
+
+      return { uploadedFile };
     });
   }
 

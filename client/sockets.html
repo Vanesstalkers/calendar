@@ -6,23 +6,16 @@
       crossorigin="anonymous"
     ></script>
     <script>
+      console.log('--- starting');
       let socket;
       (async () => {
-        const response = await fetch('/user/linkWs', {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const linkWsResult = await response.json();
-        window.linkCode = linkWsResult.data.linkCode;
-
         socket = io(location.origin);
-
-        socket.on('connect', function () {
+        window.socket = socket;
+        socket.on('connect', async function () {
           console.log('Connected, socket.id=', socket.id);
-          socket.emit('linkSession', window.linkCode);
+          const result = await socket.emit('linkSession', (result) => {
+            console.log('linkSession result=', result);
+          });
         });
         socket.on('disconnect', function () {
           console.log('Disconnected');
@@ -30,6 +23,9 @@
         socket.on('message', function (data) {
           console.log(data);
           document.getElementById('msg').innerHTML = data;
+        });
+        socket.on('switchProject', function (data) {
+          console.log(data);
         });
       })();
     </script>

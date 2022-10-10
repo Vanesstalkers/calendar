@@ -56,10 +56,11 @@ export class FileServiceSingleton {
       this.logger.sendLog({ fileData });
       const createData = await this.utils.queryDB(
         `--sql
-          INSERT INTO "file"   ("link", "fileName", "fileExtension", "fileMimetype", "fileSize", 
-                          "parentType", "parentId", "fileType", "addTime", "updateTime", "config") 
-                      VALUES  (:link, :fileName, :fileExtension, :fileMimetype, :fileSize, 
-                          :parentType, :parentId, :fileType, NOW(), NOW(), :config)
+          INSERT INTO "file"
+                      ("link", "fileName", "fileExtension", "fileMimetype", "fileSize", 
+                        "parentType", "parentId", "fileType", "addTime", "updateTime", "config")
+          VALUES      (:link, :fileName, :fileExtension, :fileMimetype, :fileSize, 
+                        :parentType, :parentId, :fileType, NOW(), NOW(), :config)
           RETURNING id
         `,
         { type: QueryTypes.INSERT, replacements: fileData, transaction },

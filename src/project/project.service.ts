@@ -3,7 +3,7 @@ import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import { decorators, interfaces, types, exception, sql } from '../globalImport';
 
-import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectUserLinkDTO } from './project.dto';
+import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectToUserUpdateDTO } from './project.dto';
 
 import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 import { FileService, FileServiceSingleton } from '../file/file.service';
@@ -36,9 +36,24 @@ export class ProjectServiceSingleton {
     updateData: projectUpdateQueryDataDTO,
     config: { personalProject?: boolean } = {},
     transaction?: Transaction,
-  ) {
+  ): Promise<{ uploadedFile: { id?: number } }> {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (config.personalProject) updateData.personal = true;
+
+      let uploadedFile: { id?: number } = {};
+      if (updateData.iconFile !== undefined) {
+        if (!updateData.config) updateData.config = {};
+        if (updateData.iconFile === null) {
+          updateData.config.iconFileId = null;
+        } else {
+          uploadedFile = await this.fileService.create(
+            Object.assign(updateData.iconFile, { parentType: 'project', parentId: projectId, fileType: 'icon' }),
+          );
+          updateData.config.iconFileId = uploadedFile.id;
+        }
+        delete updateData.iconFile;
+      }
+
       await this.utils.updateDB({
         table: 'project',
         id: projectId,
@@ -57,16 +72,15 @@ export class ProjectServiceSingleton {
         },
         transaction,
       });
+
+      return { uploadedFile };
     });
   }
 
   async transfer({ projectId, fromUserId, toUserId, fromUserLinkId, toUserLinkId }, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       await this.updateUserLink(toUserLinkId, { role: 'owner' }, transaction);
-      await this.deleteUserWithTasks(
-        { projectId, userId: fromUserId, projectToUserLinkId: fromUserLinkId },
-        transaction,
-      );
+      await this.updateUserLink(fromUserLinkId, { role: 'member' }, transaction);
     });
   }
 
@@ -76,7 +90,8 @@ export class ProjectServiceSingleton {
         SELECT    p.id
                 , p.title
                 , p.personal
-                , (${sql.selectIcon('project', 'p')}) AS "iconFileId"
+                , p.config
+                , CAST(p.config ->> 'iconFileId' AS INTEGER) AS "iconFileId"
                 , array(
                   ${sql.selectProjectToUserLink({ projectId: ':id' }, { addUserData: true, showLinkConfig: true })}
                 ) AS "userList"
@@ -104,13 +119,18 @@ export class ProjectServiceSingleton {
     return findData ? true : false;
   }
 
-  async upsertLinkToUser(projectId: number, userId: number, linkData: projectUserLinkDTO, transaction?: Transaction) {
+  async upsertLinkToUser(
+    projectId: number,
+    userId: number,
+    linkData: projectToUserUpdateDTO,
+    transaction?: Transaction,
+  ) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const upsertData = await this.utils.queryDB(
         `--sql
-          INSERT INTO  "project_to_user" 
+          INSERT INTO   "project_to_user" 
                         ("projectId", "userId", "addTime", "updateTime") 
-                VALUES  (:projectId, :userId, NOW(), NOW())
+          VALUES        (:projectId, :userId, NOW(), NOW())
           ON CONFLICT   ("projectId", "userId") 
           DO UPDATE SET "projectId" = EXCLUDED."projectId"
                       , "userId" = EXCLUDED."userId"
@@ -129,25 +149,41 @@ export class ProjectServiceSingleton {
     });
   }
 
-  async updateUserLink(linkId: number, updateData: projectUserLinkDTO, transaction?: Transaction) {
+  async updateUserLink(
+    linkId: number,
+    updateData: projectToUserUpdateDTO,
+    transaction?: Transaction,
+  ): Promise<{ uploadedFile: { id?: number } }> {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (!updateData.deleteTime) updateData.deleteTime = null;
+
+      let uploadedFile: { id?: number } = {};
+      if (updateData.userIconFile !== undefined) {
+        if (!updateData.config) updateData.config = {};
+        if (updateData.userIconFile === null) {
+          updateData.config.userIconFileId = null;
+        } else {
+          uploadedFile = await this.fileService.create(
+            Object.assign(updateData.userIconFile, {
+              parentType: 'project_to_user',
+              parentId: linkId,
+              fileType: 'icon',
+            }),
+          );
+          updateData.config.userIconFileId = uploadedFile.id;
+        }
+        delete updateData.userIconFile;
+      }
+
       await this.utils.updateDB({
         table: 'project_to_user',
         id: linkId,
         data: updateData,
         jsonKeys: ['config'],
-        handlers: {
-          iconFile: async (value: any) => {
-            await this.fileService.create(
-              Object.assign(value, { parentType: 'project_to_user', parentId: linkId, fileType: 'icon' }),
-              transaction,
-            );
-            return { preventDefault: true };
-          },
-        },
         transaction,
       });
+
+      return { uploadedFile };
     });
   }
 
@@ -155,7 +191,8 @@ export class ProjectServiceSingleton {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       await this.updateUserLink(projectToUserLinkId, { deleteTime: new Date() }, transaction);
       await this.utils.queryDB(
-        `--sql
+        [
+          `--sql
           WITH  owner     AS (
                   SELECT    "userId" 
                   FROM      project_to_user 
@@ -175,16 +212,18 @@ export class ProjectServiceSingleton {
                   , "endTime" = NULL
                   , "updateTime" = NOW()
           WHERE     "id" IN (SELECT "id" FROM taskList)
-                AND "deleteTime" IS NULL;
-
+                AND "deleteTime" IS NULL
+      `,
+          `--sql
           UPDATE    "task_to_user" as t2u
           SET       "deleteTime" = NOW(), "updateTime" = NOW()
           FROM      task as t
           WHERE     t."id" = t2u."taskId"
                 AND t2u."userId" = :userId
                 AND t."projectId" = :projectId
-                AND t2u."deleteTime" IS NULL;
+                AND t2u."deleteTime" IS NULL
         `,
+        ].join(';'),
         { replacements: { userId, projectId }, type: QueryTypes.SELECT, transaction },
       );
     });
