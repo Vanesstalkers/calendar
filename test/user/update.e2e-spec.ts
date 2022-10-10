@@ -184,7 +184,7 @@ describe('UserController /user/update (e2e)', () => {
     expect(payload5.data.config.phoneCode).toEqual(newPhoneCode);
   });
 
-  it('/user/update (POST) ok full', async () => {
+  it('/user/update (POST) ok iconFile: null', async () => {
     // тест удаления ссылки на иконку (через указание в запросе iconFile: null)
     // step 1: auth
     const phone = getPhone();
