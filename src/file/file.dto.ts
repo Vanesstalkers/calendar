@@ -29,7 +29,10 @@ export class fileCreateDTO extends fileDTO {
 }
 
 export class fileGetDataAnswerDTO {
-  @swagger.ApiProperty({ description: 'Содержимое файла в base64', example: 'data:image/jpeg;base64,iVBORw0KGgoAAAANSUh...' })
+  @swagger.ApiProperty({
+    description: 'Содержимое файла в base64',
+    example: 'data:image/jpeg;base64,iVBORw0KGgoAAAANSUh...',
+  })
   fileContent?: string;
   @swagger.ApiProperty({ description: 'Имя файла', example: 'picture.jpg' })
   fileName?: string;
@@ -77,4 +80,9 @@ export class fileUploadWithFormdataQueryDTO {
 export class fileDeleteQueryDTO {
   @swagger.ApiProperty({ description: 'ID файла' })
   fileId: number;
+}
+
+export class uploadedFileDTO {
+  @swagger.ApiProperty({ description: 'ID загруженного файла' })
+  uploadedFileId: number;
 }

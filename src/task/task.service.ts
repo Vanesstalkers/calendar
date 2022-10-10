@@ -189,9 +189,9 @@ export class TaskServiceSingleton {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const upsertData = await this.utils.queryDB(
         `--sql
-            INSERT INTO  "task_to_user" 
+            INSERT INTO   "task_to_user" 
                           ("taskId", "userId", "addTime", "updateTime") 
-                  VALUES  (:taskId, :userId, NOW(), NOW())
+            VALUES        (:taskId, :userId, NOW(), NOW())
             ON CONFLICT   ("taskId", "userId") 
             DO UPDATE SET "taskId" = EXCLUDED."taskId"
                         , "userId" = EXCLUDED."userId"
@@ -231,9 +231,9 @@ export class TaskServiceSingleton {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       const upsertData = await this.utils.queryDB(
         `--sql
-            INSERT INTO  "hashtag" 
+            INSERT INTO   "hashtag" 
                           ("taskId", "name", "addTime", "updateTime") 
-                  VALUES  (:taskId, :name, NOW(), NOW())
+            VALUES        (:taskId, :name, NOW(), NOW())
             ON CONFLICT   ("taskId", "name") 
             DO UPDATE SET "taskId" = EXCLUDED."taskId"
                         , "name" = EXCLUDED."name"
@@ -734,7 +734,9 @@ export class TaskServiceSingleton {
           const filters = query.scheduleFilters[task.projectId];
           if (filters) {
             function applyShowFilter(task) {
-              return filters.showTaskContent ? task : { id: task.id, startTime: task.startTime, endTime: task.endTime };
+              return filters.showTaskContent
+                ? task
+                : { id: task.id, projectId: task.projectId, startTime: task.startTime, endTime: task.endTime };
             }
             return filters.showAllTasks
               ? applyShowFilter(task)

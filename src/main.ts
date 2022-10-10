@@ -11,6 +11,7 @@ async function bootstrap() {
   try {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
       abortOnError: false,
+      logger: false,
     });
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,

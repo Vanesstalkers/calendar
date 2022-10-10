@@ -1,34 +1,31 @@
 import * as nestjs from '@nestjs/common';
 import { CanActivate } from '@nestjs/common';
 
+import { AppServiceSingleton } from '../../app.service';
 import { SessionService } from '../../session/session.service';
 import { LoggerService } from '../../logger/logger.service';
 
+// вызываю это здесь, потому что в ParamDecorator не работают иньекции
 @nestjs.Injectable()
 export class validateSession implements CanActivate {
-  constructor(private sessionService: SessionService) {}
+  constructor(public appService: AppServiceSingleton, private sessionService: SessionService) {}
   async canActivate(context: nestjs.ExecutionContext) {
     const request = context.switchToHttp().getRequest();
-    await this.sessionService.validateSession(request.session);
+    const session = request.session;
+    if (!session.id) session.id = await this.sessionService.create();
+    else if (!(await this.sessionService.get(session.id))) await this.sessionService.create(session.id);
     return true;
   }
 }
 @nestjs.Injectable()
 export class isLoggedIn implements CanActivate {
-  constructor(
-    //private reflector: Reflector
-    private sessionService: SessionService,
-    private logger: LoggerService,
-  ) {}
+  constructor(private sessionService: SessionService, private logger: LoggerService) {}
   async canActivate(context: nestjs.ExecutionContext) {
-    // const role = this.reflector.get<string>('role', context.getHandler());
     const request = context.switchToHttp().getRequest();
-    if ((await this.sessionService.isLoggedIn(request.session)) !== true) {
+    const isLoggedIn = await this.sessionService.isLoggedIn(request.session);
+    if (isLoggedIn !== true) {
       await this.logger.startLog(request); // запрос не попадет в interceptor, где происходит дефолтная стартовая запись в лог
-      throw new nestjs.ForbiddenException({
-        code: 'NEED_LOGIN',
-        msg: 'Access denied (login first)',
-      });
+      throw new nestjs.ForbiddenException({ code: 'NEED_LOGIN', msg: 'Access denied (login first)' });
     }
     return true;
   }
