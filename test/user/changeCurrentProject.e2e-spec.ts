@@ -71,7 +71,7 @@ describe('UserController /user/changeCurrentProject (e2e)', () => {
     expect(payload5.data.role).toEqual(newCurrentProject.role);
     expect(payload5.data.position).toEqual(newCurrentProject.position);
     expect(payload5.data.personal).toEqual(newCurrentProject.personal);
-    expect(payload5.data.userName).toEqual(name);
+    expect(payload5.data.userName).toEqual(null);
     expect(payload5.data.userIconFileId).toEqual(newCurrentProject.userIconFileId);
     expect(payload5.data.config.fake).toEqual(newCurrentProject.config.fake);
     expect(payload5.data.config.scheduleFilters).toEqual(newCurrentProject.config.scheduleFilters);
@@ -115,7 +115,7 @@ describe('UserController /user/changeCurrentProject (e2e)', () => {
     expect(payload5.data.role).toEqual(newCurrentProject.role);
     expect(payload5.data.position).toEqual(newCurrentProject.position);
     expect(payload5.data.personal).toEqual(newCurrentProject.personal);
-    expect(payload5.data.userName).toEqual(name);
+    expect(payload5.data.userName).toEqual(null);
     expect(payload5.data.userIconFileId).toEqual(newCurrentProject.userIconFileId);
     expect(payload5.data.config.fake).toEqual(newCurrentProject.config.fake);
     expect(payload5.data.config.scheduleFilters).toEqual(newCurrentProject.config.scheduleFilters);

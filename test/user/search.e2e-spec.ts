@@ -369,7 +369,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.code).toEqual('DB_BAD_QUERY');
   });
 
-  it('/user/search (POST) err missing offset', async () => {
+  it('/user/search (POST) ok missing offset', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -383,10 +383,18 @@ describe('UserController /user/search (e2e)', () => {
     const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, offset: null });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
-    expect(result3.statusCode).toEqual(500);
-    expect(payload3.status).toEqual('err');
-    expect(payload3.timestamp).toBeDefined();
-    expect(payload3.path).toEqual('/user/search');
+    expect(result3.statusCode).toEqual(200);
+    expect(payload3.status).toEqual('ok');
+    expect(payload3.data.resultList instanceof Array).toEqual(true);
+    expect(payload3.data.resultList.length).toBeGreaterThan(10);
+    expect(payload3.data.endOfList).toBeDefined();
+    for (let index = 0; index < payload3.data.resultList.length; index++) {
+      const resultItem = payload3.data.resultList[index];
+      expect(resultItem.id).not.toBeNaN();
+      expect(resultItem.phone).toBeDefined();
+      expect(resultItem.name).toBeDefined();
+      expect(resultItem.iconFileId).toBeDefined();
+    }
   });
 
   it('/user/search (POST) err bad limit', async () => {
@@ -412,7 +420,7 @@ describe('UserController /user/search (e2e)', () => {
     expect(payload3.code).toEqual('DB_BAD_QUERY');
   });
 
-  it('/user/search (POST) err missing limit', async () => {
+  it('/user/search (POST) ok missing limit', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
     const result1 = await app.inject(query1);
@@ -426,12 +434,18 @@ describe('UserController /user/search (e2e)', () => {
     const query3: InjectOptions = getUserSearchQuery({ cookie: cookie2, limit: null });
     const result3 = await app.inject(query3);
     const payload3 = JSON.parse(result3.payload);
-    expect(result3.statusCode).toEqual(400);
-    expect(payload3.status).toEqual('err');
-    expect(payload3.timestamp).toBeDefined();
-    expect(payload3.path).toEqual('/user/search');
-    expect(payload3.msg).toEqual('column "nan" does not exist');
-    expect(payload3.code).toEqual('DB_BAD_QUERY');
+    expect(result3.statusCode).toEqual(200);
+    expect(payload3.status).toEqual('ok');
+    expect(payload3.data.resultList instanceof Array).toEqual(true);
+    expect(payload3.data.resultList.length).toBeGreaterThan(10);
+    expect(payload3.data.endOfList).toBeDefined();
+    for (let index = 0; index < payload3.data.resultList.length; index++) {
+      const resultItem = payload3.data.resultList[index];
+      expect(resultItem.id).not.toBeNaN();
+      expect(resultItem.phone).toBeDefined();
+      expect(resultItem.name).toBeDefined();
+      expect(resultItem.iconFileId).toBeDefined();
+    }
   });
 
   it('/user/search (POST) err bad cookie', async () => {

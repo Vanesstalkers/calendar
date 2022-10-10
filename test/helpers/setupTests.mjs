@@ -1,4 +1,4 @@
-import { readFile, unlink, writeFile } from 'fs/promises';
+import { readFile, stat, unlink, writeFile } from 'fs/promises';
 import { Sequelize } from 'sequelize';
 
 async function unlinkIfExists(path) {

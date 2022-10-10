@@ -160,6 +160,7 @@ export function getUserUpdateQuery({
   fileExtension = null,
   link = null,
   isIconFile = false,
+  isIconFileNull = false,
   withFormdata = false,
 }: userUpdateBuildParamsI) {
   const userData: updateQueryUserDataI = {
@@ -171,7 +172,7 @@ export function getUserUpdateQuery({
     },
   };
   if (phone) userData.phone = phone;
-  const iconFile: updateQueryIconFileI = {};
+  const iconFile: updateQueryIconFileI | null = {};
   if (fileContent !== null) iconFile.fileContent = fileContent;
   if (link !== null) iconFile.link = link;
   if (fileMimetype !== null) iconFile.fileMimetype = fileMimetype;
@@ -180,6 +181,7 @@ export function getUserUpdateQuery({
   const payloadData = new Array<any>();
   payloadData.push(['userData', userData]);
   if (isIconFile) payloadData.push(['iconFile', iconFile]);
+  if (isIconFileNull) payloadData.push(['iconFile', null]);
   if (userId !== null) payloadData.push(['userId', userId]);
   const payload: InjectPayload = Object.fromEntries(payloadData);
   const query: InjectOptions = {

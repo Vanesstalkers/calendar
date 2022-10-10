@@ -11,7 +11,7 @@ import {
   getUserUpdateQuery,
 } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
-import { copyFile, stat, unlink } from 'fs/promises';
+import { copyFile, readFile, stat, unlink, writeFile } from 'fs/promises';
 
 const phonesList = phones.slice(100, 110);
 function getPhone() {
@@ -21,11 +21,12 @@ function getPhone() {
 describe('UserController /user/updateWithFormdata (e2e)', () => {
   let app: NestFastifyApplication;
   let moduleFixture: TestingModule;
+  let fileData: Buffer;
   const fileExtension = 'png';
-  const fileName = `tua.${fileExtension}`;
+  const fileName = `tua2.${fileExtension}`;
   const fileMimetype = `image/${fileExtension}`;
   const link = `./uploads/${fileName}`;
-  const sourcePath = `test/assets/${fileName}`;
+  const sourcePath = `test/assets/tua.png`;
   const destPath = `uploads/${fileName}`;
 
   async function unlinkIfExists(path: string) {
@@ -42,6 +43,7 @@ describe('UserController /user/updateWithFormdata (e2e)', () => {
 
     app = await prepareApp(moduleFixture);
     await unlinkIfExists(destPath);
+    fileData = await readFile(sourcePath);
   });
 
   afterAll(async () => {
@@ -50,7 +52,7 @@ describe('UserController /user/updateWithFormdata (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await copyFile(sourcePath, destPath);
+    await writeFile(destPath, fileData);
   });
 
   afterEach(async () => {

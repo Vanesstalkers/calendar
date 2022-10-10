@@ -56,6 +56,7 @@ export interface userUpdateBuildParamsI extends updateQueryIconFileI {
   timezone?: string;
   phoneCode?: string;
   isIconFile?: boolean;
+  isIconFileNull?: boolean;
   userId?: string | null;
   withFormdata?: boolean;
 }

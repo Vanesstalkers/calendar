@@ -80,12 +80,12 @@ describe('UserController /user/update (e2e)', () => {
     const payload4 = JSON.parse(result4.payload);
     expect(result4.statusCode).toEqual(200);
     expect(payload4.status).toEqual('ok');
+    expect(payload4.data.uploadedFileId).not.toBeNaN();
     // step 5: getOne
     const query5: InjectOptions = getUserGetOneQuery({ cookie: cookie2, userId: userId.toString() });
     const result5 = await app.inject(query5);
     const payload5 = JSON.parse(result5.payload);
-    expect(result5.statusCode).toEqual(200);
-    expect(payload5.status).toEqual('ok');
+    expect(payload5.data.iconFileId).toEqual(payload4.data.uploadedFileId);
     expect(payload5.data.name).toEqual(newName);
     expect(payload5.data.phone).toEqual(phone);
     expect(payload5.data.timezone).toEqual(newTimezone);
@@ -172,16 +172,66 @@ describe('UserController /user/update (e2e)', () => {
     const payload4 = JSON.parse(result4.payload);
     expect(result4.statusCode).toEqual(200);
     expect(payload4.status).toEqual('ok');
+    expect(payload4.data.uploadedFileId).not.toBeNaN();
     // step 5: getOne
     const query5: InjectOptions = getUserGetOneQuery({ cookie: cookie2, userId: userId.toString() });
     const result5 = await app.inject(query5);
     const payload5 = JSON.parse(result5.payload);
-    expect(result5.statusCode).toEqual(200);
-    expect(payload5.status).toEqual('ok');
+    expect(payload5.data.iconFileId).toEqual(payload4.data.uploadedFileId);
     expect(payload5.data.name).toEqual(newName);
     expect(payload5.data.phone).toEqual(phone);
     expect(payload5.data.timezone).toEqual(newTimezone);
     expect(payload5.data.config.phoneCode).toEqual(newPhoneCode);
+  });
+
+  it('/user/update (POST) ok full', async () => {
+    // тест удаления ссылки на иконку (через указание в запросе iconFile: null)
+    // step 1: auth
+    const phone = getPhone();
+    const query1: InjectOptions = getUserAuthQuery({ phone });
+    const result1 = await app.inject(query1);
+    const cookie1 = result1.headers['set-cookie'].toString();
+    const payload1 = JSON.parse(result1.payload);
+    // step 2: code
+    const query2: InjectOptions = getUserCodeQuery({ code: payload1.data.code, cookie: cookie1 });
+    const result2 = await app.inject(query2);
+    const cookie2 = result2.headers['set-cookie'].toString();
+    // step 3: session
+    const query3: InjectOptions = getUserSessionQuery({ cookie: cookie2 });
+    const result3 = await app.inject(query3);
+    const payload3 = JSON.parse(result3.payload);
+    const userId = payload3.data.userId;
+    // step 4: update
+    const query4: InjectOptions = getUserUpdateQuery({
+      cookie: cookie2,
+      userId,
+      isIconFile: true,
+      fileExtension,
+      fileName,
+      fileMimetype,
+      fileContent,
+    });
+    const result4 = await app.inject(query4);
+    const payload4 = JSON.parse(result4.payload);
+    expect(result4.statusCode).toEqual(200);
+    expect(payload4.status).toEqual('ok');
+    expect(payload4.data.uploadedFileId).not.toBeNaN();
+    // step 5: update#2 to delete icon file
+    const query5: InjectOptions = getUserUpdateQuery({
+      cookie: cookie2,
+      userId,
+      isIconFileNull: true,
+    });
+    const result5 = await app.inject(query5);
+    const payload5 = JSON.parse(result5.payload);
+    expect(result5.statusCode).toEqual(200);
+    expect(payload5.status).toEqual('ok');
+    expect(payload5.data.uploadedFileId).not.toBeNaN();
+    // step 6: getOne
+    const query6: InjectOptions = getUserGetOneQuery({ cookie: cookie2, userId: userId.toString() });
+    const result6 = await app.inject(query6);
+    const payload6 = JSON.parse(result6.payload);
+    expect(payload6.data.iconFileId).toEqual(null);
   });
 
   it('/user/update (POST) err change phone', async () => {
