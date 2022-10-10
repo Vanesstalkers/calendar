@@ -16,5 +16,5 @@ RUN npm ci
 # Добавляем все файлы в контейнер
 COPY . .
 
-CMD ["sh", "-c", "node -v; npm -v; npx sequelize-cli init; npm run build; npx sequelize-cli db:migrate; npm run start:prod"]
+CMD ["sh", "-c", "node -v; npm -v; npm run build; npx sequelize-cli db:migrate; npm run start:prod"]
 

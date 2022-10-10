@@ -15,7 +15,8 @@ import { LoggerService, LoggerServiceSingleton } from './logger.service';
           const client = await MongoClient.connect(config.mongo, { useUnifiedTopology: true });
           return client.db('calendar');
         } catch (e) {
-          throw e;
+          console.log('!!! LOGS DISABLED !!!');
+          return null;
         }
       },
     },
