@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: development
+  labels:
+    application: backend
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+  selector:
+    application: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: development
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      application: backend
+  template:
+    metadata:
+      labels:
+        application: backend
+      annotations:
+        revision: "${CONTAINER_TAG}"
+    spec:
+      containers:
+        - name: backend
+          image: registry.gitlab.com/profeat/calendar/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+          - name: PGHOST
+            value: ${CI_DEV_PGHOST}
+          - name: PGUSER
+            value: ${CI_DEV_PGUSER}
+          - name: PGPASSWORD
+            value: ${CI_DEV_PGPASSWORD}
+          - name: PGDATABASE
+            value: ${CI_DEV_PGDATABASE}
+          - name: REDIS_HOST
+            value: ${CI_DEV_REDIS_HOST}
+          - name: REDIS_PORT
+            value: ${CI_DEV_REDIS_PORT}
+          - name: MONGO_URI
+            value: ${CI_DEV_MONGO_URI}
+          - name: GREENSMS_URL
+            value: ${CI_DEV_GREENSMS_URL}
+          - name: GREENSMS_USER
+            value: ${CI_DEV_GREENSMS_USER}
+          - name: GREENSMS_PASS
+            value: ${CI_DEV_GREENSMS_PASS}
+      imagePullSecrets:
+        - name: gitlabregistry
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  namespace: development
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: 'false'
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: 'dev-calendar.profeat.team'
+      http:
+        paths:
+          - path: /api
+            backend:
+              serviceName: backend
+              servicePort: 80
