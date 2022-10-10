@@ -8,7 +8,7 @@ metadata:
 spec:
   ports:
     - protocol: TCP
-      port: 80
+      port: 3000
   selector:
     application: backend
 ---
@@ -40,7 +40,7 @@ spec:
           image: registry.gitlab.com/profeat/calendar/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
           imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 3000
               protocol: TCP
           env:
           - name: PGHOST
@@ -85,4 +85,4 @@ spec:
           - path: "/api(/|$)(.*)"
             backend:
               serviceName: backend
-              servicePort: 80
+              servicePort: 3000
