@@ -10,7 +10,6 @@ WORKDIR /usr/backend
 # package-lock.json
 COPY package.json ./
 COPY package-lock.json ./
-COPY .npmrc ./
 RUN npm ci
 RUN npx sequelize-cli init
 RUN npm run build

@@ -45,6 +45,8 @@ spec:
           env:
           - name: PGHOST
             value: ${CI_DEV_PGHOST}
+          - name: PGPORT
+            value: ${CI_DEV_PGPORT}
           - name: PGUSER
             value: ${CI_DEV_PGUSER}
           - name: PGPASSWORD
@@ -74,12 +76,13 @@ metadata:
   annotations:
     ingress.kubernetes.io/ssl-redirect: 'false'
     kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: "/$2"
 spec:
   rules:
     - host: 'dev-calendar.profeat.team'
       http:
         paths:
-          - path: /api
+          - path: "/api(/|$)(.*)"
             backend:
               serviceName: backend
               servicePort: 80
