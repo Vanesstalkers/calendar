@@ -23,6 +23,11 @@ describe('UserController /user/code (e2e)', () => {
     app = await prepareApp(moduleFixture);
   });
 
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
+  });
+
   it('/user/code (POST) ok registration', async () => {
     // step 1: auth
     const query1: InjectOptions = getUserAuthQuery({ phone: getPhone() });
@@ -155,10 +160,5 @@ describe('UserController /user/code (e2e)', () => {
     expect(payload2.msg).toEqual('Wrong auth code');
     expect(payload2.path).toEqual('/user/code');
     expect(payload2.timestamp).toBeDefined();
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await moduleFixture.close();
   });
 });
