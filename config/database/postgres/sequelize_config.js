@@ -6,7 +6,7 @@ try {
 } catch (err) {}
 
 const dialect = 'postgres';
-const database = 'calendar';
+const database = process.env.PGDATABASE || 'calendar';
 module.exports = {
   development: pg?.development || {
     dialect,
