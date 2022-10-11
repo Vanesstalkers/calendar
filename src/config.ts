@@ -34,7 +34,7 @@ export function getConfig() {
           host: process.env.PGHOST,
           username: process.env.PGUSER,
           password: process.env.PGPASSWORD,
-          database: 'calendar',
+          database: process.env.PGDATABASE || 'calendar',
           dialect: 'postgres',
         }
       : process.env.MODE === 'PROD'
