@@ -72,3 +72,21 @@ export interface payloadArrItemI {
 export interface creteOrGetUserI extends userAuthBuildParamsI {
   app: NestFastifyApplication;
 }
+
+interface userListItemI {
+  userId?: any;
+  role?: string | null;
+  userName?: string | null;
+  position?: string | null;
+  config?: object | null;
+}
+
+export interface projectCreateBuildParamsI extends userListItemI {
+  cookie?: string | null;
+  title?: string | null;
+  userList?: userListItemI[];
+}
+
+export interface creteOrGetUserI extends projectCreateBuildParamsI {
+  app: NestFastifyApplication;
+}

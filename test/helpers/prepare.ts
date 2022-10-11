@@ -2,7 +2,7 @@ import { TestingModule } from '@nestjs/testing';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
 import { InjectOptions } from 'light-my-request';
-import { getUserAuthQuery, getUserCodeQuery } from './queryBuilders';
+import { getProjectCreateQuery, getUserAuthQuery, getUserCodeQuery, getUserSessionQuery } from './queryBuilders';
 import { creteOrGetUserI } from './interfaces';
 
 export async function prepareApp(moduleFixture: TestingModule) {
@@ -35,4 +35,22 @@ export async function createOrGetUser(data: creteOrGetUserI) {
   const result2 = await app.inject(query2);
   const cookie2 = result2.headers['set-cookie'].toString();
   return { cookie: cookie2 };
+}
+
+export async function createProject(data: creteOrGetUserI) {
+  const { cookie, app, ...rest } = data;
+  // step 1: session
+  const query1: InjectOptions = getUserSessionQuery({ cookie });
+  const result1 = await app.inject(query1);
+  const payload1 = JSON.parse(result1.payload);
+  const userId = payload1.data.userId;
+  // step 2: create project
+  const query2: InjectOptions = getProjectCreateQuery({
+    cookie,
+    userId,
+    ...rest,
+  });
+  const result2 = await app.inject(query2);
+  const payload2 = JSON.parse(result2.payload);
+  return { projectId: payload2.data.id, userId };
 }

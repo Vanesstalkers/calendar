@@ -2,6 +2,7 @@ import { InjectOptions, InjectPayload } from 'light-my-request';
 import {
   authQueryUserDataI,
   payloadArrItemI,
+  projectCreateBuildParamsI,
   updateQueryIconFileI,
   updateQueryUserDataI,
   userAuthBuildParamsI,
@@ -10,6 +11,7 @@ import {
   userUpdateBuildParamsI,
 } from './interfaces';
 import { phones } from './constants.json';
+import { title } from 'process';
 
 // injection query builders per route
 export function getUserAuthQuery({
@@ -193,6 +195,58 @@ export function getUserUpdateQuery({
     },
     payload,
   };
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
+
+export function getProjectCreateQuery({
+  title = 'project title',
+  userList = [],
+  userId = 0,
+  role = 'owner',
+  userName = 'u2p user name',
+  position = 'u2p position',
+  config = {},
+  cookie,
+}: projectCreateBuildParamsI) {
+  let userListCreated;
+  const userListLength = userList.length;
+  if (!userListLength) {
+    const userListItem = [];
+    if (userId !== null) userListItem.push(['userId', userId]);
+    if (role !== null) userListItem.push(['role', role]);
+    if (userName !== null) userListItem.push(['userName', userName]);
+    if (position !== null) userListItem.push(['position', position]);
+    if (config !== null) userListItem.push(['config', config]);
+    userListCreated = [Object.fromEntries(userListItem)];
+  }
+  const payloadArr = [['userList', userListLength ? userList : userListCreated]];
+  if (title !== null) payloadArr.push(['title', title]);
+  const payload: InjectPayload = Object.fromEntries(payloadArr);
+  const query: InjectOptions = {
+    method: 'POST',
+    url: '/project/create',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    payload,
+  };
+  if (cookie) query.headers.cookie = cookie;
+  return query;
+}
+
+export function getProjectGetOneQuery({ cookie, projectId }: { cookie?: string; projectId?: string }) {
+  const query: InjectOptions = {
+    method: 'GET',
+    url: '/project/getOne',
+    query: { projectId },
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+  };
+  if (!projectId) delete query.query;
   if (cookie) query.headers.cookie = cookie;
   return query;
 }

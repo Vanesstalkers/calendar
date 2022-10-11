@@ -3,12 +3,7 @@ import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { createOrGetUser, prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
-import {
-  getUserAuthQuery,
-  getUserCodeQuery,
-  getUserLogoutQuery,
-  getUserSessionQuery,
-} from './../helpers/queryBuilders';
+import { getUserAuthQuery, getUserLogoutQuery, getUserSessionQuery } from './../helpers/queryBuilders';
 import { phones } from './../helpers/constants.json';
 
 const phonesList = phones.slice(30, 40);

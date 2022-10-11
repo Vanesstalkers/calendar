@@ -1,17 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from './../../src/app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { createOrGetUser, prepareApp } from './../helpers/prepare';
 import { InjectOptions } from 'light-my-request';
-import {
-  getUserAuthQuery,
-  getUserCodeQuery,
-  getUserGetOneQuery,
-  getUserSessionQuery,
-  getUserUpdateQuery,
-} from './../helpers/queryBuilders';
-import { phones } from './../helpers/constants.json';
 import { readFile } from 'fs/promises';
+import { AppModule } from './../../src/app.module';
+import { createOrGetUser, prepareApp } from './../helpers/prepare';
+import { getUserGetOneQuery, getUserSessionQuery, getUserUpdateQuery } from './../helpers/queryBuilders';
+import { phones } from './../helpers/constants.json';
 
 const phonesList = phones.slice(80, 100);
 function getPhone() {
