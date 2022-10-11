@@ -49,6 +49,7 @@ try {
     cacheImportOpts = {
       ...cacheImportOpts,
       ...config.redis,
+      no_ready_check: true,
       store: redisStore,
     };
   }
