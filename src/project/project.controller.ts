@@ -65,12 +65,11 @@ export class ProjectController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.created())
   async create(@nestjs.Body() projectData: projectCreateQueryDTO, @nestjs.Session() session: FastifySession) {
-    const userId = session.userId;
+    const sessionUserId = session.userId;
     if (!projectData.userList) projectData.userList = [];
-    // !!! тут ошибка, если у item.userId === userId не указана role (надо перенести в projectInstance - добавить validateDataForCreate)
-    if (!projectData.userList.find((item) => item.userId === userId)) {
-      projectData.userList.push({ userId, role: 'owner' });
-    }
+    if (!projectData.userList.find((item) => item.userId === sessionUserId))
+      projectData.userList.push({ userId: sessionUserId });
+    for (const item of projectData.userList) item.role = item.userId === sessionUserId ? 'owner' : 'member';
     const project = await this.projectService.create(projectData);
     return { ...httpAnswer.OK, data: { id: project.id } };
   }
