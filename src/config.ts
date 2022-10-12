@@ -32,6 +32,7 @@ export function getConfig() {
     pg: process.env.PGHOST
       ? {
           host: process.env.PGHOST,
+          port: process.env.PGPORT,
           username: process.env.PGUSER,
           password: process.env.PGPASSWORD,
           database: process.env.PGDATABASE || 'calendar',
