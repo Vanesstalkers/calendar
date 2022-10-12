@@ -43,6 +43,8 @@ spec:
             - containerPort: 3000
               protocol: TCP
           env:
+          - name: HOST
+            value: 0.0.0.0
           - name: PGHOST
             value: ${CI_DEV_PGHOST}
           - name: PGPORT

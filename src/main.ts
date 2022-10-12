@@ -11,6 +11,7 @@ async function bootstrap() {
       abortOnError: false,
       // logger: false,
     });
+    app.setGlobalPrefix('api');
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
