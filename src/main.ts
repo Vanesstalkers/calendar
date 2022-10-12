@@ -11,7 +11,7 @@ async function bootstrap() {
       abortOnError: false,
       // logger: false,
     });
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('test');
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
@@ -28,7 +28,7 @@ async function bootstrap() {
       .setVersion('1.0')
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api', app, document);
+    SwaggerModule.setup('swagger', app, document);
 
     const host = process.env.HOST || '127.0.0.1';
     const port = process.env.PORT || 3000;
