@@ -51,7 +51,7 @@ try {
       ...cacheImportOpts,
       ...config.redis,
       no_ready_check: true,
-      auth_pass: '',
+      password: '',
       store: redisStore,
     };
   }
