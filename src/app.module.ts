@@ -23,6 +23,7 @@ import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 import { getConfig } from './config';
 const config = getConfig();
+console.log({ config });
 
 var dbImport: nestjs.DynamicModule, cacheImport: nestjs.DynamicModule;
 
