@@ -53,6 +53,7 @@ try {
       no_ready_check: true,
       store: redisStore,
     };
+    console.log({cacheImportOpts, config: config.redis, env: process.env.REDIS_PASS});
   }
   cacheImport = nestjs.CacheModule.register<ClientOpts>(cacheImportOpts);
 } catch (err) {
