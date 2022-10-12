@@ -27,7 +27,7 @@ export function getConfig() {
     console.log('!!! FOR USE GREENSMS FILE-BASED CONFIG FILL /config/service/sms/greensms.json ');
     console.log('!!! OR SET env.GREENSMS_URL, env.GREENSMS_USER, env.GREENSMS_PASS');
   }
-  console.log("process.env.MONGO_URI", process.env.MONGO_URI);
+
   return {
     pg: process.env.PGHOST
       ? {
@@ -52,12 +52,13 @@ export function getConfig() {
       : process.env.MODE === 'TEST'
       ? redis?.test || {}
       : redis?.development || {},
-    mongo:
-      process.env.MONGO_URI || process.env.MODE === 'PROD'
-        ? mongo?.production
-        : process.env.MODE === 'TEST'
-        ? mongo?.test
-        : mongo?.development,
+    mongo: process.env.MONGO_URI
+      ? process.env.MONGO_URI
+      : process.env.MODE === 'PROD'
+      ? mongo?.production
+      : process.env.MODE === 'TEST'
+      ? mongo?.test
+      : mongo?.development,
     greensms: process.env.GREENSMS_URL
       ? {
           url: process.env.GREENSMS_URL,
