@@ -16,7 +16,7 @@ import { LoggerService, LoggerServiceSingleton } from './logger.service';
           return client.db('calendar');
         } catch (err) {
           console.log('!!! LOGS DISABLED !!!');
-          console.log(err);
+          console.log({ err, config: config.mongo });
           return null;
         }
       },
