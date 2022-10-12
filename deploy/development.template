@@ -59,6 +59,8 @@ spec:
             value: ${CI_DEV_REDIS_HOST}
           - name: REDIS_PORT
             value: ${CI_DEV_REDIS_PORT}
+          - name: REDIS_PASS
+            value: ${CI_DEV_REDIS_PASS}
           - name: MONGO_URI
             value: ${CI_DEV_MONGO_URI}
           - name: GREENSMS_URL
