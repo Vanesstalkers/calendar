@@ -9,7 +9,7 @@
       console.log('--- starting');
       let socket;
       (async () => {
-        socket = io(location.href.split('/').slice(0, -1).join('/'));
+        socket = io(location.origin, { path: location.href.includes('/api/') ? '/api/socket.io' : '' });
         window.socket = socket;
         socket.on('connect', async function () {
           console.log('Connected, socket.id=', socket.id);
