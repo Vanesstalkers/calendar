@@ -27,7 +27,7 @@ export function getConfig() {
     console.log('!!! FOR USE GREENSMS FILE-BASED CONFIG FILL /config/service/sms/greensms.json ');
     console.log('!!! OR SET env.GREENSMS_URL, env.GREENSMS_USER, env.GREENSMS_PASS');
   }
-
+  console.log("process.env.MONGO_URI", process.env.MONGO_URI);
   return {
     pg: process.env.PGHOST
       ? {

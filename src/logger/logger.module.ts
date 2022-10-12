@@ -12,6 +12,7 @@ import { LoggerService, LoggerServiceSingleton } from './logger.service';
       provide: 'DATABASE_CONNECTION',
       useFactory: async (): Promise<Db> => {
         try {
+          console.log({config});
           const client = await MongoClient.connect(config.mongo, { useUnifiedTopology: true });
           return client.db('calendar');
         } catch (err) {
