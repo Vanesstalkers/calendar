@@ -11,7 +11,6 @@ async function bootstrap() {
       abortOnError: false,
       // logger: false,
     });
-    app.setGlobalPrefix('test');
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
@@ -22,13 +21,14 @@ async function bootstrap() {
       salt: 'mq9hDxBVDbspDR6n',
       cookie: { path: '/', sameSite: 'none', secure: true, maxAge: 86400 },
     });
-    const swaggerConfig = new DocumentBuilder()
+    let swaggerConfig = new DocumentBuilder()
       .setTitle('API description')
       .setDescription('')
       .setVersion('1.0')
+      .addServer(process.env.MODE === 'PROD' ? '/api' : '/')
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('swagger', app, document);
+    SwaggerModule.setup('docs', app, document);
 
     const host = process.env.HOST || '127.0.0.1';
     const port = process.env.PORT || 3000;
