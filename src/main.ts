@@ -11,20 +11,22 @@ async function bootstrap() {
   try {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
       abortOnError: false,
-      logger: false,
+      // logger: false,
     });
+    console.log(`App created`); 
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
     });
-
+    console.log(`FastifyMultipart registrated`);
+    
     app.enableCors({ origin: true, credentials: true });
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
       cookie: { path: '/', sameSite: 'none', secure: true, maxAge: 86400 },
     });
-
+    console.log(`SecureSession registrated`); 
     // app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
 
     const swaggerConfig = new DocumentBuilder()
@@ -34,7 +36,7 @@ async function bootstrap() {
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api', app, document);
-
+    console.log(`Swagger created`); 
     const port = process.env.PORT || 3000;
     console.log(`Starting at :${port}`); 
     await app.listen(port);
