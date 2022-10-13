@@ -39,10 +39,9 @@ export class FileController {
     @nestjs.Session() session: FastifySession,
     @nestjs.Res({ passthrough: true }) res: FastifyReply,
   ): Promise<nestjs.StreamableFile> {
-    if (!id) throw new nestjs.BadRequestException('File ID is empty');
-
-    const file = await this.service.getOne(parseInt(id));
-
+    const fileId = parseInt(id);
+    if (!(fileId > 0)) throw new nestjs.BadRequestException('File ID is not a number');
+    const file = await this.service.getOne(fileId);
     if (!file || !file.id) throw new nestjs.BadRequestException({ msg: 'File not found' });
 
     await fs.promises.stat('./uploads/' + file.link).catch((err) => {
@@ -65,10 +64,9 @@ export class FileController {
   @nestjs.UseGuards(decorators.isLoggedIn)
   @swagger.ApiResponse(new interfaces.response.success({ models: [fileGetDataAnswerDTO] }))
   async getData(@nestjs.Param('id') id: 'string') {
-    if (!id) throw new nestjs.BadRequestException('File ID is empty');
-
-    const file = await this.service.getOne(parseInt(id));
-
+    const fileId = parseInt(id);
+    if (!(fileId > 0)) throw new nestjs.BadRequestException('File ID is not a number');
+    const file = await this.service.getOne(fileId);
     if (!file || !file.id) throw new nestjs.BadRequestException({ msg: 'File not found' });
 
     const stats = await fs.promises.stat('./uploads/' + file.link).catch((err) => {
