@@ -30,7 +30,7 @@ export class SessionServiceSingleton {
 
   async create(sessionId?: string) {
     if (!sessionId) sessionId = crypto.randomUUID();
-    await this.appService.addToCache(sessionId, JSON.stringify({ createTime: new Date() }), { ttl: 60 * 5 });
+    await this.appService.addToCache(sessionId, { createTime: new Date() }, { ttl: 60 * 5 });
     return sessionId;
   }
 
@@ -48,7 +48,7 @@ export class SessionServiceSingleton {
     try {
       const sessionData = await this.appService.getJsonFromCache(sessionId);
       const ttl = 60 * 60 * 24; // при каждом обновлении продлеаем сессию
-      await this.appService.addToCache(sessionId, JSON.stringify({ ...sessionData, ...data }), { ttl });
+      await this.appService.addToCache(sessionId, { ...sessionData, ...data }, { ttl });
     } catch (err) {
       console.log('ERROR sessionService.update', { sessionId, data });
     }
