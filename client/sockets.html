@@ -44,12 +44,8 @@
       const theDiv = document.getElementById('msg');
 
       function sendMess() {
-        fetch('/user/getOne?userId=1', {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
+        const result = socket.emit('call', { controller: 'user', method: 'getOne', data: { id: 1 } }, (result) => {
+          console.log('call result=', result);
         });
       }
       theButton.addEventListener('click', sendMess);

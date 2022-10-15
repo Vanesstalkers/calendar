@@ -5,6 +5,7 @@ import { REQUEST } from '@nestjs/core';
 import * as fastify from 'fastify';
 import { REQUEST_CONTEXT_ID } from '@nestjs/core/router/request/request-constants';
 import { Db, ObjectID } from 'mongodb';
+import { Server, Socket } from 'socket.io';
 import { decorators, interfaces, types, exception } from '../globalImport';
 
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
@@ -16,37 +17,40 @@ export class LoggerServiceSingleton {
   getTraceList() {
     return this.traceList;
   }
-  async startLog(request) {
+  async startLog(request, startType = 'HTTP') {
+    this.traceList = [];
+    this.finalized = false;
     this.sendLog(
       [
         {
           url: request.url,
           request: {
-            ip: request.ip,
+            ip: request.ip || request.address,
             method: request.method,
             protocol: request.protocol,
             headers: request.headers,
           },
         },
-        { requestData: request.body || request.query },
+        { startType, requestData: request.body || request.query },
       ],
-      { request, startType: 'HTTP' },
+      /* { request, startType }, */
     );
   }
   async sendLog(
     data: any,
     {
       request = null,
+      client = null,
       startType,
       finalizeType,
-    }: { request?: fastify.FastifyRequest; startType?: string; finalizeType?: string } = {},
+    }: { request?: fastify.FastifyRequest; client?: Socket; startType?: string; finalizeType?: string } = {},
   ) {
     try {
       const col = new Date().toLocaleString().split(',')[0];
       const processData = Array.isArray(data) ? data : [data];
       const insertData = [];
       for (const processItem of processData) {
-        insertData.push(await this.processTraceData(processItem, { request, startType, finalizeType }));
+        insertData.push(await this.processTraceData(processItem, { request, client, startType, finalizeType }));
       }
       this.traceList.push(...insertData);
       if (finalizeType) {
@@ -54,11 +58,11 @@ export class LoggerServiceSingleton {
         const traceList = this.getTraceList();
         const sqlLogs = traceList.filter((logItem) => logItem.sql);
         const baseLog = traceList.filter((logItem) => !logItem.sql).reduce((acc, item) => ({ ...acc, ...item }), {});
-        if(this.db) await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
+        if (this.db) await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
         return traceList[0]?.traceId;
       } else if (this.finalized) {
         // сюда попадут части логов, которые записывались в файлы (в случае ошибки запроса к БД они отработают позже)
-        if(this.db) await this.db.collection(col).insertMany([...insertData]);
+        if (this.db) await this.db.collection(col).insertMany([...insertData]);
       }
     } catch (err) {
       console.log('sendLog err', err);
@@ -68,11 +72,13 @@ export class LoggerServiceSingleton {
     data: any,
     {
       request = null,
+      client = null,
       startType,
       finalizeType,
-    }: { request?: fastify.FastifyRequest; startType?: string; finalizeType?: string } = {},
+    }: { request?: fastify.FastifyRequest; client?: Socket; startType?: string; finalizeType?: string } = {},
   ) {
-    const traceId = (this.request || request)?.[REQUEST_CONTEXT_ID]?.id?.toString();
+    const clientTraceid = client?.id ? client?.id + '-' + client?.handshake?.query.t : undefined;
+    const traceId = (this.request || request)?.[REQUEST_CONTEXT_ID]?.id?.toString() || clientTraceid;
     let resultItem = JSON.parse(JSON.stringify(data));
     const check = async (data: object) => {
       for (const [key, val] of Object.entries(data)) {

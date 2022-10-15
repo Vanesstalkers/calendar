@@ -1,6 +1,8 @@
 import * as nestjs from '@nestjs/common';
 import * as ws from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { LoggerServiceSingleton } from 'src/logger/logger.service';
+import { UserService, UserServiceSingleton } from 'src/user/user.service';
 import { httpAnswer } from '../globalImport';
 import { SessionServiceSingleton } from '../session/session.service';
 import { UtilsServiceSingleton } from '../utils/utils.service';
@@ -13,6 +15,8 @@ export class EventsGateway {
   constructor(
     @nestjs.Inject(nestjs.forwardRef(() => SessionServiceSingleton)) private sessionService: SessionServiceSingleton,
     @nestjs.Inject(nestjs.forwardRef(() => UtilsServiceSingleton)) private utils: UtilsServiceSingleton,
+    private user: UserServiceSingleton,
+    private logger: LoggerServiceSingleton,
   ) {}
   @ws.WebSocketServer() server: Server;
 
@@ -61,7 +65,15 @@ export class EventsGateway {
   ) {
     return this.wsExceptionCatcher(async () => {
       if (this[data.controller] && this[data.controller][data.method]) {
-        return await this[data.controller][data.method](data);
+        await this.logger.startLog({ ...client.request, ...client.handshake, protocol: 'ws' }, 'WS');
+        const sessionId = this.eventsMap[client.id];
+        const sessionData = await this.sessionService.get(sessionId);
+        await this.logger.sendLog([{ sessionData, requestData: data }]);
+
+        const result = await this[data.controller][data.method](data.data);
+
+        await this.logger.sendLog({ answerData: result }, { client, finalizeType: 'ok' });
+        return result;
       }
       return data;
     });
