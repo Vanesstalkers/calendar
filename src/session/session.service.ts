@@ -4,12 +4,14 @@ import { Session as FastifySession } from '@fastify/secure-session';
 import { decorators, interfaces, types } from '../globalImport';
 
 import { AppServiceSingleton } from '../app.service';
+import { AppRepository, AppRepositorySingleton } from 'src/app.repository';
 import { UserService, UserServiceSingleton } from '../user/user.service';
 import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class SessionServiceSingleton {
   constructor(
+    public repo: AppRepositorySingleton,
     public appService: AppServiceSingleton,
     public userService: UserServiceSingleton,
     public utils: UtilsServiceSingleton,
@@ -25,12 +27,13 @@ export class SessionServiceSingleton {
       personalProjectId: sessionData.personalProjectId ?? null,
       currentProjectId: sessionData.currentProjectId ?? null,
       eventsId: sessionData.eventsId ?? null,
+      subscribeList: this.repo.getSubscribeList(sessionId),
     };
   }
 
   async create(sessionId?: string) {
     if (!sessionId) sessionId = crypto.randomUUID();
-    await this.appService.addToCache(sessionId, JSON.stringify({ createTime: new Date() }), { ttl: 60 * 5 });
+    await this.appService.addToCache(sessionId, { createTime: new Date() }, { ttl: 60 * 5 });
     return sessionId;
   }
 
@@ -48,7 +51,7 @@ export class SessionServiceSingleton {
     try {
       const sessionData = await this.appService.getJsonFromCache(sessionId);
       const ttl = 60 * 60 * 24; // при каждом обновлении продлеаем сессию
-      await this.appService.addToCache(sessionId, JSON.stringify({ ...sessionData, ...data }), { ttl });
+      await this.appService.addToCache(sessionId, { ...sessionData, ...data }, { ttl });
     } catch (err) {
       console.log('ERROR sessionService.update', { sessionId, data });
     }
@@ -57,7 +60,12 @@ export class SessionServiceSingleton {
 
 @nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class SessionService extends SessionServiceSingleton {
-  constructor(public appService: AppServiceSingleton, public userService: UserService, public utils: UtilsService) {
-    super(appService, userService, utils);
+  constructor(
+    public repo: AppRepository,
+    public appService: AppServiceSingleton,
+    public userService: UserService,
+    public utils: UtilsService,
+  ) {
+    super(repo, appService, userService, utils);
   }
 }

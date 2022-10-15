@@ -9,13 +9,14 @@ import { Transaction } from 'sequelize/types';
 import { decorators, interfaces, types, exception } from '../globalImport';
 
 import { LoggerService, LoggerServiceSingleton } from '../logger/logger.service';
+import { EventsGateway } from '../events/events.gateway';
 
 import { getConfig } from '../config';
 const config = getConfig();
 
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class UtilsServiceSingleton {
-  constructor(public sequelize: Sequelize, public logger: LoggerServiceSingleton) {}
+  constructor(public sequelize: Sequelize, public logger: LoggerServiceSingleton, public events: EventsGateway) {}
 
   validatePhone(phone: string): boolean {
     return !phone || phone.toString().match(/^\d{10}$/) === null;
@@ -134,10 +135,7 @@ export class UtilsServiceSingleton {
 
     if (setList.length) {
       setList.unshift(`"updateTime" = NOW()`);
-      await this.queryDB(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, {
-        replacements,
-        transaction,
-      });
+      await this.queryDB(`UPDATE "${table}" SET ${setList.join(',')} WHERE id = :id`, { replacements, transaction });
     }
   }
 
@@ -189,11 +187,22 @@ export class UtilsServiceSingleton {
     });
     return JSON.parse(msg.toString());
   }
+
+  updateObjRecursive(target, data) {
+    for (const [key, value] of Object.entries(data)) {
+      if (value && typeof value === 'object') {
+        if (!target[key]) target[key] = value.constructor();
+        this.updateObjRecursive(target[key], value);
+      } else {
+        target[key] = value;
+      }
+    }
+  }
 }
 
 @nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class UtilsService extends UtilsServiceSingleton {
-  constructor(public sequelize: Sequelize, public logger: LoggerService) {
-    super(sequelize, logger);
+  constructor(public sequelize: Sequelize, public logger: LoggerService, public events: EventsGateway) {
+    super(sequelize, logger, events);
   }
 }

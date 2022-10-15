@@ -205,7 +205,7 @@ export class UserController {
   async getOne(@nestjs.Query() data: userGetOneQueryDTO, @nestjs.Session() session: FastifySession) {
     if (!data.userId) throw new nestjs.BadRequestException('User ID is empty');
 
-    const result = await this.userService.getOne({ id: data.userId });
+    const result = await this.userService.getOne({ id: data.userId }, { subscriberCode: session.id });
 
     const sessionData = await this.sessionService.get(session.id);
     if (sessionData.eventsId) {

@@ -4,6 +4,8 @@ import { Transaction } from 'sequelize/types';
 import { Cron } from '@nestjs/schedule';
 import { decorators, interfaces, types, exception, sql } from '../globalImport';
 
+import { AppRepository, AppRepositorySingleton } from '../app.repository';
+
 import {
   taskFullDTO,
   taskUpdateDTO,
@@ -25,7 +27,7 @@ const REGULAR_TASK_SHIFT_DAYS_COUNT = 14;
 
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class TaskServiceSingleton {
-  constructor(public utils: UtilsServiceSingleton) {}
+  constructor(public repo: AppRepositorySingleton, public utils: UtilsServiceSingleton) {}
 
   async create(taskData: taskFullDTO, transaction?: Transaction) {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
@@ -628,6 +630,24 @@ export class TaskServiceSingleton {
   }
 
   async getInboxTasks(userId: number, query: taskInboxQueryDataDTO) {
+    query.projectIds.push(...Object.keys(query.scheduleFilters).map((projectId) => parseInt(projectId)));
+    let result2;
+    switch (query.filter) {
+      case 'new':
+        result2 = await this.repo.getInboxNewTasks(
+          { userId, projectIds: query.projectIds },
+          { offset: query.offset, limit: query.limit },
+        );
+        break;
+      case 'finished':
+        break;
+      case 'toexec':
+        result2 = await this.repo.getInboxToExecTasks(
+          { userId, projectIds: query.projectIds },
+          { offset: query.offset, limit: query.limit },
+        );
+        break;
+    }
     const result = { resultList: [], endOfList: true };
     let sqlWhere = [];
     switch (query.filter) {
@@ -690,10 +710,16 @@ export class TaskServiceSingleton {
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
     result.resultList = result.resultList.map((task) => taskMap[task.id]);
 
-    return result;
+    return { result, result2 };
   }
 
   async getScheduleTasks(userId: number, query: taskScheduleQueryDataDTO) {
+    const result2 = await this.repo.getScheduleTasks({
+      userId,
+      projectIds: query.projectIds,
+      from: query.from,
+      to: query.to,
+    });
     const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't2u.id IS NOT NULL', // пользователь назначен исполнителем
@@ -750,10 +776,17 @@ export class TaskServiceSingleton {
         .filter((task) => task);
     }
 
-    return result;
+    return { result, result2 };
   }
 
   async getOverdueTasks(userId: number, query: taskOverdueQueryDataDTO) {
+    const result2 = await this.repo.getOverdueTasks(
+      {
+        userId,
+        projectIds: query.projectIds,
+      },
+      { offset: query.offset, limit: query.limit },
+    );
     const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't2u.id IS NOT NULL', // пользователь назначен исполнителем
@@ -786,10 +819,17 @@ export class TaskServiceSingleton {
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
     result.resultList = result.resultList.map((task) => taskMap[task.id]);
 
-    return result;
+    return { result, result2 };
   }
 
   async getLaterTasks(userId: number, query: taskLaterQueryDataDTO) {
+    const result2 = await this.repo.getLaterTasks(
+      {
+        userId,
+        projectIds: query.projectIds,
+      },
+      { offset: query.offset, limit: query.limit },
+    );
     const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't2u.id IS NOT NULL', // пользователь назначен исполнителем
@@ -820,10 +860,17 @@ export class TaskServiceSingleton {
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
     result.resultList = result.resultList.map((task) => taskMap[task.id]);
 
-    return result;
+    return { result, result2 };
   }
 
   async getExecutorsTasks(userId: number, query: taskExecutorsQueryDataDTO) {
+    const result2 = await this.repo.getExecutorsTasks(
+      {
+        userId,
+        projectIds: query.projectIds,
+      },
+      { offset: query.offset, limit: query.limit },
+    );
     const result = { resultList: [], endOfList: true };
     const sqlWhere = [
       't."deleteTime" IS NULL', // НЕ удалена
@@ -870,7 +917,7 @@ export class TaskServiceSingleton {
     const taskMap = fillDataTaskList.reduce((acc, task) => Object.assign(acc, { [task.id]: task }), {});
     result.resultList = result.resultList.map((task) => ({ ...taskMap[task.id], ...task })); // в task лежит consignedExecUser
 
-    return result;
+    return { result, result2 };
   }
 
   //@Cron('0 * * * * *')
@@ -1009,7 +1056,7 @@ export class TaskServiceSingleton {
 
 @nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class TaskService extends TaskServiceSingleton {
-  constructor(public utils: UtilsService) {
-    super(utils);
+  constructor(public repo: AppRepository, public utils: UtilsService) {
+    super(repo, utils);
   }
 }

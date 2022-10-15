@@ -3,14 +3,19 @@ import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import { decorators, interfaces, types, exception, sql } from '../globalImport';
 
-import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectToUserUpdateDTO } from './project.dto';
-
+import { AppRepository, AppRepositorySingleton } from '../app.repository';
 import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 import { FileService, FileServiceSingleton } from '../file/file.service';
 
+import { projectCreateQueryDTO, projectUpdateQueryDataDTO, projectToUserUpdateDTO } from './project.dto';
+
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class ProjectServiceSingleton {
-  constructor(public utils: UtilsServiceSingleton, public fileService: FileServiceSingleton) {}
+  constructor(
+    public repo: AppRepositorySingleton,
+    public utils: UtilsServiceSingleton,
+    public fileService: FileServiceSingleton,
+  ) {}
 
   async create(
     projectData: projectCreateQueryDTO,
@@ -72,6 +77,7 @@ export class ProjectServiceSingleton {
         },
         transaction,
       });
+      this.repo.updateProject(projectId, updateData);
 
       return { uploadedFile };
     });
@@ -84,7 +90,10 @@ export class ProjectServiceSingleton {
     });
   }
 
-  async getOne(data: { id: number; userId?: number }, config: types['getOneConfig'] = {}) {
+  async getOne(data: { id: number; userId?: number }, config: { subscriberCode?: string } = {}) {
+    const project = await this.repo.getProject({ projectId: data.id }, { subscriberCode: config.subscriberCode });
+    return project;
+
     const findData = await this.utils.queryDB(
       `--sql
         SELECT    p.id
@@ -153,6 +162,7 @@ export class ProjectServiceSingleton {
     linkId: number,
     updateData: projectToUserUpdateDTO,
     transaction?: Transaction,
+    projectId?: number,
   ): Promise<{ uploadedFile: { id?: number } }> {
     return await this.utils.withDBTransaction(transaction, async (transaction) => {
       if (!updateData.deleteTime) updateData.deleteTime = null;
@@ -266,7 +276,7 @@ export class ProjectServiceSingleton {
 
 @nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class ProjectService extends ProjectServiceSingleton {
-  constructor(public utils: UtilsService, public fileService: FileService) {
-    super(utils, fileService);
+  constructor(public repo: AppRepository, public utils: UtilsService, public fileService: FileService) {
+    super(repo, utils, fileService);
   }
 }

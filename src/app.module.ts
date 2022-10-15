@@ -5,10 +5,20 @@ import { SequelizeModule } from '@nestjs/sequelize';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Logger } from './globalImport';
 
+import { MongoClient, Db } from 'mongodb';
 import type { ClientOpts } from 'redis';
 import * as redisStore from 'cache-manager-redis-store';
 
 import { AppServiceSingleton } from './app.service';
+import {
+  AppRepository,
+  AppRepositorySingleton,
+  AppUpdatesSubscribeList,
+  AppUserStore,
+  AppProjectStore,
+  AppProjectToUserStore,
+  AppTaskStore,
+} from './app.repository';
 import { SessionModule } from './session/session.module';
 import { UserModule } from './user/user.module';
 import { ProjectModule } from './project/project.module';
@@ -53,7 +63,6 @@ try {
       no_ready_check: true,
       store: redisStore,
     };
-    console.log({cacheImportOpts, config: config.redis, env: process.env.REDIS_PASS});
   }
   cacheImport = nestjs.CacheModule.register<ClientOpts>(cacheImportOpts);
 } catch (err) {
@@ -80,6 +89,24 @@ try {
   ],
   providers: [
     AppServiceSingleton,
+    AppRepository,
+    AppRepositorySingleton,
+    AppUpdatesSubscribeList,
+    AppUserStore,
+    AppProjectStore,
+    AppProjectToUserStore,
+    AppTaskStore,
+    {
+      provide: 'DATABASE_CONNECTION',
+      useFactory: async (): Promise<Db> => {
+        try {
+          const client = await MongoClient.connect(config.mongo, { useUnifiedTopology: true });
+          return client.db('calendar');
+        } catch (err) {
+          throw err;
+        }
+      },
+    },
     {
       provide: APP_FILTER,
       useClass: UniversalExceptionFilter,
@@ -93,6 +120,8 @@ try {
   controllers: [],
   exports: [
     AppServiceSingleton,
+    AppRepository,
+    AppRepositorySingleton,
     LoggerModule,
     UserModule,
     SessionModule,

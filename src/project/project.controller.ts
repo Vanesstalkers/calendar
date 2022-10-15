@@ -83,7 +83,10 @@ export class ProjectController {
     const sessionUserId = session.userId;
     project.checkPersonalAccess(sessionUserId);
 
-    const result = await this.projectService.getOne({ id: projectId, userId: sessionUserId });
+    const result = await this.projectService.getOne(
+      { id: projectId, userId: sessionUserId },
+      { subscriberCode: session.id },
+    );
     return { ...httpAnswer.OK, data: result };
   }
 

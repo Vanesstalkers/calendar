@@ -3,6 +3,7 @@ import { QueryTypes } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import { exception, types, sql } from '../globalImport';
 
+import { AppRepository, AppRepositorySingleton } from '../app.repository';
 import { ProjectService, ProjectServiceSingleton } from '../project/project.service';
 import { UtilsService, UtilsServiceSingleton } from '../utils/utils.service';
 import { FileService, FileServiceSingleton } from '../file/file.service';
@@ -12,6 +13,7 @@ import { userAuthQueryDataDTO, userSearchQueryDTO, userUpdateQueryDataDTO } from
 @nestjs.Injectable({ scope: nestjs.Scope.DEFAULT })
 export class UserServiceSingleton {
   constructor(
+    public repo: AppRepositorySingleton,
     public projectService: ProjectServiceSingleton,
     public utils: UtilsServiceSingleton,
     public fileService: FileServiceSingleton,
@@ -19,8 +21,11 @@ export class UserServiceSingleton {
 
   async getOne(
     data: { id?: number; phone?: string },
-    config: { includeSessions: boolean } = { includeSessions: false },
+    config: { includeSessions?: boolean; subscriberCode?: string } = { includeSessions: false },
   ) {
+    const user = await this.repo.getUser({ userId: data.id, phone: data.phone }, { subscriberCode: config.subscriberCode });
+    return user;
+
     const findData = await this.utils.queryDB(
       `--sql
           SELECT    u.id
@@ -179,6 +184,7 @@ export class UserServiceSingleton {
         jsonKeys: ['config', 'sessions'],
         transaction,
       });
+      this.repo.updateUser(userId, updateData);
 
       return { uploadedFile };
     });
@@ -241,7 +247,12 @@ export class UserServiceSingleton {
 
 @nestjs.Injectable({ scope: nestjs.Scope.REQUEST })
 export class UserService extends UserServiceSingleton {
-  constructor(public projectService: ProjectService, public utils: UtilsService, public fileService: FileService) {
-    super(projectService, utils, fileService);
+  constructor(
+    public repo: AppRepository,
+    public projectService: ProjectService,
+    public utils: UtilsService,
+    public fileService: FileService,
+  ) {
+    super(repo, projectService, utils, fileService);
   }
 }

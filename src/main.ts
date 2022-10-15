@@ -32,9 +32,8 @@ async function bootstrap() {
 
     const host = process.env.HOST || '127.0.0.1';
     const port = process.env.PORT || 3000;
-    console.log(`Server starting at ${host}:${port}`);
     await app.listen(port, host);
-    console.log(`Server started at ${host}:${port}`);
+    console.log(`Application is running on: ${await app.getUrl()}`);
   } catch (err) {
     console.log('abortOnError catched', { err });
   }

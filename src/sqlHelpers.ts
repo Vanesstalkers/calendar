@@ -30,7 +30,7 @@ export function selectProjectToUserLink(
       END) AS "userIconFileId"`,
   ];
   if (config.showLinkConfig) select.push('p2u."config"');
-  const where = ['p2u."deleteTime" IS NULL'];
+  const where = ['p2u."deleteTime" IS NULL', `_u.id IS NOT NULL`];
 
   if (config.addUserData) {
   }

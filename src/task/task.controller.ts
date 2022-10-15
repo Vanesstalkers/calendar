@@ -27,9 +27,6 @@ import {
   taskGetAllQueryExecutorsDTO,
   taskGetAllQuerySwaggerI,
   taskSearchQueryDTO,
-  taskUserLinkFullDTO,
-  taskFullDTO,
-  taskUserLinkDTO,
   taskUpdateDTO,
 } from './task.dto';
 

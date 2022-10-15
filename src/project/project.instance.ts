@@ -63,9 +63,12 @@ export class ProjectInstanceSingleton {
    * @throws `Access denied to change key ("${key}") of personal project (id=${this.id}).`
    */
   validateDataForUpdate(data: projectUpdateQueryDataDTO) {
-    if (this.isPersonal()) {
-      for (const key of Object.keys(data)) {
-        if (['title', 'personal'].includes(key)) {
+    for (const key of Object.keys(data)) {
+      if (['personal'].includes(key)) {
+        throw new nestjs.BadRequestException(`Access denied to change key ("${key}") of project (id=${this.id}).`);
+      }
+      if (this.isPersonal()) {
+        if (['title'].includes(key)) {
           throw new nestjs.BadRequestException(
             `Access denied to change key ("${key}") of personal project (id=${this.id}).`,
           );

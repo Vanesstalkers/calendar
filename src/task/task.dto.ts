@@ -95,8 +95,6 @@ class userRegularDTO {
 }
 
 export class taskDTO {
-  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
-  id?: number;
   @swagger.ApiPropertyOptional({ description: 'Заголовок задачи', type: 'string' })
   title?: string;
   @swagger.ApiPropertyOptional({ description: 'Описание задачи', type: 'string' })
@@ -144,11 +142,12 @@ export class taskFullDTO extends taskDTO {
     example: '2022-07-08T20:00:00.000Z',
   })
   execEndTime?: string;
-  @swagger.ApiPropertyOptional({ description: 'фактический исполнитель', type: 'number | null', example: 0 })
+  @swagger.ApiPropertyOptional({ description: 'Фактический исполнитель', type: 'number | null', example: 0 })
   execUserId?: number;
   @swagger.ApiPropertyOptional({ description: 'Чек-лист', type: [taskTickDTO] })
   tickList?: taskTickDTO[];
   projectId?: number;
+  @swagger.ApiPropertyOptional({ description: 'ID пользователя - автора задачи', type: 'number | null', example: 0 })
   ownUserId?: number;
   ownUser?: projectUserLinkDTO;
   deleteTime?: Date;
@@ -244,6 +243,8 @@ export class taskGetOneQueryDTO {
 }
 
 export class taskGetOneAnswerDTO extends taskFullDTO {
+  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
+  id?: number;
   @swagger.ApiProperty({ description: 'ID проекта' })
   projectId: number;
   @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })

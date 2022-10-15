@@ -1,6 +1,5 @@
 import * as swagger from '@nestjs/swagger';
 
-import { taskDTO } from '../task/task.dto';
 import { fileDTO, fileListItemDTO, fileUploadQueryFileDTO } from '../file/file.dto';
 
 export class projectToUserConfigFiltersDTO {
@@ -218,17 +217,6 @@ export class projectDeleteUserQueryDTO {
 export class projectDeleteUserAnswerDTO {
   @swagger.ApiPropertyOptional({ description: 'ID сменного проекта (когда был удален текущий проект)' })
   redirectProjectId: number;
-}
-
-class projectGetOneAnswerTaskDTO extends taskDTO {
-  @swagger.ApiProperty({ description: 'ID задачи', type: 'number', example: 0 })
-  taskId?: number;
-  @swagger.ApiProperty({ description: 'Автор задачи', type: () => projectToUserGetOneDTO })
-  ownUser: projectUserLinkDTO;
-  @swagger.ApiProperty({ description: 'Количество комментариев', type: 'number', example: 0 })
-  commentCount: number;
-  @swagger.ApiProperty({ description: 'Файлы задачи', type: [fileListItemDTO] })
-  fileList: fileListItemDTO[];
 }
 
 export class projectGetOneAnswerDTO {
