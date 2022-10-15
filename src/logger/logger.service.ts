@@ -54,11 +54,11 @@ export class LoggerServiceSingleton {
         const traceList = this.getTraceList();
         const sqlLogs = traceList.filter((logItem) => logItem.sql);
         const baseLog = traceList.filter((logItem) => !logItem.sql).reduce((acc, item) => ({ ...acc, ...item }), {});
-        await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
+        if(this.db) await this.db.collection(col).insertMany([baseLog, ...sqlLogs]);
         return traceList[0]?.traceId;
       } else if (this.finalized) {
         // сюда попадут части логов, которые записывались в файлы (в случае ошибки запроса к БД они отработают позже)
-        await this.db.collection(col).insertMany([...insertData]);
+        if(this.db) await this.db.collection(col).insertMany([...insertData]);
       }
     } catch (err) {
       console.log('sendLog err', err);

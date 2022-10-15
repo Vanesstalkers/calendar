@@ -1,0 +1,44 @@
+cache: &global_cache
+  key:
+    files:
+      - package-lock.json
+
+  paths:
+    - .npm/
+
+stages:
+  - release
+  - deploy
+
+make docker image:
+  stage: release
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker login --username gitlab-ci-token --password $CI_BUILD_TOKEN registry.gitlab.com
+    - docker build -t registry.gitlab.com/profeat/calendar/$CI_PROJECT_NAME:$CI_COMMIT_SHORT_SHA .
+    - docker push registry.gitlab.com/profeat/calendar/$CI_PROJECT_NAME:$CI_COMMIT_SHORT_SHA
+  only:
+    - master
+    - develop
+    - dev
+    - deploy
+
+deploy:
+  stage: deploy
+  image: alexandersh/kubernetes-deploy
+  before_script:
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - echo ${K8S_CONFIG_CALENDAR} | base64 -d > ~/kubeconfig
+    - export KUBECONFIG=~/kubeconfig
+  script:
+    - envsubst < deploy/development.template > deploy/calendar.development.template
+    - kubectl apply -f deploy/calendar.development.template -n development
+  only:
+    - master
+    - develop
+    - dev
+    - deploy
+

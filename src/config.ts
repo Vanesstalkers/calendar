@@ -32,9 +32,10 @@ export function getConfig() {
     pg: process.env.PGHOST
       ? {
           host: process.env.PGHOST,
+          port: process.env.PGPORT,
           username: process.env.PGUSER,
           password: process.env.PGPASSWORD,
-          database: 'calendar',
+          database: process.env.PGDATABASE || 'calendar',
           dialect: 'postgres',
         }
       : process.env.MODE === 'PROD'
@@ -46,18 +47,20 @@ export function getConfig() {
       ? {
           host: process.env.REDIS_HOST,
           port: process.env.REDIS_PORT,
+          password: process.env.REDIS_PASS,
         }
       : process.env.MODE === 'PROD'
       ? redis?.production || {}
       : process.env.MODE === 'TEST'
       ? redis?.test || {}
       : redis?.development || {},
-    mongo:
-      process.env.MONGO_URI || process.env.MODE === 'PROD'
-        ? mongo?.production
-        : process.env.MODE === 'TEST'
-        ? mongo?.test
-        : mongo?.development,
+    mongo: process.env.MONGO_URI
+      ? process.env.MONGO_URI
+      : process.env.MODE === 'PROD'
+      ? mongo?.production
+      : process.env.MODE === 'TEST'
+      ? mongo?.test
+      : mongo?.development,
     greensms: process.env.GREENSMS_URL
       ? {
           url: process.env.GREENSMS_URL,

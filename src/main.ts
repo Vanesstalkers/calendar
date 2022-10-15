@@ -2,40 +2,39 @@ import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import secureSession from '@fastify/secure-session';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import * as stream from 'stream';
 
 import { AppModule } from './app.module';
-import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 async function bootstrap() {
   try {
     const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
       abortOnError: false,
-      logger: false,
+      // logger: false,
     });
     app.register(require('@fastify/multipart'), {
       fileSize: 1000000,
       //attachFieldsToBody: 'keyValues',
     });
-
     app.enableCors({ origin: true, credentials: true });
     await app.register(secureSession, {
       secret: 'averylogphrasebiggerthanthirtytwochars',
       salt: 'mq9hDxBVDbspDR6n',
       cookie: { path: '/', sameSite: 'none', secure: true, maxAge: 86400 },
     });
-
-    // app.useGlobalFilters(new UniversalExceptionFilter(app.get(HttpAdapterHost)));
-
-    const swaggerConfig = new DocumentBuilder()
+    let swaggerConfig = new DocumentBuilder()
       .setTitle('API description')
       .setDescription('')
       .setVersion('1.0')
+      .addServer(process.env.MODE === 'PROD' ? '/api' : '/')
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api', app, document);
+    SwaggerModule.setup('docs', app, document);
 
-    await app.listen(process.env.PORT || 3000);
+    const host = process.env.HOST || '127.0.0.1';
+    const port = process.env.PORT || 3000;
+    console.log(`Server starting at ${host}:${port}`);
+    await app.listen(port, host);
+    console.log(`Server started at ${host}:${port}`);
   } catch (err) {
     console.log('abortOnError catched', { err });
   }
@@ -67,4 +66,5 @@ async function bootstrap() {
   //   });
   // });
 }
+
 bootstrap();

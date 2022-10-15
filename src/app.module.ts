@@ -23,6 +23,7 @@ import { UniversalExceptionFilter } from './common/filters/exception.filter';
 
 import { getConfig } from './config';
 const config = getConfig();
+console.log({ config });
 
 var dbImport: nestjs.DynamicModule, cacheImport: nestjs.DynamicModule;
 
@@ -49,8 +50,10 @@ try {
     cacheImportOpts = {
       ...cacheImportOpts,
       ...config.redis,
+      no_ready_check: true,
       store: redisStore,
     };
+    console.log({cacheImportOpts, config: config.redis, env: process.env.REDIS_PASS});
   }
   cacheImport = nestjs.CacheModule.register<ClientOpts>(cacheImportOpts);
 } catch (err) {

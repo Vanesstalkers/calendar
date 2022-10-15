@@ -15,7 +15,7 @@ export function selectProjectToUserLink(
     showLinkConfig?: boolean;
   },
 ) {
-  const join = [];
+  const join = ['LEFT JOIN "user" AS _u ON _u.id = p2u."userId" AND _u."deleteTime" IS NULL'];
   const select = [
     'p2u."id" AS "projectToUserLinkId"',
     '"userId"',
@@ -23,29 +23,21 @@ export function selectProjectToUserLink(
     '"role"',
     '"position"',
     'p2u."personal"',
-    '"userName"',
+    '(CASE WHEN "userName" IS NOT NULL THEN "userName" ELSE _u."name" END) as "userName"',
     `(CASE WHEN p2u.config ->> 'userIconFileId' IS NOT NULL
         THEN CAST(p2u.config ->> 'userIconFileId' AS INTEGER)
-        ELSE (SELECT CAST(config ->> 'iconFileId' AS INTEGER) FROM "user" WHERE "id" = u.id)  
+        ELSE (SELECT CAST(config ->> 'iconFileId' AS INTEGER) FROM "user" WHERE "id" = _u.id)  
       END) AS "userIconFileId"`,
   ];
   if (config.showLinkConfig) select.push('p2u."config"');
   const where = ['p2u."deleteTime" IS NULL'];
 
   if (config.addUserData) {
-    join.push('LEFT JOIN "user" AS u ON u.id = p2u."userId" AND u."deleteTime" IS NULL');
-    select.push('(CASE WHEN "userName" IS NOT NULL THEN "userName" ELSE u."name" END) as "userName"');
-    select.push(`
-      (CASE WHEN p2u.config ->> 'userIconFileId' IS NOT NULL
-        THEN CAST(p2u.config ->> 'userIconFileId' AS INTEGER)
-        ELSE (SELECT CAST(config ->> 'iconFileId' AS INTEGER) FROM "user" WHERE "id" = u.id)  
-      END) AS "userIconFileId"
-    `);
   }
 
   if (config.skipForeignPersonalProject) config.addProjectData = true;
   if (config.addProjectData) {
-    join.push('LEFT JOIN "project" as p ON p.id = p2u."projectId" AND u."deleteTime" IS NULL');
+    join.push('LEFT JOIN "project" as p ON p.id = p2u."projectId" AND _u."deleteTime" IS NULL');
     select.push('p."title"');
     select.push(`CAST(p.config ->> 'iconFileId' AS INTEGER) AS "projectIconFileId"`);
 

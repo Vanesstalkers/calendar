@@ -17,6 +17,11 @@ describe('UserController /user/auth (e2e)', () => {
     app = await prepareApp(moduleFixture);
   });
 
+  afterAll(async () => {
+    await app.close();
+    await moduleFixture.close();
+  });
+
   it('/user/auth (POST) ok', async () => {
     const query: InjectOptions = getUserAuthQuery({});
     const result = await app.inject(query);
@@ -91,10 +96,5 @@ describe('UserController /user/auth (e2e)', () => {
     expect(payload2.msg.match(/Wait \d\d seconds before next attempt./gm)).not.toEqual(null);
     expect(payload2.path).toEqual('/user/auth');
     expect(payload2.timestamp).toBeDefined();
-  });
-
-  afterAll(async () => {
-    await app.close();
-    await moduleFixture.close();
   });
 });

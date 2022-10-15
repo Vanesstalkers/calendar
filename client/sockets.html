@@ -9,7 +9,7 @@
       console.log('--- starting');
       let socket;
       (async () => {
-        socket = io(location.origin);
+        socket = io(location.origin, { path: location.href.includes('/api/') ? '/api/socket.io' : '' });
         window.socket = socket;
         socket.on('connect', async function () {
           console.log('Connected, socket.id=', socket.id);
@@ -21,8 +21,12 @@
           console.log('Disconnected');
         });
         socket.on('message', function (data) {
-          console.log(data);
-          document.getElementById('msg').innerHTML = data;
+          console.log('message', data);
+          document.getElementById('msg').innerHTML = 'message: ' + data;
+        });
+        socket.on('updateData', function (data) {
+          console.log('updateData', data);
+          document.getElementById('msg').innerHTML = 'updateData: ' + data;
         });
         socket.on('switchProject', function (data) {
           console.log(data);

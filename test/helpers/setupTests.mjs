@@ -1,5 +1,12 @@
-import { readFileSync, writeFileSync } from 'fs';
+import { readFile, stat, unlink, writeFile } from 'fs/promises';
 import { Sequelize } from 'sequelize';
+
+async function unlinkIfExists(path) {
+  try {
+    await stat(path);
+    await unlink(path);
+  } catch (error) {}
+}
 
 async function prepare() {
   try {
@@ -12,8 +19,8 @@ async function prepare() {
       }
       phonesArr.push(phone);
     }
-    writeFileSync('test/helpers/constants.json', JSON.stringify({ phones: phonesArr }, null, 2));
-    const { test } = JSON.parse(readFileSync('config/database/postgres/config.json'));
+    await writeFile('test/helpers/constants.json', JSON.stringify({ phones: phonesArr }, null, 2));
+    const { test } = JSON.parse(await readFile('config/database/postgres/config.json'));
     const sequelize = new Sequelize({
       ...test,
       dialect: 'postgres',
@@ -21,8 +28,18 @@ async function prepare() {
       synchronize: false, // если удалить или поставить в true, то начнет перетирать данные
       logging: false,
     });
-    const sql = `
+    // clear files
+    const filesListSql = `
       --psql
+      SELECT "link" FROM "file"
+      WHERE config->>'fake' = 'true';`;
+    const filesListResult = await sequelize.query(filesListSql, {});
+    const filesList = filesListResult[0].map((item) => item.link);
+    for (let index = 0; index < filesList.length; index++) {
+      await unlinkIfExists(`uploads/${filesList[index]}`);
+    }
+    // clear DB
+    const deleteSql = `--psql
       DELETE FROM "user"
       WHERE config->>'fake' = 'true';
       DELETE FROM "comment"
@@ -45,9 +62,9 @@ async function prepare() {
       WHERE config->>'fake' = 'true';
       DELETE FROM "user"
       WHERE phone IN (${phonesArr.map((phone) => `'${phone}'`).join(', ')});`;
-    await sequelize.query(sql, {});
+    await sequelize.query(deleteSql, {});
     await sequelize.close();
-    console.log('DB clear finished');
+    console.log('data clear finished');
   } catch (err) {
     console.log({ err });
   }
